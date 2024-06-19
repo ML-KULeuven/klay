@@ -185,7 +185,7 @@ void layerize(Node* node, std::unordered_set<int>& visited, std::unordered_map<i
             merkle[dummy->hash] = dummy;
             child = dummy;
         }
-        node->children[i] = child;
+        node->children[i] = merkle[child->hash];
     }
     merkle[node->hash] = node;
 }
