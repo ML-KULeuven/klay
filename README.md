@@ -11,9 +11,9 @@ Install the Python dependencies:
 pip install -r requirements
 ```
 
-Run some examples:
+Run some tests:
 ```bash
-python examples/pysdd_torch_test.py
+python main.py
 ```
 
 I only tested with Python 3.12 on ARM Mac, but other platforms should work as well.
