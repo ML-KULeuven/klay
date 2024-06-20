@@ -13,19 +13,19 @@ struct Node {
     NodeType type;
     int ix;  // Index of the node in its layer
     std::vector<Node*> children;
-    unsigned int depth; // Layer index
+    unsigned int layer; // Layer index
     long hash; // unique identifier of the node
 
     void add(Node* child) {
         children.push_back(child);
         hash += std::hash<std::string>{}(std::to_string(child->hash));
-        if (child->depth + 1 > depth) {
-            depth = child->depth+1;
+        if (child->layer + 1 > layer) {
+            layer = child->layer+1;
         }
         if (type == NodeType::Or) {
-            assert(depth%2 == 0);
+            assert(layer%2 == 0);
         } else if (type == NodeType::And) {
-            assert(depth%2 == 1);
+            assert(layer%2 == 1);
         } else {
             assert(false);
         }
@@ -45,7 +45,7 @@ struct Node {
 
     Node* dummy_parent() {
         Node* dummy;
-        if (depth % 2 == 0) {
+        if (layer % 2 == 0) {
             dummy = createAndNode();
         } else {
             dummy = createOrNode();
@@ -109,7 +109,7 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
     }
 
     std::vector<int> nodeIds = {};
-    unsigned int maxDepth = 0;
+    unsigned int maxlayer = 0;
 
     std::string line;
     while (std::getline(file, line)) {
@@ -155,14 +155,14 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
             }
             nodeIds[nodeId] = nodes.size();
             nodes.push_back(or_node);
-            maxDepth = std::max(maxDepth, or_node->depth);
+            maxlayer = std::max(maxlayer, or_node->layer);
         } else {
             std::cerr << "Could not parse: " << line << std::endl;
         }
 
     }
     file.close();
-    return maxDepth;
+    return maxlayer;
 }
 
 
@@ -190,7 +190,7 @@ Node* add_node(Node* node, std::unordered_map<int, Node*>& merkle) {
 void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) {
     // 1. Inserts the nodes in a merkle tree
     //    (layerize can be reapplied with same merkle to merge circuits)
-    // 2. Assures that all children of a node have the same depth
+    // 2. Assures that all children of a node have the same layer
     // 3. Assures that all nodes inner have the same arity.
 
     std::vector<std::size_t> arity = {};
@@ -200,8 +200,8 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
             // Update pointer as the child might have been merged
             node->children[i] = merkle[node->children[i]->hash];
 
-            // Add a chain of dummy nodes to bring child to the correct depth
-            while (node->children[i]->depth < node->depth-1) {
+            // Add a chain of dummy nodes to bring child to the correct layer
+            while (node->children[i]->layer < node->layer-1) {
                 Node* dummy = node->children[i]->dummy_parent();
                 node->children[i] = add_node(dummy, merkle);
             }
@@ -211,10 +211,10 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
         node = add_node(node, merkle);
 
         // Update the arity of the node's layer
-        while (node->depth >= arity.size()) {
+        while (node->layer >= arity.size()) {
             arity.push_back(0);
         }
-        arity[node->depth] = std::max(arity[node->depth], node->children.size());
+        arity[node->layer] = std::max(arity[node->layer], node->children.size());
     }
 
 
@@ -237,8 +237,8 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
     // Fill up the arity of the nodes with neutral elements
     for (const auto &[_, node]: merkle) {
         if (node->type == NodeType::And || node->type == NodeType::Or) {
-            for (int i = node->children.size(); i < arity[node->depth]; ++i) {
-                node->children.push_back(neutral_elements[node->depth-1]);
+            for (int i = node->children.size(); i < arity[node->layer]; ++i) {
+                node->children.push_back(neutral_elements[node->layer-1]);
             }
         }
     }
@@ -251,13 +251,13 @@ void tensorize(std::unordered_map<int, Node*>& merkle) {
 
     // Assign a layer index to each node
     for (const auto &[_, node]: merkle) {
-        while (node->depth >= widths.size()) {
+        while (node->layer >= widths.size()) {
             widths.push_back(2);
         }
         if (node->type == NodeType::Leaf) {
-            widths[node->depth] = std::max(widths[node->depth], node->ix + 1);
+            widths[node->layer] = std::max(widths[node->layer], node->ix + 1);
         } else if (node->ix == -1) {
-            node->ix = widths[node->depth]++;
+            node->ix = widths[node->layer]++;
         }
     }
 
@@ -278,11 +278,11 @@ void tensorize(std::unordered_map<int, Node*>& merkle) {
                     << " has uninitialized child " << child->get_label() << std::endl;
                 std::cerr << child->ix << " <-> " << merkle[child->hash]->ix << std::endl;
             }
-            if (child->ix >= widths[child->depth]) {
+            if (child->ix >= widths[child->layer]) {
                 std::cerr << "[WARNING]: Node " << node->get_label()
                     << " has child " << child->get_label() << " with invalid index " << child->ix << std::endl;
             }
-            layers[node->depth][node->ix].push_back(child->ix);
+            layers[node->layer][node->ix].push_back(child->ix);
         }
     }
 
