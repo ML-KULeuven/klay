@@ -8,7 +8,7 @@ KLay makes circuits go brrr on the gpu.
 
 Install the Python dependencies:
 ```bash
-pip install -r requirements
+pip install -r requirements.txt
 ```
 
 Run some tests:
