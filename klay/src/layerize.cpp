@@ -187,36 +187,17 @@ Node* add_node(Node* node, std::unordered_map<int, Node*>& merkle) {
     return merkle[node->hash];
 }
 
-void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) {
+void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle, unsigned int nbLayers) {
     // 1. Inserts the nodes in a merkle tree
     //    (layerize can be reapplied with same merkle to merge circuits)
     // 2. Assures that all children of a node have the same layer
     // 3. Assures that all nodes inner have the same arity.
 
-    std::vector<std::size_t> arity = {};
-
+    // Compute the arity of each layer
+    std::vector<std::size_t> arity(nbLayers, 0);
     for (Node* node : nodes) {
-        for (unsigned int i = 0; i < node->children.size(); ++i) {
-            // Update pointer as the child might have been merged
-            node->children[i] = merkle[node->children[i]->hash];
-
-            // Add a chain of dummy nodes to bring child to the correct layer
-            while (node->children[i]->layer < node->layer-1) {
-                Node* dummy = node->children[i]->dummy_parent();
-                node->children[i] = add_node(dummy, merkle);
-            }
-        }
-
-        // insert node in the merkle DAG
-        node = add_node(node, merkle);
-
-        // Update the arity of the node's layer
-        while (node->layer >= arity.size()) {
-            arity.push_back(0);
-        }
         arity[node->layer] = std::max(arity[node->layer], node->children.size());
     }
-
 
     // Add True and False to the merkle (in case they don't exist in the circuit)
     Node* true_node = add_node(createTrueNode(), merkle);
@@ -234,10 +215,27 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
         }
     }
 
+
+    for (Node* node : nodes) {
+        for (unsigned int i = 0; i < node->children.size(); ++i) {
+            // Update pointer as the child might have been merged
+            node->children[i] = merkle[node->children[i]->hash];
+
+            // Add a chain of dummy nodes to bring child to the correct layer
+            while (node->children[i]->layer < node->layer-1) {
+                Node* dummy = node->children[i]->dummy_parent();
+                node->children[i] = add_node(dummy, merkle);
+            }
+        }
+
+        // insert node in the merkle DAG
+        add_node(node, merkle);
+    }
+
     // Fill up the arity of the nodes with neutral elements
     for (const auto &[_, node]: merkle) {
         if (node->type == NodeType::And || node->type == NodeType::Or) {
-            for (int i = node->children.size(); i < arity[node->layer]; ++i) {
+            for (std::size_t i = node->children.size(); i < arity[node->layer]; ++i) {
                 node->children.push_back(neutral_elements[node->layer-1]);
             }
         }
@@ -245,31 +243,24 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
 }
 
 
-void tensorize(std::unordered_map<int, Node*>& merkle) {
+void tensorize(std::unordered_map<int, Node*>& merkle, unsigned int nbLayers) {
     // Width of every layer. Width is at least 2 (for True and False nodes)
-    std::vector<int> widths = {2};
+    std::vector<int> widths(nbLayers, 2);
 
     // Assign a layer index to each node
     for (const auto &[_, node]: merkle) {
-        while (node->layer >= widths.size()) {
-            widths.push_back(2);
-        }
-        if (node->type == NodeType::Leaf) {
-            widths[node->layer] = std::max(widths[node->layer], node->ix + 1);
-        } else if (node->ix == -1) {
+        if (node->ix == -1) {
             node->ix = widths[node->layer]++;
         }
     }
 
     // Create the tensors
-    std::vector<std::vector<std::vector<int>>> layers = {};
+    std::vector<std::vector<std::vector<int>>> layers(nbLayers);
     for (unsigned int i = 0; i < widths.size(); ++i) {
-        std::vector<std::vector<int>> layer = {};
         for (int j = 0; j < widths[i]; ++j) {
             std::vector<int> node = {};
-            layer.push_back(node);
+            layers[i].push_back(node);
         }
-        layers.push_back(layer);
     }
     for (const auto& [_, node] : merkle) {
         for (Node* child : node->children) {
@@ -277,10 +268,6 @@ void tensorize(std::unordered_map<int, Node*>& merkle) {
                 std::cerr << "[WARNING]: Node " << node->get_label()
                     << " has uninitialized child " << child->get_label() << std::endl;
                 std::cerr << child->ix << " <-> " << merkle[child->hash]->ix << std::endl;
-            }
-            if (child->ix >= widths[child->layer]) {
-                std::cerr << "[WARNING]: Node " << node->get_label()
-                    << " has child " << child->get_label() << " with invalid index " << child->ix << std::endl;
             }
             layers[node->layer][node->ix].push_back(child->ix);
         }
@@ -309,7 +296,7 @@ void brr(const std::string &filename) {
     // to_dot_file(map, "layerized.dot");
 
     std::unordered_map<int, Node*> merkle = {};
-    layerize(sdd, merkle);
-    tensorize(merkle);
+    layerize(sdd, merkle, sdd_depth+1);
+    tensorize(merkle, sdd_depth+1);
     // to_dot_file(merkle, "tensorized.dot");
 }
