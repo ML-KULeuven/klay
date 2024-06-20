@@ -14,11 +14,11 @@ struct Node {
     int ix;  // Index of the node in its layer
     std::vector<Node*> children;
     unsigned int depth; // Layer index
-    int hash; // unique identifier of the node
+    long hash; // unique identifier of the node
 
     void add(Node* child) {
         children.push_back(child);
-        hash += child->hash;
+        hash += std::hash<std::string>{}(std::to_string(child->hash));
         if (child->depth + 1 > depth) {
             depth = child->depth+1;
         }
@@ -120,35 +120,37 @@ void parseSDDFile(const std::string& filename, std::unordered_map<int, Node*>& n
         if (type == "sdd") {
             // This line contains the count of SDD nodes, which we can ignore for now.
             continue;
-        } else if (type == "F" || type == "T" || type == "L" || type == "D") {
-            int id;
-            iss >> id;
-
-            if (type == "F") {
-                nodes[id] = createFalseNode();
-            } else if (type == "T") {
-                nodes[id] = createTrueNode();
-            } else if (type == "L") {
-                int vtree, literal;
-                iss >> vtree >> literal;
-                Node* leafNode = createLiteralNode(literal);
-                nodes[id] = leafNode;
-            } else if (type == "D") {
-                int vtree, numElements;
-                iss >> vtree >> numElements;
-                std::vector<Node*> children;
-                Node* or_node = createOrNode();
-                for (int i = 0; i < numElements; ++i) {
-                    int primeId, subId;
-                    iss >> primeId >> subId;
-                    Node* and_node = createAndNode();
-                    and_node->add(nodes[primeId]);
-                    and_node->add(nodes[subId]);
-                    or_node->add(and_node);
-                }
-                nodes[id] = or_node;
-            }
         }
+        unsigned int nodeId;
+        iss >> nodeId;
+
+        if (type == "F") {
+            nodes[nodeId] = createFalseNode();
+        } else if (type == "T") {
+            nodes[nodeId] = createTrueNode();
+        } else if (type == "L") {
+            int vtree, literal;
+            iss >> vtree >> literal;
+            Node* leafNode = createLiteralNode(literal);
+            nodes[nodeId] = leafNode;
+        } else if (type == "D") {
+            int vtree, numElements;
+            iss >> vtree >> numElements;
+            Node* or_node = createOrNode();
+            for (int i = 0; i < numElements; ++i) {
+                int primeId, subId;
+                iss >> primeId >> subId;
+                Node* and_node = createAndNode();
+                and_node->add(nodes[primeId]);
+                and_node->add(nodes[subId]);
+                nodes[and_node->hash] = and_node;
+                or_node->add(and_node);
+            }
+            nodes[nodeId] = or_node;
+        } else {
+            std::cerr << "Could not parse: " << line << std::endl;
+        }
+
     }
     file.close();
 }
@@ -178,14 +180,14 @@ void layerize(Node* node, std::unordered_set<int>& visited, std::unordered_map<i
     visited.insert(node->hash);
 
     for (unsigned int i = 0; i < node->children.size(); ++i) {
-        Node* child = node->children[i];
-        layerize(child, visited, merkle);
-        while (child->depth < node->depth-1) {
-            Node* dummy = child->dummy_parent();
+        layerize(node->children[i], visited, merkle);
+        // Update pointer as the child might have been merged
+        node->children[i] = merkle[node->children[i]->hash];
+        while (node->children[i]->depth < node->depth-1) {
+            Node* dummy = node->children[i]->dummy_parent();
             merkle[dummy->hash] = dummy;
-            child = dummy;
+            node->children[i] = dummy;
         }
-        node->children[i] = merkle[child->hash];
     }
     merkle[node->hash] = node;
 }
@@ -253,7 +255,8 @@ void tensorize(std::unordered_map<int, Node*>& merkle) {
     }
     for (const auto& [_, node] : merkle) {
         for (Node* child : node->children) {
-            layers[node->depth][node->ix].push_back(child->ix);
+            // TODO: fix
+            layers[node->depth][node->ix].push_back(merkle[child->hash]->ix);
         }
     }
 
@@ -278,11 +281,11 @@ void brr(const std::string &filename) {
     std::unordered_map<int, Node*> map = {};
     parseSDDFile(filename, map);
     Node* root = map[0];
+    // to_dot_file(map, "layerized.dot");
 
     std::unordered_map<int, Node*> merkle = {};
     std::unordered_set<int> visited = {};
     layerize(root, visited, merkle);
-    to_dot_file(merkle, "layerized.dot");
     tensorize(merkle);
-    to_dot_file(merkle, "tensorized.dot");
+    // to_dot_file(merkle, "tensorized.dot");
 }

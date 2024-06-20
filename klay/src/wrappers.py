@@ -1,4 +1,26 @@
 from .. import __lib
+from .backends import torch_backend
+
+
+def parse_tensors(file_name):
+    import numpy as np
+
+    with open(file_name, 'r') as f:
+        lines = f.readlines()
+
+    layers = []
+    for line in lines:
+        line = line.strip()
+        if line.startswith("Layer"):
+            layer = []
+            layers.append(layer)
+        else:
+            layer.append([int(x) for x in line.split(" ")])
+    layers = [np.array(layer) for layer in layers]
+    for layer in layers:
+        assert np.all(layer >= 0)
+    return layers
+
 
 # This file contains python wrappers for our C++ functions.
 # The whole purpose of that is to make it easier for
