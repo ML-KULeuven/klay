@@ -1,16 +1,31 @@
+import math
+
 import torch
+
+def log1mexp(x):
+    """
+    Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
+    See [Maechler2012accurate]_ for details.
+    https://github.com/pytorch/pytorch/issues/39242
+    """
+    mask = -math.log(2) < x  # x < 0
+    return torch.where(
+        mask,
+        (-x.expm1()).log(),
+        (-x.exp()).log1p(),
+    )
 
 
 def encode_input(pos, neg=None):
     if neg is None:
-        neg = 1 - pos
+        neg = log1mexp(pos)
 
     shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
     result = torch.empty(shape)
     result[2::2] = pos
     result[3::2] = neg
-    result[0] = 0
-    result[1] = 1
+    result[0] = float('-inf')
+    result[1] = 0
     return result
 
 
@@ -27,8 +42,6 @@ class KnowledgeLayer(torch.nn.Module):
 
     def forward(self, x):
         x = encode_input(x)
-        # print("INPUT")
-        # print(x)
         return self.layers(x)
 
 
@@ -38,9 +51,7 @@ class SumLayer(torch.nn.Module):
         self.indices = indices
 
     def forward(self, x):
-        #print("SUM")
-        result = x[self.indices].sum(axis=1)
-        # print(result)
+        result = torch.logsumexp(x[self.indices], dim=1)
         return result
 
 
@@ -50,7 +61,5 @@ class ProductLayer(torch.nn.Module):
         self.indices = indices
 
     def forward(self, x):
-        # print("PROD")
-        result = x[self.indices].prod(axis=1)
-        # print(result)
+        result = x[self.indices].sum(dim=1)
         return result

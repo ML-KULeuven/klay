@@ -225,10 +225,8 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
 
     // Make sure we have True/False in every layer (except the last)
     for (std::size_t i = 1; i < arity.size()-1; ++i) {
-        true_node = true_node->dummy_parent();
-        false_node = false_node->dummy_parent();
-        true_node = add_node(true_node, merkle);
-        false_node = add_node(false_node, merkle);
+        true_node = add_node(true_node->dummy_parent(), merkle);
+        false_node = add_node(false_node->dummy_parent(), merkle);
         if (i % 2 == 0) {
             neutral_elements.push_back(true_node);
         } else {
@@ -240,7 +238,7 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle) 
     for (const auto &[_, node]: merkle) {
         if (node->type == NodeType::And || node->type == NodeType::Or) {
             for (int i = node->children.size(); i < arity[node->depth]; ++i) {
-                node->add(neutral_elements[node->depth-1]);
+                node->children.push_back(neutral_elements[node->depth-1]);
             }
         }
     }
