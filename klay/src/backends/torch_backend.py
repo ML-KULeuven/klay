@@ -67,15 +67,15 @@ class ProductLayer(torch.nn.Module):
         self.indices = indices
 
     def forward(self, x):
-        print("PROD")
+        # print("PROD")
         result = x[self.indices].prod(axis=1)
-        print(result)
+        # print(result)
         return result
 
 
 if __name__ == "__main__":
     tensors = parse_tensors("tensors.txt")
     kl = KnowledgeLayer(tensors)
-    x = torch.tensor([.5, .4, .3, .2, .1, .0, .9, .8, .7, .6])
+    x = torch.tensor([.5, .4, .3, .2, .1, .9, .8, .7, .6])
     print(kl(x))
 
