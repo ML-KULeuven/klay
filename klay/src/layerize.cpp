@@ -9,16 +9,18 @@
 
 enum NodeType {True, False, Or, And, Leaf};
 
+const std::hash<std::string> hasher = std::hash<std::string>{};
+
 struct Node {
     NodeType type;
     int ix;  // Index of the node in its layer
     std::vector<Node*> children;
     unsigned int layer; // Layer index
-    long hash; // unique identifier of the node
+    unsigned long long hash; // unique identifier of the node
 
     void add(Node* child) {
         children.push_back(child);
-        hash += std::hash<std::string>{}(std::to_string(child->hash));
+        hash += hasher( std::to_string(child->hash));
         if (child->layer + 1 > layer) {
             layer = child->layer+1;
         }
@@ -61,18 +63,24 @@ struct Node {
     }
 };
 
+
+bool operator==(const Node& lhs, const Node& rhs)
+{
+    return lhs.type == rhs.type && lhs.children == rhs.children;
+}
+
 Node* createLiteralNode(int ix) {
     Node* node = new Node();
     node->type = NodeType::Leaf;
     node->ix = 2*std::abs(ix) + (ix > 0 ? 0 : 1);
-    node->hash = std::hash<std::string>{}("L" + std::to_string(ix));
+    node->hash = hasher("L" + std::to_string(ix));
     return node;
 }
 
 Node* createAndNode() {
     Node* node = new Node();
     node->type = NodeType::And;
-    node->hash = std::hash<std::string>{}("And");
+    node->hash = hasher("And");
     node->ix = -1;
     return node;
 }
@@ -80,7 +88,7 @@ Node* createAndNode() {
 Node* createOrNode() {
     Node* node = new Node();
     node->type = NodeType::Or;
-    node->hash = std::hash<std::string>{}("Or");
+    node->hash = hasher("Or");
     node->ix = -1;
     return node;
 }
@@ -88,7 +96,7 @@ Node* createOrNode() {
 Node* createTrueNode() {
     Node* node = new Node();
     node->type = NodeType::True;
-    node->hash = std::hash<std::string>{}("True");
+    node->hash = hasher("True");
     node->ix = 1;
     return node;
 }
@@ -96,7 +104,7 @@ Node* createTrueNode() {
 Node* createFalseNode() {
     Node* node = new Node();
     node->type = NodeType::False;
-    node->hash = std::hash<std::string>{}("False");
+    node->hash = hasher("False");
     return node;
 }
 
@@ -215,7 +223,7 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle, 
         }
     }
 
-
+    // Construct the merkle DAG
     for (Node* node : nodes) {
         for (unsigned int i = 0; i < node->children.size(); ++i) {
             // Update pointer as the child might have been merged
@@ -227,8 +235,6 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle, 
                 node->children[i] = add_node(dummy, merkle);
             }
         }
-
-        // insert node in the merkle DAG
         add_node(node, merkle);
     }
 
@@ -256,7 +262,7 @@ void tensorize(std::unordered_map<int, Node*>& merkle, unsigned int nbLayers) {
 
     // Create the tensors
     std::vector<std::vector<std::vector<int>>> layers(nbLayers);
-    for (unsigned int i = 0; i < widths.size(); ++i) {
+    for (unsigned int i = 0; i < nbLayers; ++i) {
         for (int j = 0; j < widths[i]; ++j) {
             std::vector<int> node = {};
             layers[i].push_back(node);
