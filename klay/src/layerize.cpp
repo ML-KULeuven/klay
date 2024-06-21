@@ -16,7 +16,7 @@ struct Node {
     int ix;  // Index of the node in its layer
     std::vector<Node*> children;
     unsigned int layer; // Layer index
-    unsigned long long hash; // unique identifier of the node
+    long hash; // unique identifier of the node
 
     void add(Node* child) {
         children.push_back(child);
@@ -63,11 +63,6 @@ struct Node {
     }
 };
 
-
-bool operator==(const Node& lhs, const Node& rhs)
-{
-    return lhs.type == rhs.type && lhs.children == rhs.children;
-}
 
 Node* createLiteralNode(int ix) {
     Node* node = new Node();
@@ -174,7 +169,7 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
 }
 
 
-void to_dot_file(std::unordered_map<int, Node*>& circuit, const std::string& filename) {
+void to_dot_file(std::unordered_map<long, Node*>& circuit, const std::string& filename) {
     std::ofstream
     file(filename);
     file << "digraph G {" << std::endl;
@@ -188,14 +183,19 @@ void to_dot_file(std::unordered_map<int, Node*>& circuit, const std::string& fil
 }
 
 
-Node* add_node(Node* node, std::unordered_map<int, Node*>& merkle) {
-    if (!merkle.count(node->hash)) {
+Node* add_node(Node* node, std::unordered_map<long, Node*>& merkle) {
+    if (merkle.count(node->hash) == 0) {
+        // Node is not in the merkle, add it
         merkle[node->hash] = node;
     }
+    if (node->children != merkle[node->hash]->children) {
+        std::cerr << "Hashing conflict found!!! " << node->hash << " " << merkle[node->hash]->hash << std::endl;
+    }
+
     return merkle[node->hash];
 }
 
-void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle, unsigned int nbLayers) {
+void layerize(std::vector<Node*> nodes, std::unordered_map<long, Node*>& merkle, unsigned int nbLayers) {
     // 1. Inserts the nodes in a merkle tree
     //    (layerize can be reapplied with same merkle to merge circuits)
     // 2. Assures that all children of a node have the same layer
@@ -249,7 +249,7 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<int, Node*>& merkle, 
 }
 
 
-void tensorize(std::unordered_map<int, Node*>& merkle, unsigned int nbLayers) {
+void tensorize(std::unordered_map<long, Node*>& merkle, unsigned int nbLayers) {
     // Width of every layer. Width is at least 2 (for True and False nodes)
     std::vector<int> widths(nbLayers, 2);
 
@@ -301,7 +301,7 @@ void brr(const std::string &filename) {
     unsigned int sdd_depth = parseSDDFile(filename, sdd);
     // to_dot_file(map, "layerized.dot");
 
-    std::unordered_map<int, Node*> merkle = {};
+    std::unordered_map<long, Node*> merkle = {};
     layerize(sdd, merkle, sdd_depth+1);
     tensorize(merkle, sdd_depth+1);
     // to_dot_file(merkle, "tensorized.dot");
