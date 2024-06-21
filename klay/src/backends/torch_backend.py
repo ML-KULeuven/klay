@@ -2,6 +2,7 @@ import math
 
 import torch
 
+
 def log1mexp(x):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
@@ -21,7 +22,7 @@ def encode_input(pos, neg=None):
         neg = log1mexp(pos)
 
     shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
-    result = torch.empty(shape)
+    result = torch.empty(shape, dtype=torch.float32).to(pos.device)
     result[2::2] = pos
     result[3::2] = neg
     result[0] = float('-inf')
@@ -34,6 +35,7 @@ class KnowledgeLayer(torch.nn.Module):
         super(KnowledgeLayer, self).__init__()
         self.layers = []
         for i, layer in enumerate(layers):
+            layer = torch.as_tensor(layer)
             if i % 2 == 0:
                 self.layers.append(ProductLayer(layer))
             else:
