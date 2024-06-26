@@ -63,6 +63,25 @@ struct Node {
     }
 };
 
+struct Circuit {
+    // Circuit representation as a Merkle DAG
+    std::unordered_map<long, Node*> nodes;
+    unsigned int nbLayers;
+
+    Node* add_node(Node* node) {
+        if (nodes.count(node->hash) == 0) {
+            // Node is not in the merkle, add it
+            nodes[node->hash] = node;
+        }
+        if (node->children != nodes[node->hash]->children) {
+            std::cerr << "Hashing conflict found!!! " << node->hash << " " << nodes[node->hash]->hash << std::endl;
+        }
+
+        return nodes[node->hash];
+    }
+
+};
+
 
 Node* createLiteralNode(int ix) {
     Node* node = new Node();
@@ -183,39 +202,27 @@ void to_dot_file(std::unordered_map<long, Node*>& circuit, const std::string& fi
 }
 
 
-Node* add_node(Node* node, std::unordered_map<long, Node*>& merkle) {
-    if (merkle.count(node->hash) == 0) {
-        // Node is not in the merkle, add it
-        merkle[node->hash] = node;
-    }
-    if (node->children != merkle[node->hash]->children) {
-        std::cerr << "Hashing conflict found!!! " << node->hash << " " << merkle[node->hash]->hash << std::endl;
-    }
-
-    return merkle[node->hash];
-}
-
-void layerize(std::vector<Node*> nodes, std::unordered_map<long, Node*>& merkle, unsigned int nbLayers) {
+void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     // 1. Inserts the nodes in a merkle tree
     //    (layerize can be reapplied with same merkle to merge circuits)
     // 2. Assures that all children of a node have the same layer
     // 3. Assures that all nodes inner have the same arity.
 
     // Compute the arity of each layer
-    std::vector<std::size_t> arity(nbLayers, 0);
+    std::vector<std::size_t> arity(circuit.nbLayers, 0);
     for (Node* node : nodes) {
         arity[node->layer] = std::max(arity[node->layer], node->children.size());
     }
 
     // Add True and False to the merkle (in case they don't exist in the circuit)
-    Node* true_node = add_node(createTrueNode(), merkle);
-    Node* false_node = add_node(createFalseNode(), merkle);
+    Node* true_node = circuit.add_node(createTrueNode());
+    Node* false_node = circuit.add_node(createFalseNode());
     std::vector<Node*> neutral_elements = {true_node};
 
     // Make sure we have True/False in every layer (except the last)
     for (std::size_t i = 1; i < arity.size()-1; ++i) {
-        true_node = add_node(true_node->dummy_parent(), merkle);
-        false_node = add_node(false_node->dummy_parent(), merkle);
+        true_node = circuit.add_node(true_node->dummy_parent());
+        false_node = circuit.add_node(false_node->dummy_parent());
         if (i % 2 == 0) {
             neutral_elements.push_back(true_node);
         } else {
@@ -227,19 +234,19 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<long, Node*>& merkle,
     for (Node* node : nodes) {
         for (unsigned int i = 0; i < node->children.size(); ++i) {
             // Update pointer as the child might have been merged
-            node->children[i] = merkle[node->children[i]->hash];
+            node->children[i] = circuit.nodes[node->children[i]->hash];
 
             // Add a chain of dummy nodes to bring child to the correct layer
             while (node->children[i]->layer < node->layer-1) {
                 Node* dummy = node->children[i]->dummy_parent();
-                node->children[i] = add_node(dummy, merkle);
+                node->children[i] = circuit.add_node(dummy);
             }
         }
-        add_node(node, merkle);
+        circuit.add_node(node);
     }
 
     // Fill up the arity of the nodes with neutral elements
-    for (const auto &[_, node]: merkle) {
+    for (const auto &[_, node]: circuit.nodes) {
         if (node->type == NodeType::And || node->type == NodeType::Or) {
             for (std::size_t i = node->children.size(); i < arity[node->layer]; ++i) {
                 node->children.push_back(neutral_elements[node->layer-1]);
@@ -249,31 +256,31 @@ void layerize(std::vector<Node*> nodes, std::unordered_map<long, Node*>& merkle,
 }
 
 
-void tensorize(std::unordered_map<long, Node*>& merkle, unsigned int nbLayers) {
+void tensorize(Circuit& circuit) {
     // Width of every layer. Width is at least 2 (for True and False nodes)
-    std::vector<int> widths(nbLayers, 2);
+    std::vector<int> widths(circuit.nbLayers, 2);
 
     // Assign a layer index to each node
-    for (const auto &[_, node]: merkle) {
+    for (const auto &[_, node]: circuit.nodes) {
         if (node->ix == -1) {
             node->ix = widths[node->layer]++;
         }
     }
 
     // Create the tensors
-    std::vector<std::vector<std::vector<int>>> layers(nbLayers);
-    for (unsigned int i = 0; i < nbLayers; ++i) {
+    std::vector<std::vector<std::vector<int>>> layers(circuit.nbLayers);
+    for (unsigned int i = 0; i < circuit.nbLayers; ++i) {
         for (int j = 0; j < widths[i]; ++j) {
             std::vector<int> node = {};
             layers[i].push_back(node);
         }
     }
-    for (const auto& [_, node] : merkle) {
+    for (const auto& [_, node] : circuit.nodes) {
         for (Node* child : node->children) {
             if (child->ix == -1) {
                 std::cerr << "[WARNING]: Node " << node->get_label()
                     << " has uninitialized child " << child->get_label() << std::endl;
-                std::cerr << child->ix << " <-> " << merkle[child->hash]->ix << std::endl;
+                std::cerr << child->ix << " <-> " << circuit.nodes[child->hash]->ix << std::endl;
             }
             layers[node->layer][node->ix].push_back(child->ix);
         }
@@ -301,8 +308,9 @@ void brr(const std::string &filename) {
     unsigned int sdd_depth = parseSDDFile(filename, sdd);
     // to_dot_file(map, "layerized.dot");
 
-    std::unordered_map<long, Node*> merkle = {};
-    layerize(sdd, merkle, sdd_depth+1);
-    tensorize(merkle, sdd_depth+1);
+    Circuit circuit;
+    circuit.nbLayers = sdd_depth + 1;
+    layerize(sdd, circuit);
+    tensorize(circuit);
     // to_dot_file(merkle, "tensorized.dot");
 }
