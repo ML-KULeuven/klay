@@ -1,4 +1,9 @@
-#include "layerize.h"
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
+
+namespace nb = nanobind;
+
+using namespace nb::literals;
 
 #include <iostream>
 #include <fstream>
@@ -6,10 +11,13 @@
 #include <vector>
 #include <unordered_map>
 
+#include "module.h"
+
 
 enum NodeType {True, False, Or, And, Leaf};
 
 const std::hash<std::string> hasher = std::hash<std::string>{};
+
 
 struct Node {
     NodeType type;
@@ -123,6 +131,8 @@ Node* createFalseNode() {
 }
 
 
+
+
 unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes) {
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -190,7 +200,7 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
 
 void to_dot_file(Circuit& circuit, const std::string& filename) {
     std::ofstream
-    file(filename);
+            file(filename);
     file << "digraph G {" << std::endl;
     for (const auto& [_, node] : circuit.nodes) {
         for (Node *child: node->children) {
@@ -279,7 +289,7 @@ void tensorize(Circuit& circuit) {
         for (Node* child : node->children) {
             if (child->ix == -1) {
                 std::cerr << "[WARNING]: Node " << node->get_label()
-                    << " has uninitialized child " << child->get_label() << std::endl;
+                          << " has uninitialized child " << child->get_label() << std::endl;
                 std::cerr << child->ix << " <-> " << circuit.nodes[child->hash]->ix << std::endl;
             }
             layers[node->layer][node->ix].push_back(child->ix);
@@ -313,4 +323,9 @@ void brr(const std::string &filename) {
     layerize(sdd, circuit);
     tensorize(circuit);
     // to_dot_file(merkle, "tensorized.dot");
+}
+
+NB_MODULE(nanobind_ext, m) {
+    m.doc() = "This is a \"hello world\" example with nanobind";
+    m.def("brr", &brr);
 }

@@ -14,7 +14,7 @@ import klay
 
 
 def main():
-    klay.brr(name="test.sdd")
+    klay.brr("test.sdd")
 
     s = Source.from_file("tensorized.dot")
     s.view()
@@ -22,27 +22,37 @@ def main():
     s.view()
 
 
-def test_with_pysdd(nb_vars: int, verbose=True):
+def test_with_pysdd(nb_vars: int, verbose=True, repeats=1):
     manager, sdd = generate_random_sdd(nb_vars, nb_vars//2)
     weights = torch.empty(nb_vars, dtype=torch.float32)
     weights.uniform_(0, 1)
     weights = weights.log()
+    weights.requires_grad = True
     ground_truth = wmc_pysdd(manager, sdd, weights, verbose)
 
     t1 = time()
-    klay.brr(name="test.sdd")
+    klay.brr("test.sdd")
     if verbose:
         print(f"KLayerization in {time()-t1:.2f}s")
     indices = klay.parse_tensors("tensors.txt")
     kl = klay.torch_backend.KnowledgeLayer(indices)
     weights = weights
-    t1 = time()
-    result = kl(weights).item()
+    for i in range(repeats):
+        t1 = time()
+        result = kl(weights)
+        if verbose:
+            print(f"KLayer forward in {time()-t1:.4f}s")
+            print(f"PySDD\t{ground_truth:.7f}")
+            print(f'KLAY\t{result.item():.7f}')
+
+        t1 = time()
+        result.backward()
+        if verbose:
+            print(f"KLayer backward in {time()-t1:.4f}s")
+        weights.grad.zero_()
+
     if verbose:
-        print(f"KLayer forward in {time()-t1:.4f}s")
-        print("RESULTS:")
-        print(f"PySDD\t{ground_truth:.7f}")
-        print(f'KLAY\t{result:.7f}')
+        print()
     return ground_truth, result
 
 
@@ -103,9 +113,10 @@ def set_seed(seed: int):
 
 
 if __name__ == "__main__":
+    set_seed(42)
     # fuzz_tester(40)
-    for i in range(10):
-        test_with_pysdd(70)
+    # for i in range(10):
+    test_with_pysdd(60)
     # s = Source.from_file("tensorized.dot")
     # s.view()
     # s = Source.from_file("layerized.dot")
