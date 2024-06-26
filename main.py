@@ -31,7 +31,7 @@ def test_with_pysdd(nb_vars: int, verbose=True, repeats=1):
     ground_truth = wmc_pysdd(manager, sdd, weights, verbose)
 
     t1 = time()
-    klay.brr("test.sdd")
+    circuit = klay.Circuit.from_SDD_file("test.sdd")
     if verbose:
         print(f"KLayerization in {time()-t1:.2f}s")
     indices = klay.parse_tensors("tensors.txt")

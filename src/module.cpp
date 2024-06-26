@@ -88,6 +88,17 @@ struct Circuit {
         return nodes[node->hash];
     }
 
+    static Circuit from_SDD_file(const std::string &filename) {
+        std::vector<Node*> sdd = {};
+        unsigned int sdd_depth = parseSDDFile(filename, sdd);
+        Circuit circuit;
+        circuit.nbLayers = sdd_depth + 1;
+        layerize(sdd, circuit);
+        tensorize(circuit);
+        return circuit;
+    }
+
+
 };
 
 
@@ -313,19 +324,9 @@ void tensorize(Circuit& circuit) {
 }
 
 
-void brr(const std::string &filename) {
-    std::vector<Node*> sdd = {};
-    unsigned int sdd_depth = parseSDDFile(filename, sdd);
-    // to_dot_file(map, "layerized.dot");
-
-    Circuit circuit;
-    circuit.nbLayers = sdd_depth + 1;
-    layerize(sdd, circuit);
-    tensorize(circuit);
-    // to_dot_file(merkle, "tensorized.dot");
-}
-
 NB_MODULE(nanobind_ext, m) {
-    m.doc() = "This is a \"hello world\" example with nanobind";
-    m.def("brr", &brr);
+    m.doc() = "Layerize an SDD";
+
+    nb::class_<Circuit>(m, "Circuit")
+            .def_static("from_SDD_file", &Circuit::from_SDD_file);
 }

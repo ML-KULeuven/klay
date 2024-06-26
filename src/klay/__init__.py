@@ -1,4 +1,4 @@
-from .nanobind_ext import brr
+from .nanobind_ext import Circuit
 
 from .backends import torch_backend
 
