@@ -73,19 +73,22 @@ struct Node {
 
 struct Circuit {
     // Circuit representation as a Merkle DAG
-    std::unordered_map<long, Node*> nodes;
+    std::vector<std::unordered_map<long, Node*>> layers;
     unsigned int nbLayers;
 
     Node* add_node(Node* node) {
-        if (nodes.count(node->hash) == 0) {
-            // Node is not in the merkle, add it
-            nodes[node->hash] = node;
+        while (layers.size() <= node->layer) {
+            layers.emplace_back();
         }
-        if (node->children != nodes[node->hash]->children) {
-            std::cerr << "Hashing conflict found!!! " << node->hash << " " << nodes[node->hash]->hash << std::endl;
+        if (layers[node->layer].count(node->hash) == 0) {
+            // Node is not in the merkle, add it
+            layers[node->layer][node->hash] = node;
+        }
+        if (node->children != layers[node->layer][node->hash]->children) {
+            std::cerr << "Hashing conflict found!!! " << node->hash << " " << layers[node->layer][node->hash]->hash << std::endl;
         }
 
-        return nodes[node->hash];
+        return layers[node->layer][node->hash];
     }
 
     static Circuit from_SDD_file(const std::string &filename) {
@@ -213,11 +216,13 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     std::ofstream
             file(filename);
     file << "digraph G {" << std::endl;
-    for (const auto& [_, node] : circuit.nodes) {
-        for (Node *child: node->children) {
-            file << "  " << child->hash << " -> " << node->hash << std::endl;
+    for (const auto &layer: circuit.layers) {
+        for (const auto &[_, node]: layer) {
+            for (Node *child: node->children) {
+                file << "  " << child->hash << " -> " << node->hash << std::endl;
+            }
+            file << "  " << node->hash << " [label=\"" << node->get_label() << "\"]" << std::endl;
         }
-        file << "  " << node->hash << " [label=\"" << node->get_label() << "\"]" << std::endl;
     }
     file << "}" << std::endl;
 }
@@ -255,7 +260,7 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     for (Node* node : nodes) {
         for (unsigned int i = 0; i < node->children.size(); ++i) {
             // Update pointer as the child might have been merged
-            node->children[i] = circuit.nodes[node->children[i]->hash];
+            node->children[i] = circuit.layers[node->children[i]->layer][node->children[i]->hash];
 
             // Add a chain of dummy nodes to bring child to the correct layer
             while (node->children[i]->layer < node->layer-1) {
@@ -267,10 +272,12 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     }
 
     // Fill up the arity of the nodes with neutral elements
-    for (const auto &[_, node]: circuit.nodes) {
-        if (node->type == NodeType::And || node->type == NodeType::Or) {
-            for (std::size_t i = node->children.size(); i < arity[node->layer]; ++i) {
-                node->children.push_back(neutral_elements[node->layer-1]);
+    for (const auto &layer: circuit.layers) {
+        for (const auto &[_, node]: layer) {
+            if (node->type == NodeType::And || node->type == NodeType::Or) {
+                for (std::size_t i = node->children.size(); i < arity[node->layer]; ++i) {
+                    node->children.push_back(neutral_elements[node->layer-1]);
+                }
             }
         }
     }
@@ -282,9 +289,11 @@ void tensorize(Circuit& circuit) {
     std::vector<int> widths(circuit.nbLayers, 2);
 
     // Assign a layer index to each node
-    for (const auto &[_, node]: circuit.nodes) {
-        if (node->ix == -1) {
-            node->ix = widths[node->layer]++;
+    for (const auto &layer: circuit.layers) {
+        for (const auto &[_, node]: layer) {
+            if (node->ix == -1) {
+                node->ix = widths[node->layer]++;
+            }
         }
     }
 
@@ -296,14 +305,16 @@ void tensorize(Circuit& circuit) {
             layers[i].push_back(node);
         }
     }
-    for (const auto& [_, node] : circuit.nodes) {
-        for (Node* child : node->children) {
-            if (child->ix == -1) {
-                std::cerr << "[WARNING]: Node " << node->get_label()
-                          << " has uninitialized child " << child->get_label() << std::endl;
-                std::cerr << child->ix << " <-> " << circuit.nodes[child->hash]->ix << std::endl;
+    for (const auto &layer: circuit.layers) {
+        for (const auto &[_, node]: layer) {
+            for (Node *child: node->children) {
+                if (child->ix == -1) {
+                    std::cerr << "[WARNING]: Node " << node->get_label()
+                              << " has uninitialized child " << child->get_label() << std::endl;
+                    std::cerr << child->ix << " <-> " << circuit.layers[child->layer][child->hash]->ix << std::endl;
+                }
+                layers[node->layer][node->ix].push_back(child->ix);
             }
-            layers[node->layer][node->ix].push_back(child->ix);
         }
     }
 
