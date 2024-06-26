@@ -18,7 +18,7 @@ struct Node {
     unsigned int layer; // Layer index
     long hash; // unique identifier of the node
 
-    void add(Node* child) {
+    void add_child(Node* child) {
         children.push_back(child);
         hash += hasher( std::to_string(child->hash));
         if (child->layer + 1 > layer) {
@@ -52,7 +52,7 @@ struct Node {
         } else {
             dummy = createOrNode();
         }
-        dummy->add(this);
+        dummy->add_child(this);
         if (ix == 0 || ix == 1) {
             // force the True/False nodes to be first in each layer
             dummy->ix = ix;
@@ -170,10 +170,10 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
                 int primeId, subId;
                 iss >> primeId >> subId;
                 Node* and_node = createAndNode();
-                and_node->add(nodes[nodeIds[primeId]]);
-                and_node->add(nodes[nodeIds[subId]]);
+                and_node->add_child(nodes[nodeIds[primeId]]);
+                and_node->add_child(nodes[nodeIds[subId]]);
                 nodes.push_back(and_node);
-                or_node->add(and_node);
+                or_node->add_child(and_node);
             }
             nodeIds[nodeId] = nodes.size();
             nodes.push_back(or_node);
@@ -188,11 +188,11 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
 }
 
 
-void to_dot_file(std::unordered_map<long, Node*>& circuit, const std::string& filename) {
+void to_dot_file(Circuit& circuit, const std::string& filename) {
     std::ofstream
     file(filename);
     file << "digraph G {" << std::endl;
-    for (const auto& [_, node] : circuit) {
+    for (const auto& [_, node] : circuit.nodes) {
         for (Node *child: node->children) {
             file << "  " << child->hash << " -> " << node->hash << std::endl;
         }
