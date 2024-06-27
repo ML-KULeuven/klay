@@ -74,28 +74,25 @@ struct Node {
 struct Circuit {
     // Circuit representation as a Merkle DAG
     std::vector<std::unordered_map<long, Node*>> layers;
-    unsigned int nbLayers;
 
     Node* add_node(Node* node) {
-        while (layers.size() <= node->layer) {
-            layers.emplace_back();
-        }
-        if (layers[node->layer].count(node->hash) == 0) {
+        std::unordered_map<long, Node*> &layer = layers[node->layer];
+        if (layer.count(node->hash) == 0) {
             // Node is not in the merkle, add it
-            layers[node->layer][node->hash] = node;
+            layer[node->hash] = node;
         }
-        if (node->children != layers[node->layer][node->hash]->children) {
-            std::cerr << "Hashing conflict found!!! " << node->hash << " " << layers[node->layer][node->hash]->hash << std::endl;
+        if (node->children != layer[node->hash]->children) {
+            std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
         }
 
-        return layers[node->layer][node->hash];
+        return layer[node->hash];
     }
 
     static Circuit from_SDD_file(const std::string &filename) {
         std::vector<Node*> sdd = {};
         unsigned int sdd_depth = parseSDDFile(filename, sdd);
         Circuit circuit;
-        circuit.nbLayers = sdd_depth + 1;
+        circuit.layers = std::vector<std::unordered_map<long, Node*>>(sdd_depth+1);
         layerize(sdd, circuit);
         tensorize(circuit);
         return circuit;
@@ -234,8 +231,23 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     // 2. Assures that all children of a node have the same layer
     // 3. Assures that all nodes inner have the same arity.
 
+    // Construct the merkle DAG
+    for (Node* node : nodes) {
+        for (unsigned int i = 0; i < node->children.size(); ++i) {
+            // Update pointer as the child might have been merged
+            node->children[i] = circuit.layers[node->children[i]->layer][node->children[i]->hash];
+
+            // Add a chain of dummy nodes to bring child to the correct layer
+            while (node->children[i]->layer < node->layer-1) {
+                Node* dummy = node->children[i]->dummy_parent();
+                node->children[i] = circuit.add_node(dummy);
+            }
+        }
+        circuit.add_node(node);
+    }
+
     // Compute the arity of each layer
-    std::vector<std::size_t> arity(circuit.nbLayers, 0);
+    std::vector<std::size_t> arity(circuit.layers.size(), 0);
     for (Node* node : nodes) {
         arity[node->layer] = std::max(arity[node->layer], node->children.size());
     }
@@ -256,20 +268,6 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
         }
     }
 
-    // Construct the merkle DAG
-    for (Node* node : nodes) {
-        for (unsigned int i = 0; i < node->children.size(); ++i) {
-            // Update pointer as the child might have been merged
-            node->children[i] = circuit.layers[node->children[i]->layer][node->children[i]->hash];
-
-            // Add a chain of dummy nodes to bring child to the correct layer
-            while (node->children[i]->layer < node->layer-1) {
-                Node* dummy = node->children[i]->dummy_parent();
-                node->children[i] = circuit.add_node(dummy);
-            }
-        }
-        circuit.add_node(node);
-    }
 
     // Fill up the arity of the nodes with neutral elements
     for (const auto &layer: circuit.layers) {
@@ -286,7 +284,7 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
 
 void tensorize(Circuit& circuit) {
     // Width of every layer. Width is at least 2 (for True and False nodes)
-    std::vector<int> widths(circuit.nbLayers, 2);
+    std::vector<int> widths(circuit.layers.size(), 2);
 
     // Assign a layer index to each node
     for (const auto &layer: circuit.layers) {
@@ -298,8 +296,8 @@ void tensorize(Circuit& circuit) {
     }
 
     // Create the tensors
-    std::vector<std::vector<std::vector<int>>> layers(circuit.nbLayers);
-    for (unsigned int i = 0; i < circuit.nbLayers; ++i) {
+    std::vector<std::vector<std::vector<int>>> layers(circuit.layers.size());
+    for (unsigned int i = 0; i < circuit.layers.size(); ++i) {
         for (int j = 0; j < widths[i]; ++j) {
             std::vector<int> node = {};
             layers[i].push_back(node);

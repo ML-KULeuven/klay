@@ -73,7 +73,7 @@ def generate_random_sdd(nb_vars: int, nb_clauses: int, clause_length: int = 3):
         sdd &= reduce(manager.disjoin, lits)
 
     sdd.save(bytes(Path("test.sdd")))
-    print("Generated SDD", manager.count())
+    # print("Generated SDD", manager.count())
     return manager, sdd
 
 
@@ -114,9 +114,9 @@ def set_seed(seed: int):
 
 if __name__ == "__main__":
     set_seed(42)
-    # fuzz_tester(40)
+    fuzz_tester(20)
     # for i in range(10):
-    test_with_pysdd(60)
+    # test_with_pysdd(60)
     # s = Source.from_file("tensorized.dot")
     # s.view()
     # s = Source.from_file("layerized.dot")
