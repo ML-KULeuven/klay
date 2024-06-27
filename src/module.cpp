@@ -72,6 +72,9 @@ struct Circuit {
         if (layer.count(node->hash) == 0) {
             // Node is not in the merkle, add it
             layer[node->hash] = node;
+            if (node->ix == -1) {
+                node->ix = layer.size()-1;
+            }
         }
         if (node->children != layer[node->hash]->children) {
             std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
@@ -264,18 +267,6 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
             neutral_elements.push_back(true_node);
         } else {
             neutral_elements.push_back(false_node);
-        }
-    }
-
-    std::vector<int> widths(circuit.nb_layers(), 0);
-    widths[0] = 2; // Width is at least 2 (for True and False input nodes)
-
-    // Assign a layer index to each node
-    for (const auto &layer: circuit.layers) {
-        for (const auto &[_, node]: layer) {
-            if (node->ix == -1) {
-                node->ix = widths[node->layer]++;
-            }
         }
     }
 
