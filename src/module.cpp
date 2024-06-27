@@ -80,6 +80,14 @@ struct Circuit {
         return layer[node->hash];
     }
 
+    Node* get_node(Node* node) {
+        return layers[node->layer][node->hash];
+    }
+
+    std::size_t nb_layers() {
+        return layers.size();
+    }
+
     static Circuit from_SDD_file(const std::string &filename) {
         std::vector<Node*> sdd = {};
         unsigned int sdd_depth = parseSDDFile(filename, sdd);
@@ -226,7 +234,7 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     for (Node* node : nodes) {
         for (unsigned int i = 0; i < node->children.size(); ++i) {
             // Update pointer as the child might have been merged
-            node->children[i] = circuit.layers[node->children[i]->layer][node->children[i]->hash];
+            node->children[i] = circuit.get_node(node->children[i]);
 
             // Add a chain of dummy nodes to bring child to the correct layer
             while (node->children[i]->layer < node->layer-1) {
@@ -238,7 +246,7 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     }
 
     // Compute the arity of each layer
-    std::vector<std::size_t> arity(circuit.layers.size(), 0);
+    std::vector<std::size_t> arity(circuit.nb_layers(), 0);
     for (Node* node : nodes) {
         arity[node->layer] = std::max(arity[node->layer], node->children.size());
     }
@@ -259,6 +267,17 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
         }
     }
 
+    std::vector<int> widths(circuit.nb_layers(), 0);
+    widths[0] = 2; // Width is at least 2 (for True and False input nodes)
+
+    // Assign a layer index to each node
+    for (const auto &layer: circuit.layers) {
+        for (const auto &[_, node]: layer) {
+            if (node->ix == -1) {
+                node->ix = widths[node->layer]++;
+            }
+        }
+    }
 
     // Fill up the arity of the nodes with neutral elements
     for (const auto &layer: circuit.layers) {
@@ -274,24 +293,12 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
 
 
 void tensorize(Circuit& circuit) {
-    std::vector<int> widths(circuit.layers.size(), 0);
-    widths[0] = 2; // Width is at least 2 (for True and False input nodes)
-
-    // Assign a layer index to each node
-    for (const auto &layer: circuit.layers) {
-        for (const auto &[_, node]: layer) {
-            if (node->ix == -1) {
-                node->ix = widths[node->layer]++;
-            }
-        }
-    }
-
     // Create the tensors
-    std::vector<std::vector<std::vector<int>>> layers(circuit.layers.size());
-    for (unsigned int i = 0; i < circuit.layers.size(); ++i) {
-        for (int j = 0; j < widths[i]; ++j) {
+    std::vector<std::vector<std::vector<int>>> tensors(circuit.nb_layers());
+    for (unsigned int i = 0; i < circuit.nb_layers(); ++i) {
+        for (int j = 0; j < circuit.layers[i].size(); ++j) {
             std::vector<int> node = {};
-            layers[i].push_back(node);
+            tensors[i].push_back(node);
         }
     }
     for (const auto &layer: circuit.layers) {
@@ -302,20 +309,20 @@ void tensorize(Circuit& circuit) {
                               << " has uninitialized child " << child->get_label() << std::endl;
                     std::cerr << child->ix << " <-> " << circuit.layers[child->layer][child->hash]->ix << std::endl;
                 }
-                layers[node->layer][node->ix].push_back(child->ix);
+                tensors[node->layer][node->ix].push_back(child->ix);
             }
         }
     }
 
     // Write the tensors to a file
     std::ofstream file("tensors.txt");
-    for (unsigned int i = 1; i < layers.size(); ++i) {
+    for (unsigned int i = 1; i < tensors.size(); ++i) {
         file << "Layer" << std::endl;
-        for (unsigned int j = 0; j < layers[i].size(); ++j) {
-            for (unsigned int k = 0; k < layers[i][j].size(); ++k) {
-                file << layers[i][j][k] << " ";
+        for (unsigned int j = 0; j < tensors[i].size(); ++j) {
+            for (unsigned int k = 0; k < tensors[i][j].size(); ++k) {
+                file << tensors[i][j][k] << " ";
             }
-            if (layers[i][j].size() > 0) {
+            if (tensors[i][j].size() > 0) {
                 // for the last layer, we don't want a newline
                 file << std::endl;
             }
