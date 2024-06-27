@@ -29,15 +29,13 @@ struct Node {
     void add_child(Node* child) {
         children.push_back(child);
         hash += hasher( std::to_string(child->hash));
-        if (child->layer + 1 > layer) {
-            layer = child->layer+1;
-        }
-        if (type == NodeType::Or) {
-            assert(layer%2 == 0);
-        } else if (type == NodeType::And) {
-            assert(layer%2 == 1);
-        } else {
-            assert(false);
+        layer = std::max(layer, child->layer+1);
+        if (type == NodeType::Or && layer%2 == 1) {
+            std::cerr << "Sum layer " << layer << " is not even" << std::endl;
+        } else if (type == NodeType::And && layer%2 == 0 ) {
+            std::cerr << "Product layer " << layer << " is not odd" << std::endl;
+        } else if (type != NodeType::Or && type != NodeType::And) {
+            std::cerr << "Node type not recognized" << std::endl;
         }
     }
 
@@ -61,12 +59,6 @@ struct Node {
             dummy = createOrNode();
         }
         dummy->add_child(this);
-        if (ix == 0 || ix == 1) {
-            // force the True/False nodes to be first in each layer
-            dummy->ix = ix;
-        } else {
-            dummy->ix = -1;
-        }
         return dummy;
     }
 };
@@ -97,8 +89,6 @@ struct Circuit {
         tensorize(circuit);
         return circuit;
     }
-
-
 };
 
 
@@ -138,6 +128,7 @@ Node* createFalseNode() {
     Node* node = new Node();
     node->type = NodeType::False;
     node->hash = hasher("False");
+    node->ix = 0;
     return node;
 }
 
@@ -283,8 +274,8 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
 
 
 void tensorize(Circuit& circuit) {
-    // Width of every layer. Width is at least 2 (for True and False nodes)
-    std::vector<int> widths(circuit.layers.size(), 2);
+    std::vector<int> widths(circuit.layers.size(), 0);
+    widths[0] = 2; // Width is at least 2 (for True and False input nodes)
 
     // Assign a layer index to each node
     for (const auto &layer: circuit.layers) {
