@@ -4,3 +4,4 @@
 *.sdd
 *.txt
 build
+.DS_Store

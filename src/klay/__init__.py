@@ -4,18 +4,10 @@ from .nanobind_ext import Circuit
 from .backends import torch_backend
 
 
-def parse_tensors(file_name):
-    import numpy as np
+def to_layered_module(circuit: Circuit):
+    i1, i2 = circuit.get_indices()
+    i1, i2 = i1[1:], i2[1:]
+    return torch_backend.KnowledgeLayer(i1, i2)
 
-    with open(file_name, 'r') as f:
-        lines = f.readlines()
 
-    layers = []
-    for line in lines:
-        line = line.strip()
-        layers.append([int(x) for x in line.split(" ")])
-    layers = [np.array(layer) for layer in layers]
-    pointers = layers[1::2]
-    csrs = layers[::2]
-
-    return pointers, csrs
+Circuit.to_layered_module = to_layered_module

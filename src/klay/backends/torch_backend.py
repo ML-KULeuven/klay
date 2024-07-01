@@ -58,8 +58,8 @@ class SumLayer(torch.nn.Module):
         self.ptrs = ptrs
         self.csr = csr
         deltas = torch.diff(csr)
-        ixs = torch.arange(len(deltas), dtype=torch.int32)
-        self.ptrs_rev = torch.repeat_interleave(ixs, repeats=deltas)
+        ixs = torch.arange(len(deltas), dtype=torch.int32, device=ptrs.device)
+        self.ptrs_rev = ixs.repeat_interleave(repeats=deltas)
 
     def forward(self, x):
         x = x[self.ptrs]

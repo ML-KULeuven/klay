@@ -1,5 +1,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/pair.h>
+#include <nanobind/stl/vector.h>
 
 namespace nb = nanobind;
 
@@ -97,8 +99,11 @@ struct Circuit {
         Circuit circuit;
         circuit.layers = std::vector<std::unordered_map<long, Node*>>(sdd_depth+1);
         layerize(sdd, circuit);
-        tensorize(circuit);
         return circuit;
+    }
+
+    std::pair<Arrays, Arrays> get_indices() {
+        return tensorize(*this);
     }
 };
 
@@ -231,9 +236,7 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
     // 1. Inserts the nodes in a merkle tree
     //    (layerize can be reapplied with same merkle to merge circuits)
     // 2. Assures that all children of a node have the same layer
-    // 3. Assures that all nodes inner have the same arity.
 
-    // Construct the merkle DAG
     for (Node* node : nodes) {
         for (unsigned int i = 0; i < node->children.size(); ++i) {
             // Update pointer as the child might have been merged
@@ -250,25 +253,25 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
 }
 
 
-void tensorize(Circuit& circuit) {
+std::pair<Arrays, Arrays> tensorize(Circuit& circuit) {
     // Create the tensors
-    std::vector<std::vector<int>> indices(circuit.nb_layers());
-    std::vector<std::vector<int>> csr(circuit.nb_layers());
+    Arrays indices(circuit.nb_layers());
+    Arrays csr(circuit.nb_layers());
 
     for (std::size_t i = 1; i < circuit.nb_layers(); ++i) {
-        std::vector<int> child_counts(circuit.layers[i].size(), 0);
+        std::vector<long int> child_counts(circuit.layers[i].size(), 0);
         std::size_t layer_size = 0;
         for (const auto &[_, node]: circuit.layers[i]) {
             layer_size += node->children.size();
             child_counts[node->ix] = node->children.size();
         }
 
-        csr[i] = std::vector<int>(circuit.layers[i].size()+1, 0);
+        csr[i] = std::vector<long int>(circuit.layers[i].size()+1, 0);
         for (std::size_t j = 1; j < csr[i].size(); ++j) {
             csr[i][j] = csr[i][j-1] + child_counts[j-1];
         }
 
-        indices[i] = std::vector<int>(layer_size, -1);
+        indices[i] = std::vector<long int>(layer_size, -1);
         for (const auto &[_, node]: circuit.layers[i]) {
             std::size_t offset = 0;
             for (Node *child: node->children) {
@@ -276,21 +279,7 @@ void tensorize(Circuit& circuit) {
             }
         }
     }
-
-    // Write the tensors to a file
-    std::ofstream file("tensors.txt");
-    for (unsigned int i = 1; i < circuit.nb_layers(); ++i) {
-        for (int j = 0; j < csr[i].size(); ++j) {
-            file << csr[i][j] << " ";
-        }
-        file << std::endl;
-        for (int j = 0; j < indices[i].size(); ++j) {
-            file << indices[i][j] << " ";
-        }
-        file << std::endl;
-    }
-
-    file.close();
+    return std::make_pair(indices, csr);
 }
 
 
@@ -298,5 +287,6 @@ NB_MODULE(nanobind_ext, m) {
     m.doc() = "Layerize an SDD";
 
     nb::class_<Circuit>(m, "Circuit")
-            .def_static("from_SDD_file", &Circuit::from_SDD_file);
+            .def_static("from_SDD_file", &Circuit::from_SDD_file)
+            .def("get_indices", &Circuit::get_indices);
 }
