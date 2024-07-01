@@ -1,3 +1,4 @@
+# noinspection PyUnresolvedReferences
 from .nanobind_ext import Circuit
 
 from .backends import torch_backend
@@ -12,17 +13,9 @@ def parse_tensors(file_name):
     layers = []
     for line in lines:
         line = line.strip()
-        if line.startswith("Layer"):
-            layer = []
-            layers.append(layer)
-        else:
-            layer.append([int(x) for x in line.split(" ")])
+        layers.append([int(x) for x in line.split(" ")])
     layers = [np.array(layer) for layer in layers]
+    pointers = layers[1::2]
+    csrs = layers[::2]
 
-    # some sanity checks
-    for i, layer in enumerate(layers):
-        assert np.all(layer >= 0)
-        if i != 0:
-            assert np.all(layer < layers[i-1].shape[0])
-
-    return layers
+    return pointers, csrs

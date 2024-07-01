@@ -285,40 +285,45 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
 
 void tensorize(Circuit& circuit) {
     // Create the tensors
-    std::vector<std::vector<std::vector<int>>> tensors(circuit.nb_layers());
-    for (unsigned int i = 0; i < circuit.nb_layers(); ++i) {
-        for (int j = 0; j < circuit.layers[i].size(); ++j) {
-            std::vector<int> node = {};
-            tensors[i].push_back(node);
+    std::vector<std::vector<int>> indices(circuit.nb_layers());
+    std::vector<std::vector<int>> csr(circuit.nb_layers());
+
+    for (std::size_t i = 1; i < circuit.nb_layers(); ++i) {
+        std::vector<int> child_counts(circuit.layers[i].size(), 0);
+        std::size_t layer_size = 0;
+        for (const auto &[_, node]: circuit.layers[i]) {
+            layer_size += node->children.size();
+            child_counts[node->ix] = node->children.size();
         }
-    }
-    for (const auto &layer: circuit.layers) {
-        for (const auto &[_, node]: layer) {
+
+        csr[i] = std::vector<int>(circuit.layers[i].size()+1, 0);
+        for (std::size_t j = 1; j < csr[i].size(); ++j) {
+            csr[i][j] = csr[i][j-1] + child_counts[j-1];
+        }
+
+        indices[i] = std::vector<int>(layer_size, -1);
+        for (const auto &[_, node]: circuit.layers[i]) {
+            std::size_t offset = 0;
             for (Node *child: node->children) {
-                if (child->ix == -1) {
-                    std::cerr << "[WARNING]: Node " << node->get_label()
-                              << " has uninitialized child " << child->get_label() << std::endl;
-                    std::cerr << child->ix << " <-> " << circuit.layers[child->layer][child->hash]->ix << std::endl;
-                }
-                tensors[node->layer][node->ix].push_back(child->ix);
+                indices[i][csr[i][node->ix] + offset++] = child->ix;
             }
         }
     }
 
     // Write the tensors to a file
     std::ofstream file("tensors.txt");
-    for (unsigned int i = 1; i < tensors.size(); ++i) {
-        file << "Layer" << std::endl;
-        for (unsigned int j = 0; j < tensors[i].size(); ++j) {
-            for (unsigned int k = 0; k < tensors[i][j].size(); ++k) {
-                file << tensors[i][j][k] << " ";
-            }
-            if (tensors[i][j].size() > 0) {
-                // for the last layer, we don't want a newline
-                file << std::endl;
-            }
+    for (unsigned int i = 1; i < circuit.nb_layers(); ++i) {
+        for (int j = 0; j < csr[i].size(); ++j) {
+            file << csr[i][j] << " ";
         }
+        file << std::endl;
+        for (int j = 0; j < indices[i].size(); ++j) {
+            file << indices[i][j] << " ";
+        }
+        file << std::endl;
     }
+
+    file.close();
 }
 
 

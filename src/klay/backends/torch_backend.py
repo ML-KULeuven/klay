@@ -1,6 +1,10 @@
 import math
 
 import torch
+from torch_scatter import segment_csr
+
+
+EPSILON = 10e-16
 
 
 def log1mexp(x):
@@ -31,16 +35,17 @@ def encode_input(pos, neg=None):
 
 
 class KnowledgeLayer(torch.nn.Module):
-    def __init__(self, layers):
+    def __init__(self, pointers, csrs):
         super(KnowledgeLayer, self).__init__()
-        self.layers = []
-        for i, layer in enumerate(layers):
-            layer = torch.as_tensor(layer)
+        layers = []
+        for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
+            ptrs = torch.as_tensor(ptrs)
+            csr = torch.as_tensor(csr)
             if i % 2 == 0:
-                self.layers.append(ProductLayer(layer))
+                layers.append(ProductLayer(ptrs, csr))
             else:
-                self.layers.append(SumLayer(layer))
-        self.layers = torch.nn.Sequential(*self.layers)
+                layers.append(SumLayer(ptrs, csr))
+        self.layers = torch.nn.Sequential(*layers)
 
     def forward(self, x):
         x = encode_input(x)
@@ -48,20 +53,33 @@ class KnowledgeLayer(torch.nn.Module):
 
 
 class SumLayer(torch.nn.Module):
-    def __init__(self, indices):
+    def __init__(self, ptrs, csr):
         super(SumLayer, self).__init__()
-        self.indices = indices
+        self.ptrs = ptrs
+        self.csr = csr
+        deltas = torch.diff(csr)
+        ixs = torch.arange(len(deltas), dtype=torch.int32)
+        self.ptrs_rev = torch.repeat_interleave(ixs, repeats=deltas)
 
     def forward(self, x):
-        result = torch.logsumexp(x[self.indices], dim=1)
-        return result
+        x = x[self.ptrs]
+        with torch.no_grad():
+            a_add = segment_csr(x, self.csr, reduce="max")
+            a_sub = a_add[self.ptrs_rev]
+        x = torch.exp(x - a_sub)
+
+        x = segment_csr(x, self.csr, reduce="sum")
+        x = torch.log(x + EPSILON) + a_add
+        return x
 
 
 class ProductLayer(torch.nn.Module):
-    def __init__(self, indices):
+    def __init__(self, ptrs, csr):
         super(ProductLayer, self).__init__()
-        self.indices = indices
+        self.ptrs = ptrs
+        self.csr = csr
 
     def forward(self, x):
-        result = x[self.indices].sum(dim=1)
-        return result
+        x = x[self.ptrs]
+        x = segment_csr(x, self.csr, reduce='sum')
+        return x
