@@ -119,6 +119,20 @@ struct Circuit {
     std::pair<Arrays, Arrays> get_indices() {
         return tensorize(*this);
     }
+
+    void condition(const std::vector<int>& lits) {
+        for (auto &[_, node]: layers[0]) {
+            if (node->type == NodeType::Leaf) {
+                if (std::count(lits.begin(), lits.end(), node->ix) > 0) {
+                    node->type = NodeType::True;
+                    node->ix = 1;
+                } else if (std::count(lits.begin(), lits.end(), -node->ix) > 0) {
+                    node->type = NodeType::False;
+                    node->ix = 0;
+                }
+            }
+        }
+    }
 };
 
 
@@ -276,5 +290,6 @@ NB_MODULE(nanobind_ext, m) {
 
     nb::class_<Circuit>(m, "Circuit")
             .def_static("from_SDD_file", &Circuit::from_SDD_file)
-            .def("get_indices", &Circuit::get_indices);
+            .def("get_indices", &Circuit::get_indices)
+            .def("condition", &Circuit::condition);
 }
