@@ -13,15 +13,6 @@ from tqdm import tqdm
 import klay
 
 
-def main():
-    klay.brr("test.sdd")
-
-    s = Source.from_file("tensorized.dot")
-    s.view()
-    s = Source.from_file("layerized.dot")
-    s.view()
-
-
 def test_with_pysdd(nb_vars: int, verbose=True, repeats=1):
     manager, sdd = generate_random_sdd(nb_vars, nb_vars//2)
     weights = torch.empty(nb_vars, dtype=torch.float32)

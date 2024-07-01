@@ -9,7 +9,7 @@ Node* createAndNode();
 
 typedef std::vector<std::vector<long int>> Arrays;
 
-unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes);
+void parseSDDFile(const std::string& filename, Circuit& circuit);
 void layerize(std::vector<Node*> nodes, Circuit& circuit);
 std::pair<Arrays, Arrays> tensorize(Circuit& circuit);
 

@@ -70,6 +70,9 @@ struct Circuit {
     std::vector<std::unordered_map<long, Node*>> layers;
 
     Node* add_node(Node* node) {
+        while (layers.size() <= node->layer) {
+            layers.push_back({});
+        }
         std::unordered_map<long, Node*> &layer = layers[node->layer];
         if (layer.count(node->hash) == 0) {
             // Node is not in the merkle, add it
@@ -85,6 +88,20 @@ struct Circuit {
         return layer[node->hash];
     }
 
+    void add_node_level(Node* node) {
+        for (unsigned int i = 0; i < node->children.size(); ++i) {
+            // Update pointer as the child might have been merged
+            node->children[i] = this->get_node(node->children[i]);
+
+            // Add a chain of dummy nodes to bring child to the correct layer
+            while (node->children[i]->layer < node->layer-1) {
+                Node* dummy = node->children[i]->dummy_parent();
+                node->children[i] = this->add_node(dummy);
+            }
+        }
+        this->add_node(node);
+    }
+
     Node* get_node(Node* node) {
         return layers[node->layer][node->hash];
     }
@@ -94,11 +111,8 @@ struct Circuit {
     }
 
     static Circuit from_SDD_file(const std::string &filename) {
-        std::vector<Node*> sdd = {};
-        unsigned int sdd_depth = parseSDDFile(filename, sdd);
         Circuit circuit;
-        circuit.layers = std::vector<std::unordered_map<long, Node*>>(sdd_depth+1);
-        layerize(sdd, circuit);
+        parseSDDFile(filename, circuit);
         return circuit;
     }
 
@@ -151,15 +165,15 @@ Node* createFalseNode() {
 
 
 
-unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes) {
+void parseSDDFile(const std::string& filename, Circuit& circuit) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filename << std::endl;
-        return 0;
+        return;
     }
 
-    std::vector<int> nodeIds = {};
-    unsigned int maxlayer = 0;
+    std::vector<Node*> nodeIds = {};
+    Node* node;
 
     std::string line;
     while (std::getline(file, line)) {
@@ -180,39 +194,34 @@ unsigned int parseSDDFile(const std::string& filename, std::vector<Node*>& nodes
         iss >> nodeId;
 
         if (type == "F") {
-            nodeIds[nodeId] = nodes.size();
-            nodes.push_back(createFalseNode());
+            node = createFalseNode();
         } else if (type == "T") {
-            nodeIds[nodeId] = nodes.size();
-            nodes.push_back(createTrueNode());
+            node = createTrueNode();
         } else if (type == "L") {
             int vtree, literal;
             iss >> vtree >> literal;
-            nodeIds[nodeId] = nodes.size();
-            nodes.push_back(createLiteralNode(literal));
+            node = createLiteralNode(literal);
         } else if (type == "D") {
             int vtree, numElements;
             iss >> vtree >> numElements;
-            Node* or_node = createOrNode();
+            node = createOrNode();
             for (int i = 0; i < numElements; ++i) {
                 int primeId, subId;
                 iss >> primeId >> subId;
                 Node* and_node = createAndNode();
-                and_node->add_child(nodes[nodeIds[primeId]]);
-                and_node->add_child(nodes[nodeIds[subId]]);
-                nodes.push_back(and_node);
-                or_node->add_child(and_node);
+                and_node->add_child(nodeIds[primeId]);
+                and_node->add_child(nodeIds[subId]);
+                circuit.add_node_level(and_node);
+                node->add_child(and_node);
             }
-            nodeIds[nodeId] = nodes.size();
-            nodes.push_back(or_node);
-            maxlayer = std::max(maxlayer, or_node->layer);
         } else {
             std::cerr << "Could not parse: " << line << std::endl;
+            return;
         }
-
+        circuit.add_node_level(node);
+        nodeIds[nodeId] = node;
     }
     file.close();
-    return maxlayer;
 }
 
 
@@ -229,27 +238,6 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
         }
     }
     file << "}" << std::endl;
-}
-
-
-void layerize(std::vector<Node*> nodes, Circuit& circuit) {
-    // 1. Inserts the nodes in a merkle tree
-    //    (layerize can be reapplied with same merkle to merge circuits)
-    // 2. Assures that all children of a node have the same layer
-
-    for (Node* node : nodes) {
-        for (unsigned int i = 0; i < node->children.size(); ++i) {
-            // Update pointer as the child might have been merged
-            node->children[i] = circuit.get_node(node->children[i]);
-
-            // Add a chain of dummy nodes to bring child to the correct layer
-            while (node->children[i]->layer < node->layer-1) {
-                Node* dummy = node->children[i]->dummy_parent();
-                node->children[i] = circuit.add_node(dummy);
-            }
-        }
-        circuit.add_node(node);
-    }
 }
 
 
