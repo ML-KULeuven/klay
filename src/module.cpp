@@ -247,39 +247,6 @@ void layerize(std::vector<Node*> nodes, Circuit& circuit) {
         }
         circuit.add_node(node);
     }
-
-    // Compute the arity of each layer
-    std::vector<std::size_t> arity(circuit.nb_layers(), 0);
-    for (Node* node : nodes) {
-        arity[node->layer] = std::max(arity[node->layer], node->children.size());
-    }
-
-    // Add True and False to the merkle (in case they don't exist in the circuit)
-    Node* true_node = circuit.add_node(createTrueNode());
-    Node* false_node = circuit.add_node(createFalseNode());
-    std::vector<Node*> neutral_elements = {true_node};
-
-    // Make sure we have True/False in every layer (except the last)
-    for (std::size_t i = 1; i < arity.size()-1; ++i) {
-        true_node = circuit.add_node(true_node->dummy_parent());
-        false_node = circuit.add_node(false_node->dummy_parent());
-        if (i % 2 == 0) {
-            neutral_elements.push_back(true_node);
-        } else {
-            neutral_elements.push_back(false_node);
-        }
-    }
-
-    // Fill up the arity of the nodes with neutral elements
-    for (const auto &layer: circuit.layers) {
-        for (const auto &[_, node]: layer) {
-            if (node->type == NodeType::And || node->type == NodeType::Or) {
-                for (std::size_t i = node->children.size(); i < arity[node->layer]; ++i) {
-                    node->children.push_back(neutral_elements[node->layer-1]);
-                }
-            }
-        }
-    }
 }
 
 
