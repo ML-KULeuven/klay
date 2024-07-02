@@ -25,12 +25,12 @@ struct Node {
     NodeType type;
     int ix;  // Index of the node in its layer
     std::vector<Node*> children;
-    unsigned int layer; // Layer index
-    long hash; // unique identifier of the node
+    std::size_t layer; // Layer index
+    std::size_t hash; // unique identifier of the node
 
     void add_child(Node* child) {
         children.push_back(child);
-        hash += hasher( std::to_string(child->hash));
+        hash += hasher(std::to_string(child->hash));
         layer = std::max(layer, child->layer+1);
         if (type == NodeType::Or && layer%2 == 1) {
             std::cerr << "Sum layer " << layer << " is not even" << std::endl;
@@ -67,7 +67,7 @@ struct Node {
 
 struct Circuit {
     // Circuit representation as a Merkle DAG
-    std::vector<std::unordered_map<long, Node*>> layers;
+    std::vector<std::unordered_map<std::size_t, Node*>> layers;
 
     Node* add_node(Node* node) {
         if (layers.size() <= node->layer) {
@@ -137,7 +137,7 @@ Node* createLiteralNode(int ix) {
         NodeType::Leaf,
         2 * std::abs(ix) + (ix > 0 ? 0 : 1),
         {}, 0,
-        (long) hasher(std::to_string(ix))
+        hasher(std::to_string(ix))
     };
 }
 
@@ -146,7 +146,7 @@ Node* createAndNode() {
         NodeType::And,
         -1, {},
         0,
-        (long) hasher("And")
+        hasher("And")
     };
 }
 
@@ -156,7 +156,7 @@ Node* createOrNode() {
         -1,
         {},
         0,
-        (long) hasher("Or")
+        hasher("Or")
     };
 }
 
@@ -165,7 +165,7 @@ Node* createTrueNode() {
         NodeType::True,
         1, {},
         0,
-        (long) hasher("True")
+        hasher("True")
     };
 }
 
@@ -173,7 +173,7 @@ Node* createFalseNode() {
     return new Node{
         NodeType::False, 0,
         {}, 0,
-        (long) hasher("False")
+        hasher("False")
     };
 }
 
