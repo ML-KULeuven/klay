@@ -89,7 +89,7 @@ struct Circuit {
     }
 
     void add_node_level(Node* node) {
-        for (unsigned int i = 0; i < node->children.size(); ++i) {
+        for (std::size_t i = 0; i < node->children.size(); ++i) {
             // Update pointer as the child might have been merged
             node->children[i] = this->get_node(node->children[i]);
 

@@ -6,6 +6,8 @@ struct Circuit;
 
 Node* createOrNode();
 Node* createAndNode();
+Node* createTrueNode();
+Node* createFalseNode();
 
 typedef std::vector<std::vector<long int>> Arrays;
 

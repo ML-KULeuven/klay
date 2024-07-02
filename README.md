@@ -6,9 +6,9 @@ KLay makes circuits go brrr on the gpu.
 
 ## Usage
 
-Install the Python dependencies:
+Install with:
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 Run some tests:
@@ -16,4 +16,4 @@ Run some tests:
 python main.py
 ```
 
-I only tested with Python 3.12 on ARM Mac, but other platforms should work as well.
+I only tested on Linux and Mac (ARM), but other platforms should work as well.
