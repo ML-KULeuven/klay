@@ -6,6 +6,7 @@ from pathlib import Path
 from random import randint, choice
 
 from graphviz import Source
+from pysdd.iterator import SddIterator
 from pysdd.sdd import SddManager, Vtree
 import torch
 from tqdm import tqdm
@@ -13,12 +14,11 @@ from tqdm import tqdm
 import klay
 
 
-def test_with_pysdd(nb_vars: int, verbose=True, repeats=1):
+def test_with_pysdd(nb_vars: int, verbose=True, repeats=3):
     manager, sdd = generate_random_sdd(nb_vars, nb_vars//2)
     weights = torch.empty(nb_vars, dtype=torch.float32)
     weights.uniform_(0, 1)
     weights = weights.log()
-    weights.requires_grad = True
     ground_truth = wmc_pysdd(manager, sdd, weights, verbose)
 
     t1 = time()
@@ -36,12 +36,6 @@ def test_with_pysdd(nb_vars: int, verbose=True, repeats=1):
             print(f"KLayer forward in {time()-t1:.4f}s")
             print(f"PySDD\t{ground_truth:.7f}")
             print(f'KLAY\t{result.item():.7f}')
-
-        t1 = time()
-        result.backward()
-        if verbose:
-            print(f"KLayer backward in {time()-t1:.4f}s")
-        weights.grad.zero_()
 
     if verbose:
         print()
@@ -93,6 +87,54 @@ def wmc_pysdd(manager, sdd, weights, verbose=True):
     if verbose:
         print(f"PySDD WMC in {time()-t1:.4f}s")
     return result
+
+
+def wmc_backward(manager, sdd, weights, verbose=True):
+    pos_neg_weights = torch.stack([log1mexp(weights), weights], dim=1)
+    result = eval_sdd(manager, sdd, pos_neg_weights)
+    t1 = time()
+    result.backward()
+    if verbose:
+        print(f"PyTorch backward in {time()-t1:.4f}s")
+    grad = weights.grad.clone()
+    weights.grad.zero_()
+    return grad
+
+
+def eval_sdd(manager, sdd, weights) -> torch.Tensor:
+    iterator = SddIterator(manager, smooth=False)
+
+    def _formula_evaluator(node, r_values, *_):
+        if node is not None:
+            if node.is_literal():
+                return weights[abs(node.literal) - 1, int(node.literal > 0)]
+            elif node.is_true():
+                return torch.tensor(0.0)
+            elif node.is_false():
+                return torch.tensor(float("-inf"))
+        # Decision node
+        return torch.logsumexp(torch.stack([v[0] + v[1] for v in r_values]), dim=0)
+
+    result = iterator.depth_first(sdd, _formula_evaluator)
+    return result
+
+
+def test_backward(nb_vars: int):
+    manager, sdd = generate_random_sdd(nb_vars, nb_vars//2)
+    weights = torch.empty(nb_vars, dtype=torch.float32)
+    weights.uniform_(0, 1)
+    weights = weights.log()
+    weights.requires_grad = True
+    ground_truth = wmc_backward(manager, sdd, weights, True)
+    print("Ground truth", ground_truth)
+
+    circuit = klay.Circuit.from_SDD_file("test.sdd")
+    kl = circuit.to_layered_module()
+    result = kl(weights)
+    t1 = time()
+    result.backward()
+    print(f"KLAY backward in {time()-t1:.4f}s")
+    print("KLAY result", weights.grad)
 
 
 def set_seed(seed: int):

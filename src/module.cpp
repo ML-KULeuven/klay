@@ -70,43 +70,39 @@ struct Circuit {
     std::vector<std::unordered_map<long, Node*>> layers;
 
     Node* add_node(Node* node) {
-        while (layers.size() <= node->layer) {
-            layers.push_back({});
+        if (layers.size() <= node->layer) {
+            layers.resize(node->layer + 1);
         }
-        std::unordered_map<long, Node*> &layer = layers[node->layer];
-        if (layer.count(node->hash) == 0) {
-            // Node is not in the merkle, add it
-            layer[node->hash] = node;
-            if (node->ix == -1) {
-                node->ix = layer.size()-1;
-            }
+        auto& layer = layers[node->layer];
+        auto [it, inserted] = layer.try_emplace(node->hash, node);
+        if (inserted && node->ix == -1) {
+            node->ix = layer.size()-1;
         }
-        if (node->children != layer[node->hash]->children) {
-            std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
-        }
+        // if (node->children != layer[node->hash]->children) {
+        //    std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
+        //}
 
-        return layer[node->hash];
+        return it->second;
     }
 
     void add_node_level(Node* node) {
-        for (std::size_t i = 0; i < node->children.size(); ++i) {
+        for (auto& child : node->children) {
             // Update pointer as the child might have been merged
-            node->children[i] = this->get_node(node->children[i]);
+            child = get_node(child);
 
             // Add a chain of dummy nodes to bring child to the correct layer
-            while (node->children[i]->layer < node->layer-1) {
-                Node* dummy = node->children[i]->dummy_parent();
-                node->children[i] = this->add_node(dummy);
+            while (child->layer < node->layer - 1) {
+                child = add_node(child->dummy_parent());
             }
         }
-        this->add_node(node);
+        add_node(node);
     }
 
-    Node* get_node(Node* node) {
+    inline Node* get_node(Node* node) {
         return layers[node->layer][node->hash];
     }
 
-    std::size_t nb_layers() {
+    inline std::size_t nb_layers() {
         return layers.size();
     }
 
@@ -137,43 +133,48 @@ struct Circuit {
 
 
 Node* createLiteralNode(int ix) {
-    Node* node = new Node();
-    node->type = NodeType::Leaf;
-    node->ix = 2*std::abs(ix) + (ix > 0 ? 0 : 1);
-    node->hash = hasher("L" + std::to_string(ix));
-    return node;
+    return new Node{
+        NodeType::Leaf,
+        2 * std::abs(ix) + (ix > 0 ? 0 : 1),
+        {}, 0,
+        (long) hasher(std::to_string(ix))
+    };
 }
 
 Node* createAndNode() {
-    Node* node = new Node();
-    node->type = NodeType::And;
-    node->hash = hasher("And");
-    node->ix = -1;
-    return node;
+    return new Node{
+        NodeType::And,
+        -1, {},
+        0,
+        (long) hasher("And")
+    };
 }
 
 Node* createOrNode() {
-    Node* node = new Node();
-    node->type = NodeType::Or;
-    node->hash = hasher("Or");
-    node->ix = -1;
-    return node;
+    return new Node{
+        NodeType::Or,
+        -1,
+        {},
+        0,
+        (long) hasher("Or")
+    };
 }
 
 Node* createTrueNode() {
-    Node* node = new Node();
-    node->type = NodeType::True;
-    node->hash = hasher("True");
-    node->ix = 1;
-    return node;
+    return new Node{
+        NodeType::True,
+        1, {},
+        0,
+        (long) hasher("True")
+    };
 }
 
 Node* createFalseNode() {
-    Node* node = new Node();
-    node->type = NodeType::False;
-    node->hash = hasher("False");
-    node->ix = 0;
-    return node;
+    return new Node{
+        NodeType::False, 0,
+        {}, 0,
+        (long) hasher("False")
+    };
 }
 
 
@@ -201,7 +202,7 @@ void parseSDDFile(const std::string& filename, Circuit& circuit) {
         if (type == "sdd") {
             int nbNodes;
             iss >> nbNodes;
-            nodeIds.reserve(nbNodes);
+            nodeIds.resize(nbNodes);
             continue;
         }
         unsigned int nodeId;
@@ -219,10 +220,12 @@ void parseSDDFile(const std::string& filename, Circuit& circuit) {
             int vtree, numElements;
             iss >> vtree >> numElements;
             node = createOrNode();
+            node->children.reserve(numElements);
             for (int i = 0; i < numElements; ++i) {
                 int primeId, subId;
                 iss >> primeId >> subId;
                 Node* and_node = createAndNode();
+                and_node->children.reserve(2);
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
                 circuit.add_node_level(and_node);
@@ -240,8 +243,7 @@ void parseSDDFile(const std::string& filename, Circuit& circuit) {
 
 
 void to_dot_file(Circuit& circuit, const std::string& filename) {
-    std::ofstream
-            file(filename);
+    std::ofstream file(filename);
     file << "digraph G {" << std::endl;
     for (const auto &layer: circuit.layers) {
         for (const auto &[_, node]: layer) {
@@ -256,7 +258,6 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
 
 
 std::pair<Arrays, Arrays> tensorize(Circuit& circuit) {
-    // Create the tensors
     Arrays indices(circuit.nb_layers());
     Arrays csr(circuit.nb_layers());
 
