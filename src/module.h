@@ -9,6 +9,8 @@ Node* createAndNode();
 Node* createTrueNode();
 Node* createFalseNode();
 
+void to_dot_file(Circuit& circuit, const std::string& filename);
+
 typedef std::vector<std::vector<long int>> Arrays;
 
 void parseSDDFile(const std::string& filename, Circuit& circuit);

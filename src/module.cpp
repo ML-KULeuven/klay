@@ -109,6 +109,7 @@ struct Circuit {
     static Circuit from_SDD_file(const std::string &filename) {
         Circuit circuit;
         parseSDDFile(filename, circuit);
+        // to_dot_file(circuit, "circuit.dot");
         return circuit;
     }
 
@@ -128,6 +129,14 @@ struct Circuit {
                 }
             }
         }
+    }
+
+    std::size_t nb_nodes() {
+        std::size_t count = 0;
+        for (const auto &layer: layers) {
+            count += layer.size();
+        }
+        return count;
     }
 };
 
@@ -292,5 +301,6 @@ NB_MODULE(nanobind_ext, m) {
     nb::class_<Circuit>(m, "Circuit")
             .def_static("from_SDD_file", &Circuit::from_SDD_file)
             .def("get_indices", &Circuit::get_indices)
-            .def("condition", &Circuit::condition);
+            .def("condition", &Circuit::condition)
+            .def("nb_nodes", &Circuit::nb_nodes);
 }
