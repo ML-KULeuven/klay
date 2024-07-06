@@ -21,6 +21,10 @@ enum NodeType {True, False, Or, And, Leaf};
 const std::hash<std::string> hasher = std::hash<std::string>{};
 
 
+std::size_t mix_hash(std::size_t h) {
+    return (h ^ (h << 16) ^ 89869747UL)  * 3644798167UL;
+}
+
 struct Node {
     NodeType type;
     int ix;  // Index of the node in its layer
@@ -30,7 +34,7 @@ struct Node {
 
     void add_child(Node* child) {
         children.push_back(child);
-        hash += hasher(std::to_string(child->hash));
+        hash ^= mix_hash(child->hash);
         layer = std::max(layer, child->layer+1);
         if (type == NodeType::Or && layer%2 == 1) {
             std::cerr << "Sum layer " << layer << " is not even" << std::endl;
@@ -78,9 +82,9 @@ struct Circuit {
         if (inserted && node->ix == -1) {
             node->ix = layer.size()-1;
         }
-        // if (node->children != layer[node->hash]->children) {
-        //    std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
-        //}
+        if (node->children != layer[node->hash]->children) {
+            std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
+        }
 
         return it->second;
     }
