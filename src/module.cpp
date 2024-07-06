@@ -18,11 +18,9 @@ using namespace nb::literals;
 
 enum NodeType {True, False, Or, And, Leaf};
 
-const std::hash<std::string> hasher = std::hash<std::string>{};
-
 
 std::size_t mix_hash(std::size_t h) {
-    return (h ^ (h << 16) ^ 89869747UL)  * 3644798167UL;
+    return (h ^ (h << 16) ^ 89869747UL) * 3644798167UL;
 }
 
 struct Node {
@@ -146,11 +144,12 @@ struct Circuit {
 
 
 Node* createLiteralNode(int ix) {
+    int i = 2 * std::abs(ix) + (ix > 0 ? 0 : 1);
     return new Node{
         NodeType::Leaf,
-        2 * std::abs(ix) + (ix > 0 ? 0 : 1),
+        i,
         {}, 0,
-        hasher(std::to_string(ix))
+        mix_hash(i)
     };
 }
 
@@ -159,7 +158,7 @@ Node* createAndNode() {
         NodeType::And,
         -1, {},
         0,
-        hasher("And")
+        13643702618494718795UL
     };
 }
 
@@ -169,7 +168,7 @@ Node* createOrNode() {
         -1,
         {},
         0,
-        hasher("Or")
+        10911628454825363117UL
     };
 }
 
@@ -178,7 +177,7 @@ Node* createTrueNode() {
         NodeType::True,
         1, {},
         0,
-        hasher("True")
+        10398838469117805359UL
     };
 }
 
@@ -186,7 +185,7 @@ Node* createFalseNode() {
     return new Node{
         NodeType::False, 0,
         {}, 0,
-        hasher("False")
+        2055047638380880996UL
     };
 }
 
