@@ -2,6 +2,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/ndarray.h>
 
 namespace nb = nanobind;
 
@@ -272,32 +273,50 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
 }
 
 
+void cleanup(void* data) noexcept {
+    delete[] static_cast<long int*>(data);
+}
+
+
 std::pair<Arrays, Arrays> tensorize(Circuit& circuit) {
-    Arrays indices(circuit.nb_layers());
-    Arrays csr(circuit.nb_layers());
+    Arrays indices_ndarrays;
+    Arrays csr_ndarrays;
 
     for (std::size_t i = 1; i < circuit.nb_layers(); ++i) {
         std::vector<long int> child_counts(circuit.layers[i].size(), 0);
         std::size_t layer_size = 0;
+        std::size_t layer_len = circuit.layers[i].size()+1;
         for (const auto &[_, node]: circuit.layers[i]) {
             layer_size += node->children.size();
             child_counts[node->ix] = node->children.size();
         }
 
-        csr[i] = std::vector<long int>(circuit.layers[i].size()+1, 0);
-        for (std::size_t j = 1; j < csr[i].size(); ++j) {
-            csr[i][j] = csr[i][j-1] + child_counts[j-1];
+        long int* csr_data = new long int[layer_len];
+        csr_data[0] = 0;
+        for (std::size_t j = 1; j < layer_len; ++j) {
+            csr_data[j] = csr_data[j-1] + child_counts[j-1];
         }
 
-        indices[i] = std::vector<long int>(layer_size, -1);
+        long int* indices_data = new long int[layer_size];
         for (const auto &[_, node]: circuit.layers[i]) {
             std::size_t offset = 0;
             for (Node *child: node->children) {
-                indices[i][csr[i][node->ix] + offset++] = child->ix;
+                indices_data[csr_data[node->ix] + offset++] = child->ix;
             }
         }
+
+        std::size_t indices_size[1] = {layer_size};
+        std::size_t csr_size[1] = {layer_len};
+        nb::capsule indices_capsule(indices_data, cleanup);
+        nb::capsule csr_capsule(csr_data, cleanup);
+
+        nb::ndarray<nb::numpy, long int, nb::shape<-1>> indices_ndarray(indices_data, 1, indices_size, indices_capsule);
+        nb::ndarray<nb::numpy, long int, nb::shape<-1>> csr_ndarray(csr_data, 1, csr_size, csr_capsule);
+        indices_ndarrays.push_back(indices_ndarray);
+        csr_ndarrays.push_back(csr_ndarray);
     }
-    return std::make_pair(indices, csr);
+
+    return std::make_pair(indices_ndarrays, csr_ndarrays);
 }
 
 
