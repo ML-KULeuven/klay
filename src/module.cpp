@@ -11,10 +11,10 @@ using namespace nb::literals;
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <unordered_map>
+#include <list>
 
 #include "module.h"
-
+#include "hash_table8.hpp"
 
 enum NodeType {True, False, Or, And, Leaf};
 
@@ -26,7 +26,7 @@ std::size_t mix_hash(std::size_t h) {
 struct Node {
     NodeType type;
     int ix;  // Index of the node in its layer
-    std::vector<Node*> children;
+    std::list<Node*> children;
     std::size_t layer; // Layer index
     std::size_t hash; // unique identifier of the node
 
@@ -69,7 +69,7 @@ struct Node {
 
 struct Circuit {
     // Circuit representation as a Merkle DAG
-    std::vector<std::unordered_map<std::size_t, Node*>> layers;
+    std::vector<emhash8::HashMap<std::size_t, Node*>> layers;
 
     Node* add_node(Node* node) {
         if (layers.size() <= node->layer) {
@@ -80,9 +80,9 @@ struct Circuit {
         if (inserted && node->ix == -1) {
             node->ix = layer.size()-1;
         }
-        if (node->children != layer[node->hash]->children) {
-            std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
-        }
+        // if (node->children != layer[node->hash]->children) {
+        //    std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
+        // }
 
         return it->second;
     }
@@ -143,26 +143,28 @@ struct Circuit {
 };
 
 
-Node* createLiteralNode(int ix) {
-    int i = 2 * std::abs(ix) + (ix > 0 ? 0 : 1);
+inline Node* createLiteralNode(int lit) {
+    int ix = 2 * std::abs(lit) + (lit > 0 ? 0 : 1);
     return new Node{
         NodeType::Leaf,
-        i,
-        {}, 0,
-        mix_hash(i)
+        ix,
+        {},
+        0,
+        mix_hash(ix)
     };
 }
 
-Node* createAndNode() {
+inline Node* createAndNode() {
     return new Node{
         NodeType::And,
-        -1, {},
+        -1,
+        {},
         0,
         13643702618494718795UL
     };
 }
 
-Node* createOrNode() {
+inline Node* createOrNode() {
     return new Node{
         NodeType::Or,
         -1,
@@ -172,19 +174,22 @@ Node* createOrNode() {
     };
 }
 
-Node* createTrueNode() {
+inline Node* createTrueNode() {
     return new Node{
         NodeType::True,
-        1, {},
+        1,
+        {},
         0,
         10398838469117805359UL
     };
 }
 
-Node* createFalseNode() {
+inline Node* createFalseNode() {
     return new Node{
-        NodeType::False, 0,
-        {}, 0,
+        NodeType::False,
+        0,
+        {},
+        0,
         2055047638380880996UL
     };
 }
@@ -217,7 +222,7 @@ void parseSDDFile(const std::string& filename, Circuit& circuit) {
             nodeIds.resize(nbNodes);
             continue;
         }
-        unsigned int nodeId;
+        std::size_t nodeId;
         iss >> nodeId;
 
         if (type == "F") {
@@ -232,12 +237,10 @@ void parseSDDFile(const std::string& filename, Circuit& circuit) {
             int vtree, numElements;
             iss >> vtree >> numElements;
             node = createOrNode();
-            node->children.reserve(numElements);
             for (int i = 0; i < numElements; ++i) {
                 int primeId, subId;
                 iss >> primeId >> subId;
                 Node* and_node = createAndNode();
-                and_node->children.reserve(2);
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
                 circuit.add_node_level(and_node);
