@@ -15,14 +15,12 @@ import klay
 
 
 def test_with_pysdd(nb_vars: int, verbose=True, repeats=3):
-    manager, sdd = generate_random_sdd(nb_vars, nb_vars//2)
-    weights = torch.empty(nb_vars, dtype=torch.float32)
-    weights.uniform_(0, 1)
-    weights = weights.log()
+    manager, sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
     ground_truth = wmc_pysdd(manager, sdd, weights, verbose)
 
     t1 = time()
-    circuit = klay.Circuit.from_SDD_file("test.sdd")
+    circuit = klay.Circuit()
+    circuit.add_SDD_from_file("test.sdd")
     if verbose:
         print(f"KLayerization in {time()-t1:.2f}s")
     t1 = time()
@@ -60,7 +58,12 @@ def generate_random_sdd(nb_vars: int, nb_clauses: int, clause_length: int = 3):
 
     sdd.save(bytes(Path("test.sdd")))
     print("Generated SDD", manager.count())
-    return manager, sdd
+
+    weights = torch.empty(nb_vars, dtype=torch.float32)
+    weights.uniform_(0, 1)
+    weights = weights.log()
+    weights.requires_grad = True
+    return manager, sdd, weights
 
 
 def log1mexp(x):
@@ -120,21 +123,29 @@ def eval_sdd(manager, sdd, weights) -> torch.Tensor:
 
 
 def test_backward(nb_vars: int):
-    manager, sdd = generate_random_sdd(nb_vars, nb_vars//2)
-    weights = torch.empty(nb_vars, dtype=torch.float32)
-    weights.uniform_(0, 1)
-    weights = weights.log()
-    weights.requires_grad = True
-    ground_truth = wmc_backward(manager, sdd, weights, True)
-    print("Ground truth", ground_truth)
-
-    circuit = klay.Circuit.from_SDD_file("test.sdd")
+    manager, sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
+    # ground_truth = wmc_backward(manager, sdd, weights, True)
+    # print("Ground truth", ground_truth)
+    circuit = klay.Circuit()
+    circuit.add_SDD_from_file("test.sdd")
+    print("Circuit", circuit.nb_nodes())
     kl = circuit.to_layered_module()
     result = kl(weights)
     t1 = time()
     result.backward()
     print(f"KLAY backward in {time()-t1:.4f}s")
     print("KLAY result", weights.grad)
+
+
+def test_multirooted(nb_vars: int):
+    manager, sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
+    circuit = klay.Circuit()
+    circuit.add_SDD_from_file("test.sdd")
+    manager, sdd, _ = generate_random_sdd(nb_vars//2, nb_vars//4)
+    circuit.add_SDD_from_file("test.sdd")
+    kl = circuit.to_layered_module()
+    result = kl(weights)
+    print(result)
 
 
 def set_seed(seed: int):
@@ -150,8 +161,8 @@ if __name__ == "__main__":
     set_seed(53)
     # fuzz_tester(30)
     # for i in range(10):
-    test_with_pysdd(66)
-    # s = Source.from_file("tensorized.dot")
+    test_multirooted(50)
+    # s = Source.from_file("circuit.dot")
     # s.view()
     # s = Source.from_file("layerized.dot")
     # s.view()

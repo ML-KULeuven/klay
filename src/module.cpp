@@ -82,7 +82,7 @@ struct Circuit {
             node->ix = layer.size()-1;
         }
         // if (node->children != layer[node->hash]->children) {
-        //    std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
+        //     std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
         // }
 
         return it->second;
@@ -109,11 +109,33 @@ struct Circuit {
         return layers.size();
     }
 
-    static Circuit from_SDD_file(const std::string &filename) {
-        Circuit circuit;
-        parseSDDFile(filename, circuit);
-        // to_dot_file(circuit, "circuit.dot");
-        return circuit;
+    std::vector<Node*> get_roots() {
+        std::vector<Node*> roots = {};
+        if (layers.size() > 0) {
+            for (const auto &[_, node]: layers.back()) {
+                roots.push_back(node);
+            }
+        }
+        return roots;
+    }
+
+    void add_SDD_from_file(const std::string &filename) {
+        std::vector<Node*> roots = get_roots();
+        int depth = layers.size() - 1;
+        Node* new_root = parseSDDFile(filename, *this);
+
+        // Bring roots to the same layer
+        if (depth >= 0) {
+            while (depth > new_root->layer) {
+                new_root = add_node(new_root->dummy_parent());
+            }
+            for (; depth < new_root->layer; ++depth) {
+                for (std::size_t i = 0; i < roots.size(); ++i) {
+                    roots[i] = add_node(roots[i]->dummy_parent());
+                }
+            }
+        }
+        to_dot_file(*this, "circuit.dot");
     }
 
     std::pair<Arrays, Arrays> get_indices() {
@@ -198,11 +220,11 @@ inline Node* createFalseNode() {
 
 
 
-void parseSDDFile(const std::string& filename, Circuit& circuit) {
+Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filename << std::endl;
-        return;
+        return nullptr;
     }
 
     std::vector<Node*> nodeIds = {};
@@ -249,12 +271,13 @@ void parseSDDFile(const std::string& filename, Circuit& circuit) {
             }
         } else {
             std::cerr << "Could not parse: " << line << std::endl;
-            return;
+            return nullptr;
         }
         circuit.add_node_level(node);
         nodeIds[nodeId] = node;
     }
     file.close();
+    return node;
 }
 
 
@@ -324,8 +347,9 @@ NB_MODULE(nanobind_ext, m) {
     m.doc() = "Layerize an SDD";
 
     nb::class_<Circuit>(m, "Circuit")
-            .def_static("from_SDD_file", &Circuit::from_SDD_file)
-            .def("get_indices", &Circuit::get_indices)
-            .def("condition", &Circuit::condition)
-            .def("nb_nodes", &Circuit::nb_nodes);
+        .def(nb::init<>())
+        .def("add_SDD_from_file", &Circuit::add_SDD_from_file)
+        .def("get_indices", &Circuit::get_indices)
+        .def("condition", &Circuit::condition)
+        .def("nb_nodes", &Circuit::nb_nodes);
 }
