@@ -17,7 +17,7 @@ using namespace nb::literals;
 #include "module.h"
 #include "hash_table8.hpp"
 
-enum NodeType {True, False, Or, And, Leaf};
+enum class NodeType {True, False, Or, And, Leaf};
 
 
 std::size_t mix_hash(std::size_t h) {
@@ -36,22 +36,22 @@ struct Node {
         hash ^= mix_hash(child->hash);
         layer = std::max(layer, child->layer+1);
         if (type == NodeType::Or && layer%2 == 1) {
-            std::cerr << "Sum layer " << layer << " is not even" << std::endl;
+            throw std::runtime_error("Sum layer is not even");
         } else if (type == NodeType::And && layer%2 == 0 ) {
-            std::cerr << "Product layer " << layer << " is not odd" << std::endl;
+            throw std::runtime_error("Product layer is not odd");
         } else if (type != NodeType::Or && type != NodeType::And) {
-            std::cerr << "Node type not recognized" << std::endl;
+            throw std::runtime_error("Node type not recognized");
         }
     }
 
-    std::string get_label() {
+    std::string get_label() const {
         std::string labelName;
         switch (type) {
-            case True: labelName = "T "; break;
-            case False: labelName = "F "; break;
-            case Or: labelName = "O "; break;
-            case And: labelName = "A "; break;
-            case Leaf: labelName = "L "; break;
+            case NodeType::True: labelName = "T "; break;
+            case NodeType::False: labelName = "F "; break;
+            case NodeType::Or: labelName = "O "; break;
+            case NodeType::And: labelName = "A "; break;
+            case NodeType::Leaf: labelName = "L "; break;
         }
         return labelName + std::to_string(ix);
     }
@@ -82,7 +82,7 @@ struct Circuit {
             node->ix = layer.size()-1;
         }
         // if (node->children != layer[node->hash]->children) {
-        //     std::cerr << "Hashing conflict found!!! " << node->hash << " " << layer[node->hash]->hash << std::endl;
+        //     throw std::runtime_error("Hashing conflict found!!!");
         // }
 
         return it->second;
@@ -105,11 +105,11 @@ struct Circuit {
         return layers[node->layer][node->hash];
     }
 
-    inline std::size_t nb_layers() {
+    inline std::size_t nb_layers() const {
         return layers.size();
     }
 
-    std::vector<Node*> get_roots() {
+    std::vector<Node*> get_roots() const {
         std::vector<Node*> roots = {};
         if (layers.size() > 0) {
             for (const auto &[_, node]: layers.back()) {
@@ -156,7 +156,7 @@ struct Circuit {
         }
     }
 
-    std::size_t nb_nodes() {
+    std::size_t nb_nodes() const {
         std::size_t count = 0;
         for (const auto &layer: layers) {
             count += layer.size();
@@ -223,8 +223,7 @@ inline Node* createFalseNode() {
 Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
     std::ifstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        return nullptr;
+        throw std::runtime_error("Could not open file: " + filename);
     }
 
     std::vector<Node*> nodeIds = {};
@@ -260,7 +259,7 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
             int vtree, numElements;
             iss >> vtree >> numElements;
             node = createOrNode();
-            for (int i = 0; i < numElements; ++i) {
+            for (std::size_t i = 0; i < numElements; ++i) {
                 int primeId, subId;
                 iss >> primeId >> subId;
                 Node* and_node = createAndNode();
@@ -270,8 +269,7 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
                 node->add_child(and_node);
             }
         } else {
-            std::cerr << "Could not parse: " << line << std::endl;
-            return nullptr;
+            throw std::runtime_error("Unknown node type: " + type);
         }
         circuit.add_node_level(node);
         nodeIds[nodeId] = node;
