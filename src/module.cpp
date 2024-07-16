@@ -170,13 +170,16 @@ struct Circuit {
         return tensorize(*this);
     }
 
+    /**
+     * Condition the vec of literals to be true.
+     */
     void condition(const std::vector<int>& lits) {
         for (auto &[_, node]: layers[0]) {
             if (node->type == NodeType::Leaf) {
-                if (std::count(lits.begin(), lits.end(), node->ix) > 0) {
+                if (std::find(lits.begin(), lits.end(), node->ix) != lits.end()) {
                     node->type = NodeType::True;
                     node->ix = 1;
-                } else if (std::count(lits.begin(), lits.end(), -node->ix) > 0) {
+                } else if (std::find(lits.begin(), lits.end(), -node->ix) != lits.end()) {
                     node->type = NodeType::False;
                     node->ix = 0;
                 }
