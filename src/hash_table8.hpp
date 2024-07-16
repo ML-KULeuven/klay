@@ -36,6 +36,9 @@
 #include <functional>
 #include <iterator>
 #include <algorithm>
+#if _WIN32
+    #include <intrin.h>
+#endif
 
 #undef  EMH_NEW
 #undef  EMH_EMPTY
