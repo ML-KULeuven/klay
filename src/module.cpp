@@ -24,6 +24,10 @@ std::size_t mix_hash(std::size_t h) {
     return (h ^ (h << 16) ^ 89869747UL) * 3644798167UL;
 }
 
+/**
+ * A Node in a Layer.
+ * Sum layers are even; Product layers are odd.
+ */
 struct Node {
     NodeType type;
     int ix;  // Index of the node in its layer
@@ -31,6 +35,13 @@ struct Node {
     std::size_t layer; // Layer index
     std::size_t hash; // unique identifier of the node
 
+    /**
+     * Add child to this node.
+     * - Updates this.children;
+     * - Updates this.hash;
+     * - Increases the layer of this node to be at least above the child's layer.
+     * @param child The new child of this node.
+     */
     void add_child(Node* child) {
         children.push_back(child);
         hash ^= mix_hash(child->hash);
@@ -56,13 +67,14 @@ struct Node {
         return labelName + std::to_string(ix);
     }
 
+    /**
+     * Create a dummy parent who is one layer above this node.
+     * This is needed to create a chain of dummy nodes such
+     * that each node only has children in the previous adjacent layer.
+     * @return The dummy parent.
+     */
     Node* dummy_parent() {
-        Node* dummy;
-        if (layer % 2 == 0) {
-            dummy = createAndNode();
-        } else {
-            dummy = createOrNode();
-        }
+        Node* dummy = (layer % 2 == 0) ? createAndNode() : createOrNode();
         dummy->add_child(this);
         return dummy;
     }
@@ -88,6 +100,12 @@ struct Circuit {
         return it->second;
     }
 
+    /**
+     * Add node to this circuit and ensure each child is in the previous adjacent layer.
+     *
+     * If a child is not, a chain of dummy nodes will be added in between.
+     * @param node The new node to add to the circuit.
+     */
     void add_node_level(Node* node) {
         for (auto& child : node->children) {
             // Update pointer as the child might have been merged
@@ -101,15 +119,25 @@ struct Circuit {
         add_node(node);
     }
 
+    /**
+     * Get the corresponding node in the circuit.
+     * This may be a different node with the same hash.
+     */
     inline Node* get_node(Node* node) {
         return layers[node->layer][node->hash];
     }
 
+    /**
+     * Number of layers in the circuit.
+     */
     inline std::size_t nb_layers() const {
         return layers.size();
     }
 
-    std::vector<Node*> get_roots() const {
+    /**
+     * Get the roots of this circuit
+     */
+    inline std::vector<Node*> get_roots() const {
         std::vector<Node*> roots = {};
         if (layers.size() > 0) {
             for (const auto &[_, node]: layers.back()) {
@@ -156,6 +184,9 @@ struct Circuit {
         }
     }
 
+    /**
+     * Number of nodes in the whole circuit.
+     */
     std::size_t nb_nodes() const {
         std::size_t count = 0;
         for (const auto &layer: layers) {
@@ -167,7 +198,7 @@ struct Circuit {
 
 
 inline Node* createLiteralNode(int lit) {
-    int ix = 2 * std::abs(lit) + (lit > 0 ? 0 : 1);
+    int i = (std::abs(lit) << 1) + (lit <= 0);
     return new Node{
         NodeType::Leaf,
         ix,
@@ -300,7 +331,10 @@ void cleanup(void* data) noexcept {
 
 
 std::pair<Arrays, Arrays> tensorize(Circuit& circuit) {
+    // per layer, a vector of size the number of children (but children can count twice
+    // so this might be larger than simply the previous layer.
     Arrays indices_ndarrays;
+    // per layer, a vector representing the layer
     Arrays csr_ndarrays;
 
     for (std::size_t i = 1; i < circuit.nb_layers(); ++i) {
