@@ -40,7 +40,7 @@ class KnowledgeLayer(torch.nn.Module):
         layers = []
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             ptrs = torch.as_tensor(ptrs)
-            csr = torch.as_tensor(csr)
+            csr = torch.as_tensor(csr, dtype=torch.long)
             if i % 2 == 0:
                 layers.append(ProductLayer(ptrs, csr))
             else:
