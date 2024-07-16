@@ -201,7 +201,7 @@ struct Circuit {
 
 
 inline Node* createLiteralNode(int lit) {
-    int i = (std::abs(lit) << 1) + (lit <= 0);
+    int ix = (std::abs(lit) << 1) + (lit <= 0);
     return new Node{
         NodeType::Leaf,
         ix,
