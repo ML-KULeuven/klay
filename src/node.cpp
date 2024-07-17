@@ -1,0 +1,138 @@
+/*
+MIT License
+
+Copyright (c) 2024 KU Leuven (Machine Learning lab)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+#include "node.h"
+
+/**
+ * Improve bit dispersion of a given hash value h.
+ */
+std::size_t mix_hash(std::size_t h) {
+    return (h ^ (h << 16) ^ 89869747UL) * 3644798167UL;
+}
+
+/*
+ * ----------
+ *  Node
+ * ----------
+ */
+
+/**
+ * Add child to this node.
+ * - Updates this.children;
+ * - Updates this.hash;
+ * - Increases the layer of this node to be at least above the child's layer.
+ * @param child The new child of this node.
+ */
+void Node::add_child(Node* child) {
+    children.push_back(child);
+    hash ^= mix_hash(child->hash);
+    layer = std::max(layer, child->layer+1);
+    if (type == NodeType::Or && layer%2 == 1) {
+        throw std::runtime_error("Sum layer is not even");
+    } else if (type == NodeType::And && layer%2 == 0 ) {
+        throw std::runtime_error("Product layer is not odd");
+    } else if (type != NodeType::Or && type != NodeType::And) {
+        throw std::runtime_error("Node type not recognized");
+    }
+}
+
+/**
+ * Useful for printing.
+ * @return The label of this node.
+ */
+std::string Node::get_label() const {
+    std::string labelName;
+    switch (type) {
+        case NodeType::True: labelName = "T "; break;
+        case NodeType::False: labelName = "F "; break;
+        case NodeType::Or: labelName = "O "; break;
+        case NodeType::And: labelName = "A "; break;
+        case NodeType::Leaf: labelName = "L "; break;
+    }
+    return labelName + std::to_string(ix);
+}
+
+/**
+ * Create a dummy parent who is one layer above this node.
+ * This is needed to create a chain of dummy nodes such
+ * that each node only has children in the previous adjacent layer.
+ * @return The dummy parent.
+ */
+Node* Node::dummy_parent() {
+    Node* dummy = (layer % 2 == 0) ? Node::createAndNode() : Node::createOrNode();
+    dummy->add_child(this);
+    return dummy;
+}
+
+
+Node* Node::createLiteralNode(int lit) {
+    int ix = (std::abs(lit) << 1) + (lit <= 0);
+    return new Node{
+            NodeType::Leaf,
+            ix,
+            {},
+            0,
+            mix_hash(ix)
+    };
+}
+
+Node* Node::createAndNode() {
+    return new Node{
+            NodeType::And,
+            -1,
+            {},
+            0,
+            13643702618494718795UL
+    };
+}
+
+Node* Node::createOrNode() {
+    return new Node{
+            NodeType::Or,
+            -1,
+            {},
+            0,
+            10911628454825363117UL
+    };
+}
+
+Node* Node::createTrueNode() {
+    return new Node{
+            NodeType::True,
+            1,
+            {},
+            0,
+            10398838469117805359UL
+    };
+}
+
+Node* Node::createFalseNode() {
+    return new Node{
+            NodeType::False,
+            0,
+            {},
+            0,
+            2055047638380880996UL
+    };
+}
