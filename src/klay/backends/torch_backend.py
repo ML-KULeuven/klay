@@ -55,20 +55,21 @@ class KnowledgeLayer(torch.nn.Module):
 class SumLayer(torch.nn.Module):
     def __init__(self, ptrs, csr):
         super(SumLayer, self).__init__()
-        self.ptrs = ptrs
-        self.csr = csr
+        self.register_buffer('ptrs', ptrs)
+        self.register_buffer('csr', csr)
         deltas = torch.diff(csr)
         ixs = torch.arange(len(deltas), dtype=torch.int32, device=ptrs.device)
-        self.ptrs_rev = ixs.repeat_interleave(repeats=deltas)
+        self.register_buffer('ptrs_rev', ixs.repeat_interleave(repeats=deltas))
 
     def forward(self, x):
-        x = x[self.ptrs]
+        x = x[self.get_buffer('ptrs')]
+        csr = self.get_buffer('csr')
         with torch.no_grad():
-            a_add = segment_csr(x, self.csr, reduce="max")
-            a_sub = a_add[self.ptrs_rev]
+            a_add = segment_csr(x, csr, reduce="max")
+            a_sub = a_add[self.get_buffer('ptrs_rev')]
         x = torch.exp(x - a_sub)
 
-        x = segment_csr(x, self.csr, reduce="sum")
+        x = segment_csr(x, csr, reduce="sum")
         x = torch.log(x + EPSILON) + a_add
         return x
 
@@ -76,10 +77,9 @@ class SumLayer(torch.nn.Module):
 class ProductLayer(torch.nn.Module):
     def __init__(self, ptrs, csr):
         super(ProductLayer, self).__init__()
-        self.ptrs = ptrs
-        self.csr = csr
-
+        self.register_buffer('ptrs', ptrs)
+        self.register_buffer('csr', csr)
     def forward(self, x):
-        x = x[self.ptrs]
-        x = segment_csr(x, self.csr, reduce='sum')
+        x = x[self.get_buffer('ptrs')]
+        x = segment_csr(x, self.get_buffer('csr'), reduce='sum')
         return x
