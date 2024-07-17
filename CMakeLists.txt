@@ -56,7 +56,8 @@ nanobind_add_module(
         NB_STATIC
 
         # Source code goes here
-        src/module.cpp
+        src/node.cpp
+        src/circuit.cpp
 )
 
 # Install directive for scikit-build-core
