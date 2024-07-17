@@ -83,6 +83,7 @@ struct Node {
 struct Circuit {
     // Circuit representation as a Merkle DAG
     std::vector<emhash8::HashMap<std::size_t, Node*>> layers;
+    std::vector<Node*> roots = {};
 
     Node* add_node(Node* node) {
         if (layers.size() <= node->layer) {
@@ -134,21 +135,7 @@ struct Circuit {
         return layers.size();
     }
 
-    /**
-     * Get the roots of this circuit
-     */
-    inline std::vector<Node*> get_roots() const {
-        std::vector<Node*> roots = {};
-        if (layers.size() > 0) {
-            for (const auto &[_, node]: layers.back()) {
-                roots.push_back(node);
-            }
-        }
-        return roots;
-    }
-
     void add_SDD_from_file(const std::string &filename) {
-        std::vector<Node*> roots = get_roots();
         int depth = layers.size() - 1;
         Node* new_root = parseSDDFile(filename, *this);
 
@@ -163,6 +150,7 @@ struct Circuit {
                 }
             }
         }
+        roots.push_back(new_root);
         to_dot_file(*this, "circuit.dot");
     }
 
