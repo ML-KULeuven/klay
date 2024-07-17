@@ -140,7 +140,6 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
 }
 
 void Circuit::add_SDD_from_file(const std::string &filename) {
-    std::vector<Node*> roots = get_roots();
     int depth = layers.size() - 1;
     Node* new_root = parseSDDFile(filename, *this);
 
@@ -154,6 +153,10 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
                 roots[i] = add_node(roots[i]->dummy_parent());
             }
         }
+    }
+    roots.push_back(new_root);
+    for(size_t i = 0; i < roots.size(); ++i) {
+        roots[i]->ix = i;
     }
     to_dot_file(*this, "circuit.dot");
 }

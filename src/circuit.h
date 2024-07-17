@@ -50,6 +50,8 @@ class Circuit {
 public:
     // Circuit representation as a Merkle DAG
     std::vector<emhash8::HashMap<std::size_t, Node*>> layers;
+    // Root nodes in order they were added to the Circuit
+    std::vector<Node*> roots = {};
 
     Node* add_node(Node* node);
 
@@ -74,19 +76,6 @@ public:
      */
     inline std::size_t nb_layers() const {
         return layers.size();
-    }
-
-    /**
-     * Get the roots of this circuit
-     */
-    inline std::vector<Node*> get_roots() const {
-        std::vector<Node*> roots = {};
-        if (layers.size() > 0) {
-            for (const auto &[_, node]: layers.back()) {
-                roots.push_back(node);
-            }
-        }
-        return roots;
     }
 
     void add_SDD_from_file(const std::string &filename);
