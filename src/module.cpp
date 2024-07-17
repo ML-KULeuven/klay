@@ -151,6 +151,9 @@ struct Circuit {
             }
         }
         roots.push_back(new_root);
+        for(size_t i = 0; i < roots.size(); ++i) {
+            roots[i]->ix = i;
+        }
         to_dot_file(*this, "circuit.dot");
     }
 
