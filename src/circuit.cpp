@@ -158,7 +158,6 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
     for(size_t i = 0; i < roots.size(); ++i) {
         roots[i]->ix = i;
     }
-    to_dot_file(*this, "circuit.dot");
 }
 
 /**
