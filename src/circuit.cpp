@@ -61,7 +61,12 @@ std::pair<Node*, bool> Circuit::add_node_level(Node* node) {
 
         }
     }
-    //TODO: recompute hash of node! bc children hashes have changed due to multiple layer!
+    // Note: since we may have changed the children, (replaced by dummy parent)
+    // the hash is no longer a hash of the direct children.
+    // Instead, it became the hash of the next non-dummy child.
+    // As long as we are fine with the latter definition,
+    // and we are consistent with that, there is no need
+    // to recompute the hash of `node`.
     return add_node(node);
 }
 
