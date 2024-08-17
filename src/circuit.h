@@ -91,6 +91,11 @@ public:
      *
      * This may change node->children and will update node->ix.
      *
+     * Importantly, we assume that the children are already part of the circuit.
+     * For this reason we also return a pair, if an equivalent node (but different instance!)
+     * was already present, we simply return that node and you should free the original node
+     * that was given.
+     *
      * @param node The new node to add to the circuit.
      * @return If no equivalent node was present yet, returns the node itself and true.
      * If there was already an equivalent node present, returns a pointer to that node, and false.
@@ -99,7 +104,8 @@ public:
 
     /**
      * Get the corresponding node in the circuit.
-     * This may be a different node instance with the same hash.
+     * This may be a different node instance with the same hash and
+     * is equal according to the `NodeEqual` struct.
      */
     Node* get_node(Node* node) { return *(layers[node->layer].find(node)); }
 

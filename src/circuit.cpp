@@ -41,18 +41,27 @@ std::pair<Node*, bool> Circuit::add_node(Node* node) {
 std::pair<Node*, bool> Circuit::add_node_level(Node* node) {
     // First make sure each child is adjacent.
     for (auto& child : node->children) {
-        //TODO: should we free old child? Should we create a new Node instead? i.e., immutable-ish.
-        // we can not simply free it because another node in create_from_sdd might use it; or ref it in the dict?
-        //We return a pair, so we can check if the returned node has changed children (by ref)?
-
-        // Update pointer as the child might have been merged
-        child = get_node(child);
-
+#ifndef NDEBUG
+        // We assume children are already part of the circuit,
+        // since each child should have been added to the circuit first,
+        // and they should have used the returned child.
+        // It is also the user's responsibility to delete duplicate nodes
+        // in case an equivalent one was already present.
+        Node* child_stored = get_node(child);
+        assert(*child_stored == *child);
+#endif
         // Add a chain of dummy nodes to bring child to the correct layer
-        while (child->layer < node->layer - 1)
-            child = add_node(child->dummy_parent()).first;
+        // invariant: each child is part of the circuit.
+        bool child_inserted = false;
+        while (child->layer < node->layer - 1) {
+            Node* parent = child->dummy_parent();
+            [child, parent_inserted] = add_node(parent);
+            if (!parent_inserted) // maintain invariant.
+                delete parent;
+
+        }
     }
-    //TODO: recompute hash of node! bc children hashes have changed!
+    //TODO: recompute hash of node! bc children hashes have changed due to multiple layer!
     return add_node(node);
 }
 
@@ -86,8 +95,6 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
         std::size_t nodeId;
         iss >> nodeId;
 
-        //TODO: add checks to free memory when collissions occured.
-        //TODO: what if a child was merged? in add_node_level we update the child. Is that child already freed? Should we free it?
         if (type == "F") {
             node = Node::createFalseNode();
         } else if (type == "T") {
@@ -106,14 +113,20 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
                 Node* and_node = Node::createAndNode();
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
-                and_node = circuit.add_node_level(and_node).first; //TODO: add check for mem_leak
+                auto [new_and_node, inserted] = circuit.add_node_level(and_node);
+                if (!inserted) // remove and_node if equivalent was present already
+                    delete and_node;
+                and_node = new_and_node;
                 node->add_child(and_node);
             }
         } else {
             throw std::runtime_error("Unknown node type: " + type);
         }
-        circuit.add_node_level(node);
-        nodeIds[nodeId] = node;
+        auto [new_node, inserted] = circuit.add_node_level(node);
+        if (!inserted) // remove node if equivalent was present already
+            delete node;
+        node = new_node;
+        nodeIds[nodeId] = node; // Invariant: these nodes are present in the circuit.
     }
     file.close();
     return node;
