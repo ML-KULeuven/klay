@@ -162,7 +162,7 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
         while (depth > new_root->layer) {
             Node* parent = new_root->dummy_parent();
             new_root = add_node(parent).first;
-            if (*parent != *new_root) // prevent memory leak
+            if (parent != new_root) // prevent memory leak
                 delete parent; // new_root existed already.
         }
         for (; depth < new_root->layer; ++depth) {
