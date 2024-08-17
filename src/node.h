@@ -98,11 +98,19 @@ struct NodeHash {
 
 struct NodeEqual {
     bool operator()(const Node* lhs, const Node* rhs) const {
-        //TODO: sort children, and compare children only per reference? I.e., we do not want each child to be compared content-wise
-        // We do not compare ix, because that is not set yet.
-        // We do not compare type, as that check is subsumed by comparing layer
-        bool r =  (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer); // && children == other.children;
-        return r;
+        //TODO: current implementation assumes hash-collision free.
+        // There is indeed a very low probability of a hash-collision,
+        // since it must only be unique per layer, and the hash function
+        // should be quite good.
+        // However, to be 100% correct, we could add the following check:
+        // && (*(lhs->children) == *(rhs->children) || (lhs->children == rhs->children))
+        // this works best if we ensure a canonical order for children.
+        // For example, by sorting the children during construction (or before adding).
+        // We could sort them based on their hash.
+
+        // We must not compare `ix`, because that is not set yet when we compare.
+        // We do not compare `type`, as that check is subsumed by comparing `layer`
+        return (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer);
     }
 };
 
