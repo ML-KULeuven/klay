@@ -58,6 +58,7 @@ def generate_random_sdd(nb_vars: int, nb_clauses: int, clause_length: int = 3):
 
     sdd.save(bytes(Path("test.sdd")))
     print("Generated SDD", manager.count())
+    vtree.save(bytes(Path("test.vtree")))
 
     weights = torch.empty(nb_vars, dtype=torch.float32)
     weights.uniform_(0, 1)
@@ -158,10 +159,11 @@ def set_seed(seed: int):
 
 
 if __name__ == "__main__":
-    set_seed(53)
+    set_seed(52)
+    test_with_pysdd(30)
     # fuzz_tester(30)
     # for i in range(10):
-    test_multirooted(50)
+    # test_multirooted(50)
     # s = Source.from_file("circuit.dot")
     # s.view()
     # s = Source.from_file("layerized.dot")
