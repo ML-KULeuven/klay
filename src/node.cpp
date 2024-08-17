@@ -136,3 +136,8 @@ Node* Node::createFalseNode() {
             2055047638380880996UL
     };
 }
+
+
+bool compareNode(const Node& first_node, const Node& second_node) {
+    return first_node.hash < second_node.hash;
+}

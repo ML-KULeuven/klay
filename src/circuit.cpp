@@ -24,8 +24,6 @@ SOFTWARE.
 
 #include "circuit.h"
 #include "cassert"
-#define NDEBUG // Comment-out to enable asserts
-
 
 std::pair<Node*, bool> Circuit::add_node(Node* node) {
     if (layers.size() <= node->layer)
@@ -52,13 +50,12 @@ std::pair<Node*, bool> Circuit::add_node_level(Node* node) {
 #endif
         // Add a chain of dummy nodes to bring child to the correct layer
         // invariant: each child is part of the circuit.
-        bool child_inserted = false;
+        bool parent_inserted = false;
         while (child->layer < node->layer - 1) {
             Node* parent = child->dummy_parent();
-            [child, parent_inserted] = add_node(parent);
+            auto [child, parent_inserted] = add_node(parent);
             if (!parent_inserted) // maintain invariant.
                 delete parent;
-
         }
     }
     // Note: since we may have changed the children, (replaced by dummy parent)

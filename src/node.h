@@ -32,6 +32,8 @@ SOFTWARE.
 
 #include "literal.h"
 
+#include "cassert"
+
 enum class NodeType {True, False, Or, And, Leaf};
 
 
@@ -83,6 +85,17 @@ public:
 
 
 /**
+ * Binary predicate returning true if the first node goes before the second, and false otherwise.
+ * This can be used to sort a list of nodes.
+ * Like this: `my_list.sort(compareNode);`
+ * @param first_node The first node
+ * @param second_node The second node
+ * @return Whether the first node goes before the second.
+ */
+bool compareNode(const Node& first_node, const Node& second_node);
+
+
+/**
  * Used to get the hash from a node.
  * For example,
  * ```
@@ -98,15 +111,28 @@ struct NodeHash {
 
 struct NodeEqual {
     bool operator()(const Node* lhs, const Node* rhs) const {
-        //TODO: current implementation assumes hash-collision free.
-        // There is indeed a very low probability of a hash-collision,
-        // since it must only be unique per layer, and the hash function
-        // should be quite good.
-        // However, to be 100% correct, we could add the following check:
-        // && (*(lhs->children) == *(rhs->children) || (lhs->children == rhs->children))
-        // this works best if we ensure a canonical order for children.
-        // For example, by sorting the children during construction (or before adding).
-        // We could sort them based on their hash.
+#ifndef NDEBUG
+        // We currently assume the hash is collision-free,
+        // which is a relatively safe assumption since it
+        // must only be unique per layer, and the hash function
+        // is relatively good.
+        // This assertion checks whether we were wrong.
+        bool r = (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer);
+        if (r) {
+            lhs->children.sort(compareNode); // canonical order
+            rhs->children.sort(compareNode); // canonical order
+            assert (lhs->children == rhs->children);
+        }
+
+        // If we decide to be 100% correct; we can
+        // sort the children during construction (or before adding the node).
+        // and then perform the list equality check during this equality check.
+        // An inductive correctness proof then follows easily.
+        // If we can assume each literal and constant node have a unique hash (base-case).
+        // then the invariant that the nodes in the previous layer are all unique holds,
+        // and since we use equal children check, the nodes in the current layer are
+        // therefore then also unique.
+#endif
 
         // We must not compare `ix`, because that is not set yet when we compare.
         // We do not compare `type`, as that check is subsumed by comparing `layer`
