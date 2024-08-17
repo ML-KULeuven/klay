@@ -125,7 +125,7 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
             throw std::runtime_error("Unknown node type: " + type);
         }
         auto [new_node, inserted] = circuit.add_node_level(node);
-        if (!inserted) // remove node if equivalent was present already
+        if (!inserted) //prevent mem leak
             delete node;
         node = new_node;
         nodeIds[nodeId] = node; // Invariant: these nodes are present in the circuit.
@@ -160,10 +160,15 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
     // Bring roots to the same layer
     if (depth >= 0) {
         while (depth > new_root->layer) {
-            new_root = add_node(new_root->dummy_parent()).first;
+            Node* parent = new_root->dummy_parent();
+            new_root = add_node(parent).first;
+            if (*parent != *new_root) // prevent memory leak
+                delete parent; // new_root existed already.
         }
         for (; depth < new_root->layer; ++depth) {
             for (std::size_t i = 0; i < roots.size(); ++i) {
+                // since depth was max; dummy_parent did not exist
+                // so returned node is guaranteed dummy_parent. No mem leak.
                 roots[i] = add_node(roots[i]->dummy_parent()).first;
             }
         }
