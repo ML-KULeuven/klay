@@ -37,7 +37,7 @@ SOFTWARE.
 #include <list>
 
 #include "node.h"
-#include "hash_table8.hpp"
+#include "hash_set8.hpp"
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -49,34 +49,64 @@ class Circuit {
 
 public:
     // Circuit representation as a Merkle DAG
-    std::vector<emhash8::HashMap<std::size_t, Node*>> layers;
+    std::vector<emhash8::HashSet<Node*, NodeHash, NodeEqual>> layers;
     // Root nodes in order they were added to the Circuit
     std::vector<Node*> roots = {};
 
-    Node* add_node(Node* node);
+    ~Circuit() {
+        for (auto& layer: layers) {
+            for (auto& node: layer)
+                delete node;
+            layer.clear();
+        }
+    }
+
+private:
+
+    /**
+     * Add the given node to the circuit.
+     *
+     * Beware! This does not add intermediate nodes to intermediate layers.
+     * Please use add_node_level instead.
+     *
+     * Uses node->layer to consider the correct layer of the circuit.
+     * After adding a node, the Circuit assumes ownership and will free it upon deletion.
+     *
+     * This will update node->ix.
+     *
+     * @param node The node to add.
+     * @return If no equivalent node was present yet, returns the node itself and true.
+     * If there was already an equivalent node present, returns a pointer to that node, and false.
+     */
+    std::pair<Node*, bool> add_node(Node* node);
+
+public:
 
     /**
      * Add node to this circuit and ensure each child is in the previous adjacent layer.
      *
-     * If a child is not, a chain of dummy nodes will be added in between.
+     * If a child does not exist in the previous layer, a chain of dummy nodes will be added in between.
+     * Uses node->layer to consider the correct layer of the circuit.
+     * After adding a node, the Circuit assumes ownership and will free it upon deletion.
+     *
+     * This may change node->children and will update node->ix.
+     *
      * @param node The new node to add to the circuit.
+     * @return If no equivalent node was present yet, returns the node itself and true.
+     * If there was already an equivalent node present, returns a pointer to that node, and false.
      */
-    void add_node_level(Node* node);
+    std::pair<Node*, bool> add_node_level(Node* node);
 
     /**
      * Get the corresponding node in the circuit.
-     * This may be a different node with the same hash.
+     * This may be a different node instance with the same hash.
      */
-    inline Node* get_node(Node* node) {
-        return layers[node->layer][node->hash];
-    }
+    Node* get_node(Node* node) { return *(layers[node->layer].find(node)); }
 
     /**
      * Number of layers in the circuit.
      */
-    inline std::size_t nb_layers() const {
-        return layers.size();
-    }
+    inline std::size_t nb_layers() const { return layers.size(); }
 
     void add_SDD_from_file(const std::string &filename);
 
@@ -97,6 +127,24 @@ public:
         for (const auto &layer: layers)
             count += layer.size();
         return count;
+    }
+
+    /**
+     * For debugging purposes;
+     * prints every node of each layer
+     */
+    void print_circuit() const {
+        for (const auto &layer : layers) {
+            std::cout << "--- next layer ---" << std::endl;
+            for (const auto &node : layer) {
+                std::cout << node->get_label() << " connects to ";
+                for (const auto &child : node->children) {
+                    std::cout << child->get_label() << ",";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
     }
 
 };

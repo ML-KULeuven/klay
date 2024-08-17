@@ -23,40 +23,37 @@ SOFTWARE.
 */
 
 #include "circuit.h"
+#include "cassert"
+#define NDEBUG // Comment-out to enable asserts
 
 
-Node* Circuit::add_node(Node* node) {
-    if (layers.size() <= node->layer) {
+std::pair<Node*, bool> Circuit::add_node(Node* node) {
+    if (layers.size() <= node->layer)
         layers.resize(node->layer + 1);
-    }
     auto& layer = layers[node->layer];
-    auto [it, inserted] = layer.try_emplace(node->hash, node);
-    if (inserted && node->ix == -1) {
+    auto [it, inserted] = layer.insert(node);
+    if (inserted && node->ix == -1)
         node->ix = layer.size()-1;
-    }
-    // if (node->children != layer[node->hash]->children) {
-    //     throw std::runtime_error("Hashing conflict found!!!");
-    // }
-    return it->second;
+    return {*it, inserted };
 }
 
-/**
- * Add node to this circuit and ensure each child is in the previous adjacent layer.
- *
- * If a child is not, a chain of dummy nodes will be added in between.
- * @param node The new node to add to the circuit.
- */
-void Circuit::add_node_level(Node* node) {
+
+std::pair<Node*, bool> Circuit::add_node_level(Node* node) {
+    // First make sure each child is adjacent.
     for (auto& child : node->children) {
+        //TODO: should we free old child? Should we create a new Node instead? i.e., immutable-ish.
+        // we can not simply free it because another node in create_from_sdd might use it; or ref it in the dict?
+        //We return a pair, so we can check if the returned node has changed children (by ref)?
+
         // Update pointer as the child might have been merged
         child = get_node(child);
 
         // Add a chain of dummy nodes to bring child to the correct layer
-        while (child->layer < node->layer - 1) {
-            child = add_node(child->dummy_parent());
-        }
+        while (child->layer < node->layer - 1)
+            child = add_node(child->dummy_parent()).first;
     }
-    add_node(node);
+    //TODO: recompute hash of node! bc children hashes have changed!
+    return add_node(node);
 }
 
 /**
@@ -89,6 +86,8 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
         std::size_t nodeId;
         iss >> nodeId;
 
+        //TODO: add checks to free memory when collissions occured.
+        //TODO: what if a child was merged? in add_node_level we update the child. Is that child already freed? Should we free it?
         if (type == "F") {
             node = Node::createFalseNode();
         } else if (type == "T") {
@@ -96,7 +95,7 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
         } else if (type == "L") {
             int vtree, literal;
             iss >> vtree >> literal;
-            node = Node::createLiteralNode(literal);
+            node = Node::createLiteralNode(Lit::fromInt(literal));
         } else if (type == "D") {
             int vtree, numElements;
             iss >> vtree >> numElements;
@@ -107,7 +106,7 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
                 Node* and_node = Node::createAndNode();
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
-                circuit.add_node_level(and_node);
+                and_node = circuit.add_node_level(and_node).first; //TODO: add check for mem_leak
                 node->add_child(and_node);
             }
         } else {
@@ -129,7 +128,7 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     std::ofstream file(filename);
     file << "digraph G {" << std::endl;
     for (const auto &layer: circuit.layers) {
-        for (const auto &[_, node]: layer) {
+        for (const auto *node : layer) {
             for (Node *child: node->children) {
                 file << "  " << child->hash << " -> " << node->hash << std::endl;
             }
@@ -146,11 +145,11 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
     // Bring roots to the same layer
     if (depth >= 0) {
         while (depth > new_root->layer) {
-            new_root = add_node(new_root->dummy_parent());
+            new_root = add_node(new_root->dummy_parent()).first;
         }
         for (; depth < new_root->layer; ++depth) {
             for (std::size_t i = 0; i < roots.size(); ++i) {
-                roots[i] = add_node(roots[i]->dummy_parent());
+                roots[i] = add_node(roots[i]->dummy_parent()).first;
             }
         }
     }
@@ -158,18 +157,26 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
     for(size_t i = 0; i < roots.size(); ++i) {
         roots[i]->ix = i;
     }
+#ifndef NDEBUG
+    to_dot_file(*this, "circuit.dot");
+#endif
 }
 
 /**
  * Condition the vec of literals to be true.
  */
 void Circuit::condition(const std::vector<int>& lits) {
-    for (auto &[_, node]: layers[0]) {
+    std::vector<Lit> lits_formatted;
+    lits_formatted.reserve(lits.size());
+    for (auto lit: lits)
+        lits_formatted.emplace_back(Lit::fromInt(lit));
+    // condition
+    for (auto *node: layers[0]) {
         if (node->type == NodeType::Leaf) {
-            if (std::find(lits.begin(), lits.end(), node->ix) != lits.end()) {
+            if (std::find(lits_formatted.begin(), lits_formatted.end(), Lit(node->ix)) != lits_formatted.end()) {
                 node->type = NodeType::True;
                 node->ix = 1;
-            } else if (std::find(lits.begin(), lits.end(), -node->ix) != lits.end()) {
+            } else if (std::find(lits_formatted.begin(), lits_formatted.end(), Lit(node->ix)) != lits_formatted.end()) {
                 node->type = NodeType::False;
                 node->ix = 0;
             }
@@ -184,6 +191,7 @@ void cleanup(void* data) noexcept {
 
 
 std::pair<Arrays, Arrays> Circuit::tensorize() {
+    // print_circuit(); // Helpful for debugging small circuits
     // per layer, a vector of size the number of children (but children can count twice
     // so this might be larger than simply the previous layer.
     Arrays indices_ndarrays;
@@ -194,7 +202,7 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
         std::vector<long int> child_counts(layers[i].size(), 0);
         std::size_t layer_size = 0;
         std::size_t layer_len = layers[i].size()+1;
-        for (const auto &[_, node]: layers[i]) {
+        for (const auto *node: layers[i]) {
             layer_size += node->children.size();
             child_counts[node->ix] = node->children.size();
         }
@@ -206,9 +214,10 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
         }
 
         long int* indices_data = new long int[layer_size];
-        for (const auto &[_, node]: layers[i]) {
+        for (const auto *node: layers[i]) {
             std::size_t offset = 0;
             for (Node *child: node->children) {
+                assert(child->layer == i-1);
                 indices_data[csr_data[node->ix] + offset++] = child->ix;
             }
         }

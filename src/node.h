@@ -30,6 +30,8 @@ SOFTWARE.
 #include <vector>
 #include <list>
 
+#include "literal.h"
+
 enum class NodeType {True, False, Or, And, Leaf};
 
 
@@ -41,17 +43,14 @@ class Node {
 
 public:
     NodeType type;
-    int ix;  // Index of the node in its layer
+    int ix;  // Index of the node in its layer, can be negative for literal nodes.
 
     std::list<Node*> children;
     std::size_t layer; // Layer index
     std::size_t hash; // unique identifier of the node
 
 
-    //Node(NodeType type, std::size_t hash, std::size_t layer, int ix) : type(type), hash(hash), layer(layer), ix(ix) {
-    //}
-
-    static Node* createLiteralNode(int lit);
+    static Node* createLiteralNode(Lit lit);
     static Node* createOrNode();
     static Node* createAndNode();
     static Node* createTrueNode();
@@ -79,5 +78,32 @@ public:
      * @return The dummy parent.
      */
     Node* dummy_parent();
+
 };
+
+
+/**
+ * Used to get the hash from a node.
+ * For example,
+ * ```
+ *     emhash8::HashSet<Node*, NodeHash, NodeEqual> my_set;
+ *     creates a hashSet of nodes, using this particular hash method.
+ * ```
+ */
+struct NodeHash {
+    size_t operator()(const Node* node) const {
+        return node->hash;
+    }
+};
+
+struct NodeEqual {
+    bool operator()(const Node* lhs, const Node* rhs) const {
+        //TODO: sort children, and compare children only per reference? I.e., we do not want each child to be compared content-wise
+        // We do not compare ix, because that is not set yet.
+        // We do not compare type, as that check is subsumed by comparing layer
+        bool r =  (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer); // && children == other.children;
+        return r;
+    }
+};
+
 

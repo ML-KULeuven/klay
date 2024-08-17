@@ -86,8 +86,8 @@ Node* Node::dummy_parent() {
 }
 
 
-Node* Node::createLiteralNode(int lit) {
-    int ix = (std::abs(lit) << 1) + (lit <= 0);
+Node* Node::createLiteralNode(Lit lit) {
+    int ix = lit.internal_val();
     return new Node{
             NodeType::Leaf,
             ix,
