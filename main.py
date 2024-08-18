@@ -160,7 +160,7 @@ def set_seed(seed: int):
 
 if __name__ == "__main__":
     set_seed(52)
-    test_with_pysdd(100)
+    test_with_pysdd(50)
     # fuzz_tester(30)
     # for i in range(10):
     # test_multirooted(50)

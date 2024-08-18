@@ -167,9 +167,12 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
         }
         for (; depth < new_root->layer; ++depth) {
             for (std::size_t i = 0; i < roots.size(); ++i) {
-                // since depth was max; dummy_parent did not exist
-                // so returned node is guaranteed dummy_parent. No mem leak.
-                roots[i] = add_node(roots[i]->dummy_parent()).first;
+                // new_root might have used existing root so
+                // a parent may exist already.
+                Node* parent = roots[i]->dummy_parent();
+                roots[i] = add_node(parent).first;
+                if (roots[i] != parent) // prevent memory leak
+                    delete parent;
             }
         }
     }
