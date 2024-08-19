@@ -45,7 +45,7 @@ class Node {
 
 public:
     NodeType type;
-    unsigned ix;  // Index of the node in its layer; can be -1 when uninitialized.
+    int ix;  // Index of the node in its layer; can be -1 when uninitialized.
 
     std::list<Node*> children;
     std::size_t layer; // Layer index
