@@ -71,6 +71,8 @@ private:
      *
      * Uses node->layer to consider the correct layer of the circuit.
      * After adding a node, the Circuit assumes ownership and will free it upon deletion.
+     * If the given node was equal to one already present, the given node is freed (deleted),
+     * and the already found node is returned.
      *
      * This will update node->ix.
      *
@@ -93,10 +95,9 @@ public:
      *
      * Importantly, we assume that the children are already part of the circuit.
      * For this reason we also return a pair, if an equivalent node (but different instance!)
-     * was already present, we simply return that node and you should free the original node
-     * that was given.
+     * was already present, we simply return that node and free (delete) the given node)
      *
-     * @param node The new node to add to the circuit.
+     * @param node The new node to add to the circuit. May be freed (deleted).
      * @return If no equivalent node was present yet, returns the node itself and true.
      * If there was already an equivalent node present, returns a pointer to that node, and false.
      */

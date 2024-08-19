@@ -32,6 +32,8 @@ std::pair<Node*, bool> Circuit::add_node(Node* node) {
     auto [it, inserted] = layer.insert(node);
     if (inserted && node->ix == -1)
         node->ix = layer.size()-1;
+    if (it != node) // did not insert; found different but equal instance
+        delete node; // fix mem leak
     return {*it, inserted };
 }
 
@@ -50,13 +52,8 @@ std::pair<Node*, bool> Circuit::add_node_level(Node* node) {
 #endif
         // Add a chain of dummy nodes to bring child to the correct layer
         // invariant: each child is part of the circuit.
-        while (child->layer < node->layer - 1) {
-            Node* parent = child->dummy_parent();
-            auto [added_child, parent_inserted] = add_node(parent);
-            if (!parent_inserted) // maintain invariant.
-                delete parent;
-            child = added_child;
-        }
+        while (child->layer < node->layer - 1)
+            child = add_node(child->dummy_parent());
     }
     // Note: since we may have changed the children, (replaced by dummy parent)
     // the hash is no longer a hash of the direct children.
@@ -64,6 +61,8 @@ std::pair<Node*, bool> Circuit::add_node_level(Node* node) {
     // As long as we are fine with the latter definition,
     // and we are consistent with that, there is no need
     // to recompute the hash of `node`.
+
+    // Add node -- this may free node
     return add_node(node);
 }
 
@@ -115,19 +114,13 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
                 Node* and_node = Node::createAndNode();
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
-                auto [new_and_node, inserted] = circuit.add_node_level(and_node);
-                if (!inserted) // remove and_node if equivalent was present already
-                    delete and_node;
-                and_node = new_and_node;
+                and_node = circuit.add_node_level(and_node);
                 node->add_child(and_node);
             }
         } else {
             throw std::runtime_error("Unknown node type: " + type);
         }
-        auto [new_node, inserted] = circuit.add_node_level(node);
-        if (!inserted) //prevent mem leak
-            delete node;
-        node = new_node;
+        node = circuit.add_node_level(node);
         nodeIds[nodeId] = node; // Invariant: these nodes are present in the circuit.
     }
     file.close();
@@ -159,27 +152,17 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
 
     // Bring roots to the same layer
     if (depth >= 0) {
-        while (depth > new_root->layer) {
-            Node* parent = new_root->dummy_parent();
-            new_root = add_node(parent).first;
-            if (parent != new_root) // prevent memory leak
-                delete parent; // new_root existed already.
-        }
+        while (depth > new_root->layer)
+            new_root = add_node(new_root->dummy_parent());
+
         for (; depth < new_root->layer; ++depth) {
-            for (std::size_t i = 0; i < roots.size(); ++i) {
-                // new_root might have used existing root so
-                // a parent may exist already.
-                Node* parent = roots[i]->dummy_parent();
-                roots[i] = add_node(parent).first;
-                if (roots[i] != parent) // prevent memory leak
-                    delete parent;
-            }
+            for (std::size_t i = 0; i < roots.size(); ++i)
+                roots[i] = add_node(roots[i]->dummy_parent());
         }
     }
     roots.push_back(new_root);
-    for(size_t i = 0; i < roots.size(); ++i) {
+    for(size_t i = 0; i < roots.size(); ++i)
         roots[i]->ix = i;
-    }
 #ifndef NDEBUG
     to_dot_file(*this, "circuit.dot");
 #endif
