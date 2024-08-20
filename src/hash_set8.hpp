@@ -695,7 +695,7 @@ namespace emhash8 {
         {
             (void)hint;
             check_expand_need();
-            return do_insert(std::forward<Args>(args)...).first;
+            return do_insert(std::forward<Args>(args)...);
         }
 
         template<class... Args>

@@ -80,7 +80,7 @@ private:
      * @return If no equivalent node was present yet, returns the node itself and true.
      * If there was already an equivalent node present, returns a pointer to that node, and false.
      */
-    std::pair<Node*, bool> add_node(Node* node);
+    Node* add_node(Node* node);
 
 public:
 
@@ -101,7 +101,7 @@ public:
      * @return If no equivalent node was present yet, returns the node itself and true.
      * If there was already an equivalent node present, returns a pointer to that node, and false.
      */
-    std::pair<Node*, bool> add_node_level(Node* node);
+    Node* add_node_level(Node* node);
 
     /**
      * Get the corresponding node in the circuit.
