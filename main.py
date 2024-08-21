@@ -1,30 +1,28 @@
 import math
 import random
 from time import time
-from functools import reduce
-from pathlib import Path
-from random import randint, choice
 
 from graphviz import Source
 from pysdd.iterator import SddIterator
-from pysdd.sdd import SddManager, Vtree
 import torch
 from tqdm import tqdm
 
 import klay
+from klay.utils import generate_random_sdd, pysdd_wmc
 
 
 def test_with_pysdd(nb_vars: int, verbose=True, repeats=3):
-    manager, sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
-    ground_truth = wmc_pysdd(manager, sdd, weights, verbose)
+    sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
+    ground_truth = pysdd_wmc(sdd, weights)
+    weights = torch.tensor(weights, requires_grad=True).log()
 
     t1 = time()
     circuit = klay.Circuit()
-    circuit.add_SDD_from_file("test.sdd")
+    circuit.add_sdd(sdd)
     if verbose:
         print(f"KLayerization in {time()-t1:.2f}s")
     t1 = time()
-    kl = circuit.to_layered_module()
+    kl = circuit.to_torch_module()
     if verbose:
         print(f"KTensorization in {time()-t1:.2f}s")
     for i in range(repeats):
@@ -34,37 +32,14 @@ def test_with_pysdd(nb_vars: int, verbose=True, repeats=3):
             print(f"KLayer forward in {time()-t1:.4f}s")
             print(f"PySDD\t{ground_truth:.7f}")
             print(f'KLAY\t{result.item():.7f}')
-
-    if verbose:
-        print()
     return ground_truth, result
 
 
 def fuzz_tester(nb_vars: int, nb_tests=1000):
     for _ in tqdm(range(nb_tests)):
-        gt, pred = test_with_pysdd(nb_vars, False)
+        gt, pred = test_with_pysdd(nb_vars, False, repeats=1)
         assert abs(gt - pred) < 1e-5, f"Error: {gt} != {pred}"
     print("All tests passed!")
-
-
-def generate_random_sdd(nb_vars: int, nb_clauses: int, clause_length: int = 3):
-    vtree = Vtree(var_count=nb_vars, vtree_type="balanced")
-    manager = SddManager.from_vtree(vtree)
-    sdd = manager.true()
-    for _ in range(nb_clauses):
-        lits = [randint(1, nb_vars) * choice([1, -1]) for _ in range(clause_length)]
-        lits = [manager.l(lit) for lit in lits]
-        sdd &= reduce(manager.disjoin, lits)
-
-    sdd.save(bytes(Path("test.sdd")))
-    print("Generated SDD", manager.count())
-    vtree.save(bytes(Path("test.vtree")))
-
-    weights = torch.empty(nb_vars, dtype=torch.float32)
-    weights.uniform_(0, 1)
-    weights = weights.log()
-    weights.requires_grad = True
-    return manager, sdd, weights
 
 
 def log1mexp(x):
@@ -79,18 +54,6 @@ def log1mexp(x):
         (-x.expm1()).log(),
         (-x.exp()).log1p(),
     )
-
-
-def wmc_pysdd(manager, sdd, weights, verbose=True):
-    wmc = sdd.wmc(log_mode=True)
-    for i, v in enumerate(manager.vars):
-        wmc.set_literal_weight(v, weights[i])
-        wmc.set_literal_weight(~v, log1mexp(weights[i]))
-    t1 = time()
-    result = wmc.propagate()
-    if verbose:
-        print(f"PySDD WMC in {time()-t1:.4f}s")
-    return result
 
 
 def wmc_backward(manager, sdd, weights, verbose=True):
@@ -124,13 +87,13 @@ def eval_sdd(manager, sdd, weights) -> torch.Tensor:
 
 
 def test_backward(nb_vars: int):
-    manager, sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
+    _, sdd, weights = klay.utils.generate_random_sdd(nb_vars, nb_vars//2)
     # ground_truth = wmc_backward(manager, sdd, weights, True)
     # print("Ground truth", ground_truth)
     circuit = klay.Circuit()
-    circuit.add_SDD_from_file("test.sdd")
+    circuit.add_sdd(sdd)
     print("Circuit", circuit.nb_nodes())
-    kl = circuit.to_layered_module()
+    kl = circuit.to_torch_module()
     result = kl(weights)
     t1 = time()
     result.backward()
@@ -139,12 +102,12 @@ def test_backward(nb_vars: int):
 
 
 def test_multirooted(nb_vars: int):
-    manager, sdd, weights = generate_random_sdd(nb_vars, nb_vars//2)
+    _, sdd1, weights = generate_random_sdd(nb_vars, nb_vars//2)
     circuit = klay.Circuit()
-    circuit.add_SDD_from_file("test.sdd")
-    manager, sdd, _ = generate_random_sdd(nb_vars//2, nb_vars//4)
-    circuit.add_SDD_from_file("test.sdd")
-    kl = circuit.to_layered_module()
+    circuit.add_SDD(sdd1)
+    _, sdd2, _ = generate_random_sdd(nb_vars//2, nb_vars//4)
+    circuit.add_SDD_from_file(sdd2)
+    kl = circuit.to_torch_module()
     result = kl(weights)
     print(result)
 
@@ -160,8 +123,8 @@ def set_seed(seed: int):
 
 if __name__ == "__main__":
     set_seed(52)
-    test_with_pysdd(50)
-    # fuzz_tester(30)
+    test_with_pysdd(40)
+    fuzz_tester(40)
     # for i in range(10):
     # test_multirooted(50)
     # s = Source.from_file("circuit.dot")
