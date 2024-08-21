@@ -154,6 +154,8 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             int lit;
             std::istringstream iss(line);
             iss >> parent >> child >> lit;
+
+            nodes[child] = circuit.add_node_level(nodes[child]);
             if (lit == 0) {
                 // pure edge
                 nodes[parent]->add_child(nodes[child]);
@@ -174,15 +176,13 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
                 iss >> lit;
             }
             if (edge != nodes[parent]) {
-                circuit.add_node_level(edge);
+                edge = circuit.add_node_level(edge);
                 nodes[parent]->add_child(edge);
             }
         }
     }
 
-    for (int i = 1; i < nodes.size(); ++i) {
-        circuit.add_node_level(nodes[i]);
-    }
+    nodes[1] = circuit.add_node_level(nodes[1]);
     return nodes[1];
 }
 
