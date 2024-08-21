@@ -127,6 +127,65 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
     return node;
 }
 
+Node* parseD4File(const std::string& filename, Circuit& circuit) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+    }
+
+    std::vector<Node*> nodes = {nullptr};
+    Node* node;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        switch (line[0]) {
+            // Parse new nodes
+            case 'o': node = Node::createOrNode(); break;
+            case 'a': node = Node::createAndNode(); break;
+            case 'f': node = Node::createFalseNode(); break;
+            case 't': node = Node::createTrueNode(); break;
+            default: node = nullptr;
+        }
+        if (node != nullptr) {
+            nodes.push_back(node);
+        } else {
+            // Parse edges
+            std::size_t parent, child;
+            int lit;
+            std::istringstream iss(line);
+            iss >> parent >> child >> lit;
+            if (lit == 0) {
+                // pure edge
+                nodes[parent]->add_child(nodes[child]);
+                continue;
+            }
+
+            // edge with literals
+            Node* edge;
+            if (nodes[parent]->type == NodeType::And) {
+                edge = nodes[parent]; // For and nodes, we can fold in the edge
+            } else {
+                edge = Node::createAndNode();
+            }
+            edge->add_child(nodes[child]);
+            while (lit != 0) {
+                node = Node::createLiteralNode(Lit::fromInt(lit));
+                edge->add_child(circuit.add_node_level(node));
+                iss >> lit;
+            }
+            if (edge != nodes[parent]) {
+                circuit.add_node_level(edge);
+                nodes[parent]->add_child(edge);
+            }
+        }
+    }
+
+    for (int i = 1; i < nodes.size(); ++i) {
+        circuit.add_node_level(nodes[i]);
+    }
+    return nodes[1];
+}
+
 /**
  * Write the given circuit as dot format to a file.
  * @param circuit The circuit to write as dot format.
@@ -170,6 +229,13 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
     int old_depth = layers.size() - 1;
     Node* new_root = parseSDDFile(filename, *this);
     add_root(new_root, old_depth);
+}
+
+void Circuit::add_D4_from_file(const std::string &filename) {
+    int old_depth = layers.size() - 1;
+    Node* new_root = parseD4File(filename, *this);
+    add_root(new_root, old_depth);
+    to_dot_file(*this, "circuit.dot");
 }
 
 /**
@@ -255,6 +321,7 @@ m.doc() = "Layerize an SDD";
 nb::class_<Circuit>(m, "Circuit")
 .def(nb::init<>())
 .def("add_SDD_from_file", &Circuit::add_SDD_from_file)
+.def("add_D4_from_file", &Circuit::add_D4_from_file)
 .def("get_indices", &Circuit::get_indices)
 .def("condition", &Circuit::condition)
 .def("nb_nodes", &Circuit::nb_nodes);

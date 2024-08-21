@@ -123,6 +123,8 @@ public:
 
     void add_SDD_from_file(const std::string &filename);
 
+    void add_D4_from_file(const std::string &filename);
+
     inline std::pair<Arrays, Arrays> get_indices() { return tensorize(); }
 
     std::pair<Arrays, Arrays> tensorize();

@@ -45,16 +45,19 @@ std::size_t mix_hash(std::size_t h) {
  * @param child The new child of this node.
  */
 void Node::add_child(Node* child) {
+    if (type != NodeType::Or && type != NodeType::And) {
+        throw std::runtime_error("Can only add children to AND/OR nodes");
+    }
+
     children.push_back(child);
     hash ^= mix_hash(child->hash);
-    layer = std::max(layer, child->layer+1);
-    if (type == NodeType::Or && layer%2 == 1) {
-        throw std::runtime_error("Sum layer is not even");
-    } else if (type == NodeType::And && layer%2 == 0 ) {
-        throw std::runtime_error("Product layer is not odd");
-    } else if (type != NodeType::Or && type != NodeType::And) {
-        throw std::runtime_error("Node type not recognized");
+    std::size_t layer_bound = child->layer + 1;
+    if (layer_bound%2 == 0 && type == NodeType::And) {
+        layer_bound++; // And nodes must be in odd layers
+    } else if (layer_bound%2 == 1 && type == NodeType::Or) {
+        layer_bound++; // Or nodes must be in even layers
     }
+    layer = std::max(layer, layer_bound);
 }
 
 /**
