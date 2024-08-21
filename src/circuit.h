@@ -82,6 +82,12 @@ private:
      */
     Node* add_node(Node* node);
 
+    /**
+     * Add a root node to the circuit, and adjust the circuit
+     * so that all roots are still on the same level.
+     */
+    void add_root(Node* new_root, int old_depth);
+
 public:
 
     /**

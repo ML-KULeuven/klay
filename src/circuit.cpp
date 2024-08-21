@@ -146,16 +146,13 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-void Circuit::add_SDD_from_file(const std::string &filename) {
-    int depth = layers.size() - 1;
-    Node* new_root = parseSDDFile(filename, *this);
-
+void Circuit::add_root(Node* new_root, int old_depth) {
     // Bring roots to the same layer
-    if (depth >= 0) {
-        while (depth > new_root->layer)
+    if (old_depth >= 0) {
+        while (old_depth > new_root->layer)
             new_root = add_node(new_root->dummy_parent());
 
-        for (; depth < new_root->layer; ++depth) {
+        for (; old_depth < new_root->layer; ++old_depth) {
             for (std::size_t i = 0; i < roots.size(); ++i)
                 roots[i] = add_node(roots[i]->dummy_parent());
         }
@@ -166,6 +163,13 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
 #ifndef NDEBUG
     to_dot_file(*this, "circuit.dot");
 #endif
+}
+
+
+void Circuit::add_SDD_from_file(const std::string &filename) {
+    int old_depth = layers.size() - 1;
+    Node* new_root = parseSDDFile(filename, *this);
+    add_root(new_root, old_depth);
 }
 
 /**
