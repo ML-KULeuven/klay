@@ -219,8 +219,9 @@ void Circuit::add_root(Node* new_root, int old_depth) {
         }
     }
     roots.push_back(new_root);
-    for(size_t i = 0; i < roots.size(); ++i)
-        roots[i]->ix = i;
+    if (nb_layers() > 1)
+            for(size_t i = 0; i < roots.size(); ++i)
+                roots[i]->ix = i;
 #ifndef NDEBUG
     to_dot_file(*this, "circuit.dot");
 #endif
@@ -274,6 +275,12 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
     Arrays indices_ndarrays;
     // per layer, a vector representing the layer
     Arrays csr_ndarrays;
+
+    if (layers.size() == 1)
+        // add node for roots
+        for (Node* root: roots)
+            add_node(root->dummy_parent());
+
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
         std::vector<long int> child_counts(layers[i].size(), 0);
