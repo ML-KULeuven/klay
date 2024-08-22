@@ -3,6 +3,8 @@
 *.pdf
 *.sdd
 *.txt
+*.cnf
+*.nnf
 build
 .DS_Store
 .vscode
