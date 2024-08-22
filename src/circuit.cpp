@@ -237,7 +237,6 @@ void Circuit::add_D4_from_file(const std::string &filename) {
     int old_depth = layers.size() - 1;
     Node* new_root = parseD4File(filename, *this);
     add_root(new_root, old_depth);
-    // to_dot_file(*this, "circuit.dot");
 }
 
 /**
