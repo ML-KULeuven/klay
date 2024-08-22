@@ -155,9 +155,10 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             std::istringstream iss(line);
             iss >> parent >> child >> lit;
 
+            // When a child is used, we can assume it's been finalized
             nodes[child] = circuit.add_node_level(nodes[child]);
             if (lit == 0) {
-                // pure edge
+                // pure edge with no associated literals
                 nodes[parent]->add_child(nodes[child]);
                 continue;
             }
@@ -182,6 +183,7 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
         }
     }
 
+    // Root node is never used, so we need to manually add it
     nodes[1] = circuit.add_node_level(nodes[1]);
     return nodes[1];
 }
@@ -235,7 +237,7 @@ void Circuit::add_D4_from_file(const std::string &filename) {
     int old_depth = layers.size() - 1;
     Node* new_root = parseD4File(filename, *this);
     add_root(new_root, old_depth);
-    to_dot_file(*this, "circuit.dot");
+    // to_dot_file(*this, "circuit.dot");
 }
 
 /**
