@@ -38,7 +38,7 @@ def _get_d4_path() -> str:
     lib_path = Path(__file__).parent / "lib"
     system = f"{platform.system()}-{platform.processor()}"
     d4_path = lib_path / system / "d4"
-    assert d4_path.exists(), f"Could not find d4 for your system {system}"
+    assert d4_path.exists(), f"Could not find d4 for your system {system} in {d4_path}"
     d4_path.chmod(0o755)  # Set binary as executable
     return str(d4_path)
 
