@@ -3,6 +3,7 @@ import random
 import pytest
 
 import torch
+# from graphviz import Source
 from tqdm import tqdm
 
 import klay
@@ -16,6 +17,7 @@ def check_sdd_torch(sdd, weights):
     klay_weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
     circuit.add_sdd(sdd)
+    # Source.from_file("./circuit.dot").render("circuit_plot", format="pdf", cleanup=True, view=True)
     kl = circuit.to_torch_module()
     result = float(kl(klay_weights).item())
     assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"
@@ -38,6 +40,7 @@ def fuzzer(nb_trials, nb_vars):
         weights = [random.random() for _ in range(nb_vars)]
 
         sdd = compile_sdd('tmp.cnf')
+        # Source(sdd.dot()).render("sdd_plot", format="pdf", cleanup=True, view=True)
         check_sdd_torch(sdd, weights)
 
         compile_d4('tmp.cnf', 'tmp.nnf')
