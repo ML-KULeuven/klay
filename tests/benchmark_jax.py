@@ -63,7 +63,7 @@ if __name__ == "__main__":
     backward_timings = []
     layerize_timings = []
 
-    # run_sdd_bench(nb_vars, seed)
+    # run_sdd_bench(nb_vars)
     run_d4_bench('tests/d4_medium.nnf')
 
     print(f'Forward Timings: {np.mean(forward_timings):.5f}s')
