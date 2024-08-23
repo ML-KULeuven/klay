@@ -52,6 +52,7 @@ public:
     std::vector<emhash8::HashSet<Node*, NodeHash, NodeEqual>> layers;
     // Root nodes in order they were added to the Circuit
     std::vector<Node*> roots = {};
+    std::size_t nb_vars;
 
     ~Circuit() {
         for (auto& layer: layers) {
@@ -61,13 +62,10 @@ public:
         }
     }
 
-private:
+public:
 
     /**
      * Add the given node to the circuit.
-     *
-     * Beware! This does not add intermediate nodes to intermediate layers.
-     * Please use add_node_level instead.
      *
      * Uses node->layer to consider the correct layer of the circuit.
      * After adding a node, the Circuit assumes ownership and will free it upon deletion.
@@ -81,33 +79,6 @@ private:
      * If there was already an equivalent node present, returns a pointer to that node, and false.
      */
     Node* add_node(Node* node);
-
-    /**
-     * Add a root node to the circuit, and adjust the circuit
-     * so that all roots are still on the same level.
-     */
-    void add_root(Node* new_root, int old_depth);
-
-public:
-
-    /**
-     * Add node to this circuit and ensure each child is in the previous adjacent layer.
-     *
-     * If a child does not exist in the previous layer, a chain of dummy nodes will be added in between.
-     * Uses node->layer to consider the correct layer of the circuit.
-     * After adding a node, the Circuit assumes ownership and will free it upon deletion.
-     *
-     * This may change node->children and will update node->ix.
-     *
-     * Importantly, we assume that the children are already part of the circuit.
-     * For this reason we also return a pair, if an equivalent node (but different instance!)
-     * was already present, we simply return that node and free (delete) the given node)
-     *
-     * @param node The new node to add to the circuit. May be freed (deleted).
-     * @return If no equivalent node was present yet, returns the node itself and true.
-     * If there was already an equivalent node present, returns a pointer to that node, and false.
-     */
-    Node* add_node_level(Node* node);
 
     /**
      * Get the corresponding node in the circuit.
@@ -141,6 +112,16 @@ public:
         std::size_t count = 0;
         for (const auto &layer: layers)
             count += layer.size();
+        return count;
+    }
+
+    /**
+     * Number of input edges to a given layer.
+     */
+    std::size_t fan_in(std::size_t layer) const {
+        std::size_t count = 0;
+        for (const auto &node: layers[layer])
+            count += node->children.size();
         return count;
     }
 

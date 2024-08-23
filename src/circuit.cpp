@@ -30,40 +30,9 @@ Node* Circuit::add_node(Node* node) {
         layers.resize(node->layer + 1);
     auto& layer = layers[node->layer];
     auto [it, inserted] = layer.insert(node);
-    if (inserted && node->ix == -1)
-        node->ix = layer.size()-1;
     if (*it != node) // did not insert; found different but equal instance
         delete node; // fix mem leak
     return *it;
-}
-
-
-Node* Circuit::add_node_level(Node* node) {
-    // First make sure each child is adjacent.
-    for (auto& child : node->children) {
-#ifndef NDEBUG
-        // We assume children are already part of the circuit,
-        // since each child should have been added to the circuit first,
-        // and they should have used the returned child.
-        // It is also the user's responsibility to delete duplicate nodes
-        // in case an equivalent one was already present.
-        Node* child_stored = get_node(child);
-        assert(*child_stored == *child);
-#endif
-        // Add a chain of dummy nodes to bring child to the correct layer
-        // invariant: each child is part of the circuit.
-        while (child->layer < node->layer - 1)
-            child = add_node(child->dummy_parent());
-    }
-    // Note: since we may have changed the children, (replaced by dummy parent)
-    // the hash is no longer a hash of the direct children.
-    // Instead, it became the hash of the next non-dummy child.
-    // As long as we are fine with the latter definition,
-    // and we are consistent with that, there is no need
-    // to recompute the hash of `node`.
-
-    // Add node -- this may free node
-    return add_node(node);
 }
 
 /**
@@ -114,13 +83,13 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
                 Node* and_node = Node::createAndNode();
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
-                and_node = circuit.add_node_level(and_node);
+                and_node = circuit.add_node(and_node);
                 node->add_child(and_node);
             }
         } else {
             throw std::runtime_error("Unknown node type: " + type);
         }
-        node = circuit.add_node_level(node);
+        node = circuit.add_node(node);
         nodeIds[nodeId] = node; // Invariant: these nodes are present in the circuit.
     }
     file.close();
@@ -156,7 +125,7 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             iss >> parent >> child >> lit;
 
             // When a child is used, we can assume it's been finalized
-            nodes[child] = circuit.add_node_level(nodes[child]);
+            nodes[child] = circuit.add_node(nodes[child]);
             if (lit == 0) {
                 // pure edge with no associated literals
                 nodes[parent]->add_child(nodes[child]);
@@ -173,18 +142,18 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             edge->add_child(nodes[child]);
             while (lit != 0) {
                 node = Node::createLiteralNode(Lit::fromInt(lit));
-                edge->add_child(circuit.add_node_level(node));
+                edge->add_child(circuit.add_node(node));
                 iss >> lit;
             }
             if (edge != nodes[parent]) {
-                edge = circuit.add_node_level(edge);
+                edge = circuit.add_node(edge);
                 nodes[parent]->add_child(edge);
             }
         }
     }
 
     // Root node is never used, so we need to manually add it
-    nodes[1] = circuit.add_node_level(nodes[1]);
+    nodes[1] = circuit.add_node(nodes[1]);
     return nodes[1];
 }
 
@@ -207,37 +176,14 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-void Circuit::add_root(Node* new_root, int old_depth) {
-    // Bring roots to the same layer
-    if (old_depth >= 0) {
-        while (old_depth > new_root->layer)
-            new_root = add_node(new_root->dummy_parent());
-
-        for (; old_depth < new_root->layer; ++old_depth) {
-            for (std::size_t i = 0; i < roots.size(); ++i)
-                roots[i] = add_node(roots[i]->dummy_parent());
-        }
-    }
-    roots.push_back(new_root);
-    if (nb_layers() > 1)
-            for(size_t i = 0; i < roots.size(); ++i)
-                roots[i]->ix = i;
-#ifndef NDEBUG
-    to_dot_file(*this, "circuit.dot");
-#endif
-}
-
-
 void Circuit::add_SDD_from_file(const std::string &filename) {
-    int old_depth = layers.size() - 1;
     Node* new_root = parseSDDFile(filename, *this);
-    add_root(new_root, old_depth);
+    roots.push_back(new_root);
 }
 
 void Circuit::add_D4_from_file(const std::string &filename) {
-    int old_depth = layers.size() - 1;
     Node* new_root = parseD4File(filename, *this);
-    add_root(new_root, old_depth);
+    roots.push_back(new_root);
 }
 
 /**
@@ -269,50 +215,49 @@ void cleanup(void* data) noexcept {
 
 
 std::pair<Arrays, Arrays> Circuit::tensorize() {
-    // print_circuit(); // Helpful for debugging small circuits
     // per layer, a vector of size the number of children (but children can count twice
     // so this might be larger than simply the previous layer.
     Arrays indices_ndarrays;
     // per layer, a vector representing the layer
     Arrays csr_ndarrays;
 
-    if (layers.size() == 1)
-        // add node for roots
-        for (Node* root: roots)
-            add_node(root->dummy_parent());
+    // First, set the global index of each node.
+    std::size_t global_ix = nb_vars*2 + 2;
+    for (std::size_t i = 1; i < layers.size(); ++i) {
+        for (auto *node: layers[i]) {
+            node->ix = global_ix++;
+        }
+    }
 
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
-        std::vector<long int> child_counts(layers[i].size(), 0);
-        std::size_t layer_size = 0;
+        std::size_t layer_fan_in = fan_in(i);
         std::size_t layer_len = layers[i].size()+1;
-        for (const auto *node: layers[i]) {
-            layer_size += node->children.size();
-            child_counts[node->ix] = node->children.size();
-        }
 
         long int* csr_data = new long int[layer_len];
         csr_data[0] = 0;
-        for (std::size_t j = 1; j < layer_len; ++j) {
-            csr_data[j] = csr_data[j-1] + child_counts[j-1];
-        }
+        long int* indices_data = new long int[layer_fan_in];
+        std::size_t child_count;
 
-        long int* indices_data = new long int[layer_size];
+        std::size_t j = 0;
         for (const auto *node: layers[i]) {
+            child_count = node->children.size();
+            j++;
+            csr_data[j] = csr_data[j-1] + child_count;
+
             std::size_t offset = 0;
             for (Node *child: node->children) {
-                assert(child->layer == i-1);
-                indices_data[csr_data[node->ix] + offset++] = child->ix;
+                indices_data[csr_data[j-1] + offset++] = child->ix;
             }
         }
 
-        std::size_t indices_size[1] = {layer_size};
-        std::size_t csr_size[1] = {layer_len};
+        std::size_t indices_shape[1] = {layer_fan_in};
+        std::size_t csr_shape[1] = {layer_len};
         nb::capsule indices_capsule(indices_data, cleanup);
         nb::capsule csr_capsule(csr_data, cleanup);
 
-        nb::ndarray<nb::numpy, long int, nb::shape<-1>> indices_ndarray(indices_data, 1, indices_size, indices_capsule);
-        nb::ndarray<nb::numpy, long int, nb::shape<-1>> csr_ndarray(csr_data, 1, csr_size, csr_capsule);
+        nb::ndarray<nb::numpy, long int, nb::shape<-1>> indices_ndarray(indices_data, 1, indices_shape, indices_capsule);
+        nb::ndarray<nb::numpy, long int, nb::shape<-1>> csr_ndarray(csr_data, 1, csr_shape, csr_capsule);
         indices_ndarrays.push_back(indices_ndarray);
         csr_ndarrays.push_back(csr_ndarray);
     }
@@ -328,6 +273,7 @@ m.doc() = "Layerize an SDD";
 
 nb::class_<Circuit>(m, "Circuit")
 .def(nb::init<>())
+.def_rw("nb_vars", &Circuit::nb_vars)
 .def("add_SDD_from_file", &Circuit::add_SDD_from_file)
 .def("add_D4_from_file", &Circuit::add_D4_from_file)
 .def("get_indices", &Circuit::get_indices)
