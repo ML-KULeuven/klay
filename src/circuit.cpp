@@ -48,7 +48,7 @@ Node* Circuit::add_node_level(Node* node) {
         // It is also the user's responsibility to delete duplicate nodes
         // in case an equivalent one was already present.
         Node* child_stored = get_node(child);
-        assert(*child_stored == *child);
+        assert(child_stored == child);
 #endif
         // Add a chain of dummy nodes to bring child to the correct layer
         // invariant: each child is part of the circuit.
@@ -64,6 +64,62 @@ Node* Circuit::add_node_level(Node* node) {
 
     // Add node -- this may free node
     return add_node(node);
+}
+
+Node* Circuit::add_node_level_compressed(Node* node) {
+    if (node->type != NodeType::And && node->type != NodeType::Or)
+        return add_node_level(node);
+
+    NodeType annihilateType;
+    NodeType neutralType;
+    Node* (*annihilate_function)();
+    Node* (*neutral_function)();
+    if (node->type == NodeType::Or) {
+        annihilateType = NodeType::True;
+        neutralType = NodeType::False;
+        annihilate_function = &Node::createTrueNode;
+        neutral_function = &Node::createFalseNode;
+    } else if (node->type == NodeType::And) {
+        annihilateType = NodeType::False;
+        neutralType = NodeType::True;
+        annihilate_function = &Node::createFalseNode;
+        neutral_function = &Node::createTrueNode;
+    } else {
+        return add_node_level(node);
+    }
+
+    // Iterate over node->children
+    // if child->type == neutralType
+    // remove child from children.
+    // if child->type == annihilateType
+    // result should be true or false node (depends)
+    bool annihilate = false;
+    for (auto it = node->children.begin(); it != node->children.end(); ) {
+        if ((*it)->type == neutralType) {
+            it = node->children.erase(it);
+        } else if ((*it)->type == annihilateType) {
+            annihilate = true;
+            break;
+        } else {
+            ++it;
+        }
+    }
+
+    if (annihilate) { // a child was annihilating
+        delete node;
+        return add_node_level(annihilate_function());
+    }
+    if (node->children.empty()) { // all children are neutral
+        delete node;
+        return add_node_level(neutral_function());
+    }
+    if (node->children.size() == 1) {
+        Node* child = node->children.front();
+        delete node;
+        return child;
+    }
+
+    return add_node_level(node);
 }
 
 /**
@@ -114,17 +170,69 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
                 Node* and_node = Node::createAndNode();
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
-                and_node = circuit.add_node_level(and_node);
+                and_node = circuit.add_node_level_compressed(and_node);
                 node->add_child(and_node);
             }
         } else {
             throw std::runtime_error("Unknown node type: " + type);
         }
-        node = circuit.add_node_level(node);
+        node = circuit.add_node_level_compressed(node);
         nodeIds[nodeId] = node; // Invariant: these nodes are present in the circuit.
     }
     file.close();
     return node;
+}
+
+size_t Circuit::max_layer_width() const {
+    size_t max_width = 0;
+    for (const auto& layer: layers)
+        if (layer.size() > max_width)
+            max_width = layer.size();
+    return max_width;
+}
+
+void Circuit::remove_unused_nodes() {
+    std::vector<std::vector<bool>> used;
+    used.reserve(nb_layers());
+    for (const auto& layer : layers)
+        used.emplace_back(layer.size(), false);
+
+    // set roots as used
+    for (auto &root : roots)
+        used[root->layer][root->ix] = true;
+
+    // iterate backwards over layers
+    // tag children of useful nodes
+    for (auto it = layers.rbegin(); it != layers.rend(); ++it) {
+        for (auto &node : *it) {
+            if (used[node->layer][node->ix])
+                for (auto child: node->children)
+                    used[child->layer][child->ix] = true;
+        }
+    }
+
+    // Now delete useless nodes (skip input)
+    for (std::size_t i = 1; i < nb_layers(); ++i) {
+        for (auto it = layers[i].begin(); it != layers[i].end();) {
+            if (!used[i][(*it)->ix]) {
+                delete *it;
+                it = layers[i].erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    // Clean-up: Update ix
+    for (std::size_t i = 1; i < nb_layers(); ++i) {
+        assert(!layers[i].empty()); // TODO: A layer could become empty. maybe issue for tensorize()?
+        int index = 0;
+        for (auto &node : layers[i])
+            node->ix = index++;
+    }
+    // Clean-up: last layer has fixed ix order
+    for(size_t i = 0; i < roots.size(); ++i)
+        roots[i]->ix = i;
 }
 
 Node* parseD4File(const std::string& filename, Circuit& circuit) {
@@ -156,7 +264,7 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             iss >> parent >> child >> lit;
 
             // When a child is used, we can assume it's been finalized
-            nodes[child] = circuit.add_node_level(nodes[child]);
+            nodes[child] = circuit.add_node_level_compressed(nodes[child]);
             if (lit == 0) {
                 // pure edge with no associated literals
                 nodes[parent]->add_child(nodes[child]);
@@ -173,18 +281,18 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             edge->add_child(nodes[child]);
             while (lit != 0) {
                 node = Node::createLiteralNode(Lit::fromInt(lit));
-                edge->add_child(circuit.add_node_level(node));
+                edge->add_child(circuit.add_node_level_compressed(node));
                 iss >> lit;
             }
             if (edge != nodes[parent]) {
-                edge = circuit.add_node_level(edge);
+                edge = circuit.add_node_level_compressed(edge);
                 nodes[parent]->add_child(edge);
             }
         }
     }
 
     // Root node is never used, so we need to manually add it
-    nodes[1] = circuit.add_node_level(nodes[1]);
+    nodes[1] = circuit.add_node_level_compressed(nodes[1]);
     return nodes[1];
 }
 
@@ -220,11 +328,8 @@ void Circuit::add_root(Node* new_root, int old_depth) {
     }
     roots.push_back(new_root);
     if (nb_layers() > 1)
-            for(size_t i = 0; i < roots.size(); ++i)
-                roots[i]->ix = i;
-#ifndef NDEBUG
-    to_dot_file(*this, "circuit.dot");
-#endif
+        for(size_t i = 0; i < roots.size(); ++i)
+            roots[i]->ix = i;
 }
 
 
@@ -232,12 +337,20 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
     int old_depth = layers.size() - 1;
     Node* new_root = parseSDDFile(filename, *this);
     add_root(new_root, old_depth);
+    remove_unused_nodes();
+#ifndef NDEBUG
+    to_dot_file(*this, "circuit_sdd.dot");
+#endif
 }
 
 void Circuit::add_D4_from_file(const std::string &filename) {
     int old_depth = layers.size() - 1;
     Node* new_root = parseD4File(filename, *this);
     add_root(new_root, old_depth);
+    remove_unused_nodes();
+#ifndef NDEBUG
+    to_dot_file(*this, "circuit_d4.dot");
+#endif
 }
 
 /**
@@ -322,15 +435,17 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
 
 
 
+namespace nb = nanobind;
+using namespace nb::literals;
 
 NB_MODULE(nanobind_ext, m) {
 m.doc() = "Layerize an SDD";
 
 nb::class_<Circuit>(m, "Circuit")
 .def(nb::init<>())
-.def("add_SDD_from_file", &Circuit::add_SDD_from_file)
-.def("add_D4_from_file", &Circuit::add_D4_from_file)
+.def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a)
+.def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a)
 .def("get_indices", &Circuit::get_indices)
-.def("condition", &Circuit::condition)
+.def("condition", &Circuit::condition, "lits"_a)
 .def("nb_nodes", &Circuit::nb_nodes);
 }

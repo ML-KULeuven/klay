@@ -110,6 +110,21 @@ public:
     Node* add_node_level(Node* node);
 
     /**
+     * The same as `add_node_level`, but it compresses the given node first.
+     *
+     * If node is an OR node: any child that is False is removed.
+     * If node is an OR node: if any child is a True Node, the returned node is True.
+     * If node is an AND node: any child that is True is removed.
+     * If node is an AND node: if any child is a False Node, the returned node is False.
+     *
+     * This means some child nodes may never be used.
+     * Therefore, after construction, we advise to run
+     * `remove_unused_nodes()`
+     *
+     */
+    Node* add_node_level_compressed(Node* node);
+
+    /**
      * Get the corresponding node in the circuit.
      * This may be a different node instance with the same hash and
      * is equal according to the `NodeEqual` struct.
@@ -117,13 +132,26 @@ public:
     Node* get_node(Node* node) { return *(layers[node->layer].find(node)); }
 
     /**
-     * Number of layers in the circuit.
+     * Number of layers in this circuit.
      */
     inline std::size_t nb_layers() const { return layers.size(); }
+
+    /**
+     * Maximum layer width in this circuit.
+     */
+    std::size_t max_layer_width() const;
 
     void add_SDD_from_file(const std::string &filename);
 
     void add_D4_from_file(const std::string &filename);
+
+    /**
+     * Remove all nodes from this circuit that are not used.
+     *
+     * If a non-input, non-root node is not the child of another node,
+     * it is removed in-place.
+     */
+    void remove_unused_nodes();
 
     inline std::pair<Arrays, Arrays> get_indices() { return tensorize(); }
 
