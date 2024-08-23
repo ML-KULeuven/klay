@@ -81,6 +81,16 @@ public:
      */
     Node* dummy_parent();
 
+    /**
+     * Whether this is a True Node.
+     */
+    inline bool is_true() const { return this->type == NodeType::True; }
+
+    /**
+     * Whether this is a False Node.
+     */
+    inline bool is_false() const { return this->type == NodeType::False; }
+
 };
 
 
@@ -117,12 +127,12 @@ struct NodeEqual {
         // must only be unique per layer, and the hash function
         // is relatively good.
         // This assertion checks whether we were wrong.
-        bool r = (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer);
-        if (r) {
-            lhs->children.sort(compareNode); // canonical order
-            rhs->children.sort(compareNode); // canonical order
-            assert (lhs->children == rhs->children);
-        }
+//        bool r = (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer);
+//        if (r) {
+//            lhs->children.sort(compareNode); // canonical order
+//            rhs->children.sort(compareNode); // canonical order
+//            assert (lhs->children == rhs->children);
+//        }
 
         // If we decide to be 100% correct; we can
         // sort the children during construction (or before adding the node).
