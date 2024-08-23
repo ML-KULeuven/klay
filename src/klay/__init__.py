@@ -11,7 +11,7 @@ def to_torch_module(circuit: Circuit):
 def to_jax_function(circuit: Circuit):
     from .backends import jax_backend
     indices = circuit.get_indices()
-    return jax_backend.create_knowledge_layer(*indices)
+    return jax_backend.create_knowledge_layer(*indices, circuit.nb_vars)
 
 
 def add_sdd(circuit: Circuit, sdd: "SddNode"):

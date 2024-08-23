@@ -38,20 +38,25 @@ def encode_input(pos, neg=None):
     return result
 
 
-def create_knowledge_layer(pointers, csrs):
+def create_knowledge_layer(pointers, csrs, nb_vars):
     pointers = [np.array(ptrs) for ptrs in pointers]
     num_segments = [len(csr) - 1 for csr in csrs]  # needed for the jit
     csrs = [unroll_csr(np.array(csr, dtype=np.int32)) for csr in csrs]
+    layer_offsets = np.cumsum([0, nb_vars*2 + 2] + num_segments)
 
     @jax.jit
     def wrapper(x):
+        nodes = jnp.empty(layer_offsets[-1], dtype=jnp.float32)
         x = encode_input(x)
+        nodes = nodes.at[0:x.size].set(x)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             if i % 2 == 0:
-                x = product_layer(num_segments[i], ptrs, csr, x)
+                x = product_layer(num_segments[i], ptrs, csr, nodes)
+                nodes = nodes.at[layer_offsets[i+1]:layer_offsets[i + 2]].set(x)
             else:
-                x = sum_layer(num_segments[i], ptrs, csr, x)
-        return x
+                x = sum_layer(num_segments[i], ptrs, csr, nodes)
+                nodes = nodes.at[layer_offsets[i+1]:layer_offsets[i + 2]].set(x)
+        return nodes[-1]
 
     return wrapper
 
