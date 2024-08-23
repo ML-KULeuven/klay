@@ -72,15 +72,6 @@ public:
      * @return The label of this node.
      */
     std::string get_label() const;
-
-    /**
-     * Create a dummy parent who is one layer above this node.
-     * This is needed to create a chain of dummy nodes such
-     * that each node only has children in the previous adjacent layer.
-     * @return The dummy parent.
-     */
-    Node* dummy_parent();
-
 };
 
 

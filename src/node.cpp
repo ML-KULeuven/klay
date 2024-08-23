@@ -76,18 +76,6 @@ std::string Node::get_label() const {
     return labelName + std::to_string(ix);
 }
 
-/**
- * Create a dummy parent who is one layer above this node.
- * This is needed to create a chain of dummy nodes such
- * that each node only has children in the previous adjacent layer.
- * @return The dummy parent.
- */
-Node* Node::dummy_parent() {
-    Node* dummy = (layer % 2 == 0) ? Node::createAndNode() : Node::createOrNode();
-    dummy->add_child(this);
-    return dummy;
-}
-
 
 Node* Node::createLiteralNode(Lit lit) {
     int ix = lit.internal_val();
