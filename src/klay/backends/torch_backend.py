@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import torch
 from torch_scatter import segment_csr
 
@@ -35,9 +36,10 @@ def encode_input(pos, neg=None):
 
 
 class KnowledgeLayer(torch.nn.Module):
-    def __init__(self, pointers, csrs):
+    def __init__(self, pointers, csrs, nb_vars):
         super(KnowledgeLayer, self).__init__()
         layers = []
+        self.layer_offsets = np.cumsum([0, nb_vars*2 + 2] + [len(csr) - 1 for csr in csrs])
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             ptrs = torch.as_tensor(ptrs)
             csr = torch.as_tensor(csr, dtype=torch.long)
@@ -47,9 +49,13 @@ class KnowledgeLayer(torch.nn.Module):
                 layers.append(SumLayer(ptrs, csr))
         self.layers = torch.nn.Sequential(*layers)
 
-    def forward(self, *x):
-        x = encode_input(*x)
-        return self.layers(x)
+    def forward(self, x):
+        x = encode_input(x)
+        nodes = torch.empty(self.layer_offsets[-1], dtype=torch.float32)
+        nodes[0:x.numel()] = x
+        for i, layer in enumerate(self.layers):
+            nodes[self.layer_offsets[i+1]:self.layer_offsets[i + 2]] = layer(nodes)
+        return nodes[-1]
 
 
 class SumLayer(torch.nn.Module):

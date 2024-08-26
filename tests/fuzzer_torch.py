@@ -15,6 +15,7 @@ def check_sdd_torch(sdd, weights):
 
     klay_weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
+    circuit.nb_vars = len(weights)
     circuit.add_sdd(sdd)
     kl = circuit.to_torch_module()
     result = float(kl(klay_weights).item())
@@ -26,6 +27,7 @@ def check_d4_torch(nnf_file, weights):
 
     klay_weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
+    circuit.nb_vars = len(weights)
     circuit.add_D4_from_file(nnf_file)
     kl = circuit.to_torch_module()
     result = float(kl(klay_weights).item())

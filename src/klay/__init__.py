@@ -5,7 +5,7 @@ from .nanobind_ext import Circuit
 def to_torch_module(circuit: Circuit):
     from .backends import torch_backend
     indices = circuit.get_indices()
-    return torch_backend.KnowledgeLayer(*indices)
+    return torch_backend.KnowledgeLayer(*indices, circuit.nb_vars)
 
 
 def to_jax_function(circuit: Circuit):

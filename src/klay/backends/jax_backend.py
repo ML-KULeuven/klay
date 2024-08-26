@@ -1,5 +1,4 @@
 import math
-from functools import partial
 
 import numpy as np
 import jax
@@ -39,9 +38,9 @@ def encode_input(pos, neg=None):
 
 
 def create_knowledge_layer(pointers, csrs, nb_vars):
-    pointers = [np.array(ptrs) for ptrs in pointers]
+    pointers = [jnp.array(ptrs, dtype=jnp.int32) for ptrs in pointers]
     num_segments = [len(csr) - 1 for csr in csrs]  # needed for the jit
-    csrs = [unroll_csr(np.array(csr, dtype=np.int32)) for csr in csrs]
+    csrs = [unroll_csr(jnp.array(csr, dtype=jnp.int32)) for csr in csrs]
     layer_offsets = np.cumsum([0, nb_vars*2 + 2] + num_segments)
 
     @jax.jit
@@ -51,10 +50,16 @@ def create_knowledge_layer(pointers, csrs, nb_vars):
         nodes = nodes.at[0:x.size].set(x)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             if i % 2 == 0:
-                x = product_layer(num_segments[i], ptrs, csr, nodes)
+                x = segment_sum(nodes[ptrs], csr, num_segments=num_segments[i])
                 nodes = nodes.at[layer_offsets[i+1]:layer_offsets[i + 2]].set(x)
             else:
-                x = sum_layer(num_segments[i], ptrs, csr, nodes)
+                x = nodes[ptrs]
+                a_add = segment_max(stop_gradient(x), csr, indices_are_sorted=True, num_segments=num_segments[i])
+                x = jnp.exp(x - a_add[csr])
+                x = jnp.nan_to_num(x, copy=False, nan=0.0, posinf=float('inf'), neginf=float('-inf'))
+                # x = x.at[jnp.isnan(x)].set(0)
+                x = segment_sum(x, csr, indices_are_sorted=True, num_segments=num_segments[i])
+                x = jnp.log(x + EPSILON) + a_add
                 nodes = nodes.at[layer_offsets[i+1]:layer_offsets[i + 2]].set(x)
         return nodes[-1]
 
@@ -62,25 +67,6 @@ def create_knowledge_layer(pointers, csrs, nb_vars):
 
 
 def unroll_csr(csr):
-    deltas = np.diff(csr)
-    ixs = np.arange(len(deltas), dtype=jnp.int32)
-    return np.repeat(ixs, repeats=deltas)
-
-
-@partial(jax.jit, static_argnums=(0,), inline=True)
-def sum_layer(num_segments, ptrs, csr, x):
-    x = x[ptrs]
-    a_add = segment_max(stop_gradient(x), csr, indices_are_sorted=True, num_segments=num_segments)
-    x = jnp.exp(x - a_add[csr])
-    x = jnp.nan_to_num(x, copy=False, nan=0.0, posinf=float('inf'), neginf=float('-inf'))
-    # x = x.at[jnp.isnan(x)].set(0)
-    x = segment_sum(x, csr, indices_are_sorted=True, num_segments=num_segments)
-    x = jnp.log(x + EPSILON) + a_add
-    return x
-
-
-@partial(jax.jit, static_argnums=(0,), inline=True)
-def product_layer(num_segments, ptrs, csr, x):
-    x = x[ptrs]
-    x = segment_sum(x, csr, num_segments=num_segments)
-    return x
+    deltas = jnp.diff(csr)
+    ixs = jnp.arange(len(deltas), dtype=jnp.int32)
+    return jnp.repeat(ixs, repeats=deltas)
