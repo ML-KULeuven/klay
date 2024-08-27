@@ -65,7 +65,7 @@ def benchmark_torch(circuit, weights, nb_repeats=5, device='cpu'):
 
 
 def benchmark_pysdd(sdd, weights, nb_repeats=5, device='cpu'):
-    assert device=='cpu'
+    assert device == 'cpu'
     # WARNING: pysdd computes both the forward and backward passes in propagate
     neg_weights = [1.0 - x for x in weights[::-1]]
     pysdd_weights = array('d', [math.log(x) for x in neg_weights + weights])
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     if args.benchmark == 'sdd':
         run_sdd_bench(args.nb_vars, target=args.target, device=args.device)
     if args.benchmark == 'd4':
-        run_d4_bench('tests/d4_small.nnf', target=args.target, device=args.device)
+        run_d4_bench('tests/d4_large.nnf', target=args.target, device=args.device)
 
     if forward_timings:
         print(f'Forward Timings: {1000*np.mean(forward_timings):.2f}ms')
