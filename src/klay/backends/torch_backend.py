@@ -27,7 +27,7 @@ def encode_input(pos, neg=None):
         neg = log1mexp(pos)
 
     shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
-    result = torch.empty(shape, dtype=torch.float32).to(pos.device)
+    result = torch.empty(shape, dtype=torch.float32, device=pos.device)
     result[2::2] = pos
     result[3::2] = neg
     result[0] = float('-inf')
@@ -51,7 +51,7 @@ class KnowledgeLayer(torch.nn.Module):
 
     def forward(self, x):
         x = encode_input(x)
-        nodes = torch.empty(self.layer_offsets[-1], dtype=torch.float32)
+        nodes = torch.empty(self.layer_offsets[-1], dtype=torch.float32, device=x.device)
         nodes[0:x.numel()] = x
         for i, layer in enumerate(self.layers):
             nodes[self.layer_offsets[i+1]:self.layer_offsets[i + 2]] = layer(nodes)
