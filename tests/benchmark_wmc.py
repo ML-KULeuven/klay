@@ -1,5 +1,5 @@
 import math
-from time import time
+from time import perf_counter as time
 from array import array
 import argparse
 
@@ -14,54 +14,54 @@ from klay.utils import generate_random_dimacs
 from klay.compile import compile_sdd
 
 
-def benchmark_jax(circuit, weights, nb_repeats=5, device='cpu'):
+def benchmark_jax(circuit, weights, nb_repeats=10, device='cpu'):
     with jax.default_device(jax.devices(device)[0]):
         weights = jnp.log(jnp.array(weights))
         _circuit_forward = circuit.to_jax_function()
         circuit_forward = lambda x: _circuit_forward(x)[0]
-        timings_forward = []
-        for _ in range(nb_repeats):
+        t_forward = []
+        for _ in range(nb_repeats+2): # 2 warmup runs
             t1 = time()
             circuit_forward(weights).block_until_ready()
-            timings_forward.append(time() - t1)
+            t_forward.append(time() - t1)
 
         circuit_backward = jax.jit(jax.value_and_grad(circuit_forward))
-        timings_backward = []
-        for _ in range(nb_repeats):
+        t_backward = []
+        for _ in range(nb_repeats+2):
             t1 = time()
             v, grad = circuit_backward(weights)
             v.block_until_ready()
-            timings_backward.append(time() - t1)
+            t_backward.append(time() - t1)
 
-        forward_timings.append(np.mean(timings_forward[2:]))
-        backward_timings.append(np.mean(timings_backward[2:]))
+    forward_timings.append(t_forward[2:])
+    backward_timings.append(t_backward[2:])
 
 
-def benchmark_torch(circuit, weights, nb_repeats=5, device='cpu'):
+def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
     weights = torch.as_tensor(weights).log().to(device)
     circuit_forward = circuit.to_torch_module().to(device)
-    timings_forward = []
+    t_forward = []
     with torch.inference_mode():
-        for _ in range(nb_repeats):
+        for _ in range(nb_repeats+2):
             t1 = time()
             circuit_forward(weights)
             if device == 'cuda':
                 torch.cuda.synchronize()
-            timings_forward.append(time() - t1)
+            t_forward.append(time() - t1)
 
-    timings_backward = []
+    t_backward = []
     weights = weights.detach()
     weights.requires_grad = True
-    for _ in range(nb_repeats):
+    for _ in range(nb_repeats + 2):
         t1 = time()
         circuit_forward(weights).backward()
         if device == 'cuda':
             torch.cuda.synchronize()
-        timings_backward.append(time() - t1)
+        t_backward.append(time() - t1)
         weights.grad.zero_()
 
-    forward_timings.append(np.mean(timings_forward[2:]))
-    backward_timings.append(np.mean(timings_backward[2:]))
+    forward_timings.append(t_forward[2:])
+    backward_timings.append(t_backward[2:])
 
 
 def benchmark_pysdd(sdd, weights, nb_repeats=5, device='cpu'):
@@ -77,13 +77,15 @@ def benchmark_pysdd(sdd, weights, nb_repeats=5, device='cpu'):
         t1 = time()
         wmc_manager.propagate()
         timings.append(time() - t1)
-    backward_timings.append(np.mean(timings[2:]))
+    backward_timings.append(timings[2:])
 
 
 def run_sdd_bench(nb_vars: int, target: str, device: str = 'cpu'):
+    sdd_nodes = []
     for seed in tqdm(range(args.nb_repeats)):
         generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=seed)
         sdd = compile_sdd('tmp.cnf')
+        sdd_nodes.append(sdd.count())
         weights = [np.random.rand() for _ in range(nb_vars)]
 
         if target == 'pysdd':
@@ -98,6 +100,7 @@ def run_sdd_bench(nb_vars: int, target: str, device: str = 'cpu'):
             benchmark_jax(circuit, weights, device=device)
         elif target == "torch":
             benchmark_torch(circuit, weights, device=device)
+    print(f"Nb of Nodes in SDD: {np.mean(sdd_nodes):.2f} ± {np.std(sdd_nodes):.2f}")
 
 
 def run_d4_bench(file_name: str, target:str, device: str):
@@ -135,8 +138,12 @@ if __name__ == "__main__":
         run_d4_bench('tests/d4_large.nnf', target=args.target, device=args.device)
 
     if forward_timings:
-        print(f'Forward Timings: {1000*np.mean(forward_timings):.2f}ms')
+        mean_timings = [np.mean(runs) for runs in zip(*forward_timings)]
+        mean_timings = np.array(mean_timings) * 1000  # in milliseconds
+        print(f'Forward Timings: {mean_timings.mean():.4f} ± {mean_timings.std():.4f}')
     if backward_timings:
-        print(f'Backward Timings: {1000*np.mean(backward_timings):.2f}ms')
+        mean_timings = [np.mean(runs) for runs in zip(*backward_timings)]
+        mean_timings = np.array(mean_timings) * 1000  # in milliseconds
+        print(f'Backward Timings: {mean_timings.mean():.4f} ± {mean_timings.std():.4f}')
     if layerize_timings:
-        print(f'Layerize Timings: {np.mean(layerize_timings):.3f}s')
+        print(f'Layerize Timings: {np.mean(layerize_timings):.3f} ± {np.std(layerize_timings):.3f}')  # in seconds
