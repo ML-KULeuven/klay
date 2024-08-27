@@ -41,12 +41,27 @@ def benchmark_torch(circuit, weights, nb_repeats=5, device='cpu'):
     circuit_forward = circuit.to_torch_module().to(device)
     plot_circuit_overhead(circuit_forward)
     timings_forward = []
+    with torch.inference_mode():
+        for _ in range(nb_repeats):
+            t1 = time()
+            circuit_forward(weights)
+            if device == 'cuda':
+                torch.cuda.synchronize()
+            timings_forward.append(time() - t1)
+
+    timings_backward = []
+    weights = weights.detach()
+    weights.requires_grad = True
     for _ in range(nb_repeats):
         t1 = time()
-        circuit_forward(weights)
-        timings_forward.append(time() - t1)
+        circuit_forward(weights).backward()
+        if device == 'cuda':
+            torch.cuda.synchronize()
+        timings_backward.append(time() - t1)
+        weights.grad.zero_()
 
     forward_timings.append(np.mean(timings_forward[2:]))
+    backward_timings.append(np.mean(timings_backward[2:]))
 
 
 def benchmark_pysdd(sdd, weights, nb_repeats=5, device='cpu'):
