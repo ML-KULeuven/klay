@@ -26,7 +26,7 @@ def encode_input(pos, neg=None):
         neg = log1mexp(pos)
 
     shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
-    result = torch.empty(shape, dtype=torch.float32).to(pos.device)
+    result = torch.empty(shape, dtype=torch.float32, device=pos.device)
     result[2::2] = pos
     result[3::2] = neg
     result[0] = float('-inf')
