@@ -1,7 +1,6 @@
 import math
 
 import torch
-from torch_scatter import segment_csr
 
 
 EPSILON = 10e-16
@@ -34,6 +33,12 @@ def encode_input(pos, neg=None):
     return result
 
 
+def unroll_csr(csr):
+    deltas = torch.diff(csr)
+    ixs = torch.arange(len(deltas), dtype=torch.long, device=csr.device)
+    return ixs.repeat_interleave(repeats=deltas)
+
+
 class KnowledgeLayer(torch.nn.Module):
     def __init__(self, pointers, csrs):
         super(KnowledgeLayer, self).__init__()
@@ -41,6 +46,7 @@ class KnowledgeLayer(torch.nn.Module):
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             ptrs = torch.as_tensor(ptrs)
             csr = torch.as_tensor(csr, dtype=torch.long)
+            csr = unroll_csr(csr)
             if i % 2 == 0:
                 layers.append(ProductLayer(ptrs, csr))
             else:
@@ -57,21 +63,20 @@ class SumLayer(torch.nn.Module):
         super(SumLayer, self).__init__()
         self.register_buffer('ptrs', ptrs)
         self.register_buffer('csr', csr)
-        deltas = torch.diff(csr)
-        ixs = torch.arange(len(deltas), dtype=torch.int32, device=ptrs.device)
-        ptrs_rev = ixs.repeat_interleave(repeats=deltas)
-        self.register_buffer('ptrs_rev', ptrs_rev)
 
     def forward(self, x):
         x = x[self.ptrs]
         with torch.no_grad():
-            a_add = segment_csr(x, self.csr, reduce="max")
-            a_sub = a_add[self.ptrs_rev]
-        x = torch.exp(x - a_sub)
+            max_output = torch.zeros(self.csr[-1]+1, dtype=x.dtype, device=x.device)
+            max_output.scatter_reduce_(0, index=self.csr, src=x, reduce="amax", include_self=False)
+        x = torch.exp(x - max_output[self.csr])
+        x = x.nan_to_num(nan=0.0, posinf=float('inf'), neginf=float('-inf'))
 
-        x = segment_csr(x, self.csr, reduce="sum")
-        x = torch.log(x + EPSILON) + a_add
-        return x
+        output = torch.empty(self.csr[-1]+1, dtype=x.dtype, device=x.device)
+        output.fill_(EPSILON)
+        output.scatter_add_(0, index=self.csr, src=x)
+        output = torch.log(output) + max_output
+        return output
 
 
 class ProductLayer(torch.nn.Module):
@@ -81,6 +86,6 @@ class ProductLayer(torch.nn.Module):
         self.register_buffer('csr', csr)
 
     def forward(self, x):
-        x = x[self.ptrs]
-        x = segment_csr(x, self.csr, reduce='sum')
-        return x
+        output = torch.zeros(self.csr[-1]+1, dtype=x.dtype, device=x.device)
+        output.scatter_add_(0, index=self.csr, src=x[self.ptrs])
+        return output

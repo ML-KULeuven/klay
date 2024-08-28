@@ -40,6 +40,7 @@ def benchmark_jax(circuit, weights, nb_repeats=10, device='cpu'):
 def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
     weights = torch.as_tensor(weights).log().to(device)
     circuit_forward = circuit.to_torch_module().to(device)
+    circuit_forward = torch.compile(circuit_forward)
     t_forward = []
     with torch.inference_mode():
         for _ in range(nb_repeats+2):
@@ -64,7 +65,7 @@ def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
     backward_timings.append(t_backward[2:])
 
 
-def benchmark_pysdd(sdd, weights, nb_repeats=5, device='cpu'):
+def benchmark_pysdd(sdd, weights, nb_repeats=10, device='cpu'):
     assert device == 'cpu'
     # WARNING: pysdd computes both the forward and backward passes in propagate
     neg_weights = [1.0 - x for x in weights[::-1]]
@@ -73,7 +74,7 @@ def benchmark_pysdd(sdd, weights, nb_repeats=5, device='cpu'):
     wmc_manager.set_literal_weights_from_array(pysdd_weights)
 
     timings = []
-    for _ in range(nb_repeats):
+    for _ in range(nb_repeats+2):
         t1 = time()
         wmc_manager.propagate()
         timings.append(time() - t1)
@@ -135,7 +136,7 @@ if __name__ == "__main__":
     if args.benchmark == 'sdd':
         run_sdd_bench(args.nb_vars, target=args.target, device=args.device)
     if args.benchmark == 'd4':
-        run_d4_bench('tests/d4_large.nnf', target=args.target, device=args.device)
+        run_d4_bench('experiments/synthetic/d4_large.nnf', target=args.target, device=args.device)
 
     if forward_timings:
         mean_timings = [np.mean(runs) for runs in zip(*forward_timings)]
