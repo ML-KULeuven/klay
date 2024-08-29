@@ -1,9 +1,9 @@
 import random
 
+import numpy as np
 import pytest
 
 import torch
-# from graphviz import Source
 from tqdm import tqdm
 
 import klay
@@ -17,21 +17,28 @@ def check_sdd_torch(sdd, weights):
     klay_weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
     circuit.add_sdd(sdd)
-    # Source.from_file("./circuit.dot").render("circuit_plot", format="pdf", cleanup=True, view=True)
     kl = circuit.to_torch_module()
-    result = float(kl(klay_weights).item())
+    result = float(kl(klay_weights))
     assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"
 
 
 def check_d4_torch(nnf_file, weights):
+    weights = torch.tensor(weights)
+    weights.requires_grad = True
     wmc_gt = torch_wmc_d4(nnf_file, weights)
+    wmc_gt.backward()
+    grad_gt = weights.grad.numpy()
+    weights.grad.zero_()
+    wmc_gt = float(wmc_gt.log())
 
-    klay_weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
     circuit.add_D4_from_file(nnf_file)
     kl = circuit.to_torch_module()
-    result = float(kl(klay_weights).item())
-    assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"
+    result = kl(weights.log())
+    result.backward()
+    grad = weights.grad.numpy()
+    assert wmc_gt == pytest.approx(float(result), abs=1e-4), f"Expected {wmc_gt}, got {result}"
+    assert np.allclose(grad_gt, grad), f"Expected {grad_gt}, got {grad}"
 
 
 def fuzzer(nb_trials, nb_vars):
@@ -40,7 +47,6 @@ def fuzzer(nb_trials, nb_vars):
         weights = [random.random() for _ in range(nb_vars)]
 
         sdd = compile_sdd('tmp.cnf')
-        # Source(sdd.dot()).render("sdd_plot", format="pdf", cleanup=True, view=True)
         check_sdd_torch(sdd, weights)
 
         compile_d4('tmp.cnf', 'tmp.nnf')

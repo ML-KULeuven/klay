@@ -34,7 +34,7 @@ def torch_wmc_d4(nnf_file: str, weights: list[float]):
     ONE = torch.tensor(1., dtype=torch.float32)
     ZERO = torch.tensor(0., dtype=torch.float32)
 
-    weights = torch.tensor(weights, dtype=torch.float32)
+    weights = torch.as_tensor(weights, dtype=torch.float32)
     weights = torch.stack([1 - weights, weights], dim=1)
 
     lines = [s.split(" ")[:-1] for s in nnf_string.split("\n")]
@@ -60,11 +60,7 @@ def torch_wmc_d4(nnf_file: str, weights: list[float]):
                 nodes[source][0] = nodes[source][0] + lits_val
             elif nodes[source][1] == 'a':
                 nodes[source][0] = nodes[source][0] * lits_val
-    for node in nodes[1:]:
-        if node[0].requires_grad:
-            node[0].retain_grad()
-
-    return math.log(nodes[1][0])
+    return nodes[1][0]
 
 
 def plot_circuit_overhead(module):
