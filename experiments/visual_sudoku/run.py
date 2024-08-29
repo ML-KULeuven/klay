@@ -93,19 +93,16 @@ class VisualSudokuModule(nn.Module):
     def __init__(self, grid_size: int):
         super(VisualSudokuModule, self).__init__()
         self.net = LeNet(grid_size)
-        self.circuit = get_circuit(grid_size)
+        self.circuit = torch.vmap(get_circuit(grid_size))
         self.grid_size = grid_size
 
     def forward(self, images):
         shape = images.shape
-        # print("SHAPE", shape)
         assert not torch.isnan(images).any()
         images = images.reshape(-1, 1, 28, 28)
         image_probs = self.net(images)
-        # print('probs', image_probs.shape)
         assert not torch.isnan(image_probs).any()
-        image_probs = image_probs.reshape(shape[:-2] + (self.grid_size,)).reshape(-1, shape[0])
-        # print(image_probs.shape)
+        image_probs = image_probs.reshape(shape[:-2] + (self.grid_size,)).reshape(shape[0], -1)
         return self.circuit(image_probs, torch.zeros_like(image_probs))
 
 
@@ -151,15 +148,4 @@ def main(grid_size: int, batch_size: int, nb_epochs: int):
 
 
 if __name__ == "__main__":
-    """
-    circuit = get_circuit(4)
-    sudoku = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 3, 4, 1], [4, 1, 2, 3]]
-    v = torch.zeros(1, 4, 4, 4)
-    for i in range(4):
-        for j in range(4):
-            v[:, i, j, sudoku[i][j] - 1] = 1
-    v[:, 0, 0, 0] = 0.5
-    print(circuit(v.log().reshape(-1)).exp())
-    """
-
-    main(4, 1, 16)
+    main(4, 4, 50)

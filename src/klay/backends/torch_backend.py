@@ -24,13 +24,9 @@ def encode_input(pos, neg=None):
     if neg is None:
         neg = log1mexp(pos)
 
-    shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
-    result = torch.empty(shape, dtype=torch.float32, device=pos.device)
-    result[2::2] = pos
-    result[3::2] = neg
-    result[0] = float('-inf')
-    result[1] = 0
-    return result
+    result = torch.stack([pos, neg], dim=1).flatten()
+    constants = torch.tensor([float('-inf'), 0], dtype=torch.float32, device=pos.device)
+    return torch.cat([constants, result])
 
 
 def unroll_csr(csr):
@@ -63,21 +59,19 @@ class SumLayer(torch.nn.Module):
         super(SumLayer, self).__init__()
         self.register_buffer('ptrs', ptrs)
         self.register_buffer('csr', csr)
+        self.out_shape = (self.csr[-1].item() + 1,)
 
     def forward(self, x):
-        shape = (self.csr[-1].item()+1,) + x.shape[1:]
-        csr = self.csr.view((-1,) + (1,) * (x.dim() - 1))
         x = x[self.ptrs]
         with torch.no_grad():
-            max_output = torch.zeros(shape, dtype=x.dtype, device=x.device)
-            max_output.scatter_reduce_(0, index=csr, src=x, reduce="amax", include_self=False)
+            max_output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
+            max_output = torch.scatter_reduce(max_output, 0, index=self.csr, src=x, reduce="amax", include_self=False)
             x -= max_output[self.csr]
             x.nan_to_num_(nan=0, posinf=float('inf'), neginf=float('-inf'))
         x = torch.exp(x)
 
-        output = torch.empty(shape, dtype=x.dtype, device=x.device)
-        output.fill_(EPSILON)
-        output.scatter_add_(0, index=csr, src=x)
+        output = torch.full(self.out_shape, EPSILON, dtype=x.dtype, device=x.device)
+        output = torch.scatter_add(output, 0, index=self.csr, src=x)
         output = torch.log(output) + max_output
         return output
 
@@ -87,10 +81,9 @@ class ProductLayer(torch.nn.Module):
         super(ProductLayer, self).__init__()
         self.register_buffer('ptrs', ptrs)
         self.register_buffer('csr', csr)
+        self.out_shape = (self.csr[-1].item() + 1,)
 
     def forward(self, x):
-        shape = (self.csr[-1].item()+1,) + x.shape[1:]
-        csr = self.csr.view((-1,) + (1,) * (x.dim() - 1))
-        output = torch.zeros(shape, dtype=x.dtype, device=x.device)
-        output.scatter_add_(0, index=csr, src=x[self.ptrs])
+        output = torch.zeros(self.out_shape, dtype=x.dtype, device=x.device)
+        output = torch.scatter_add(output, 0, index=self.csr, src=x[self.ptrs])
         return output
