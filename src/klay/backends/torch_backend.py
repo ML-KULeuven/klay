@@ -65,16 +65,19 @@ class SumLayer(torch.nn.Module):
         self.register_buffer('csr', csr)
 
     def forward(self, x):
+        shape = (self.csr[-1].item()+1,) + x.shape[1:]
+        csr = self.csr.view((-1,) + (1,) * (x.dim() - 1))
         x = x[self.ptrs]
         with torch.no_grad():
-            max_output = torch.zeros(self.csr[-1]+1, dtype=x.dtype, device=x.device)
-            max_output.scatter_reduce_(0, index=self.csr, src=x, reduce="amax", include_self=False)
-        x = torch.exp(x - max_output[self.csr])
-        x = x.nan_to_num(nan=0.0, posinf=float('inf'), neginf=float('-inf'))
+            max_output = torch.zeros(shape, dtype=x.dtype, device=x.device)
+            max_output.scatter_reduce_(0, index=csr, src=x, reduce="amax", include_self=False)
+            x -= max_output[self.csr]
+            x.nan_to_num_(nan=0, posinf=float('inf'), neginf=float('-inf'))
+        x = torch.exp(x)
 
-        output = torch.empty(self.csr[-1]+1, dtype=x.dtype, device=x.device)
+        output = torch.empty(shape, dtype=x.dtype, device=x.device)
         output.fill_(EPSILON)
-        output.scatter_add_(0, index=self.csr, src=x)
+        output.scatter_add_(0, index=csr, src=x)
         output = torch.log(output) + max_output
         return output
 
@@ -86,6 +89,8 @@ class ProductLayer(torch.nn.Module):
         self.register_buffer('csr', csr)
 
     def forward(self, x):
-        output = torch.zeros(self.csr[-1]+1, dtype=x.dtype, device=x.device)
-        output.scatter_add_(0, index=self.csr, src=x[self.ptrs])
+        shape = (self.csr[-1].item()+1,) + x.shape[1:]
+        csr = self.csr.view((-1,) + (1,) * (x.dim() - 1))
+        output = torch.zeros(shape, dtype=x.dtype, device=x.device)
+        output.scatter_add_(0, index=csr, src=x[self.ptrs])
         return output
