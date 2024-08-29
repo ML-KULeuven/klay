@@ -10,3 +10,5 @@ build
 .vscode
 __pycache__
 cmake-build-debug
+.venv
+tmp

@@ -40,7 +40,6 @@ def benchmark_jax(circuit, weights, nb_repeats=10, device='cpu'):
 def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
     weights = torch.as_tensor(weights).log().to(device)
     circuit_forward = circuit.to_torch_module().to(device)
-    circuit_forward = torch.compile(circuit_forward)
     t_forward = []
     with torch.inference_mode():
         for _ in range(nb_repeats+2):
