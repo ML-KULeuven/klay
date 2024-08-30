@@ -14,12 +14,12 @@ def to_jax_function(circuit: Circuit):
     return jax_backend.create_knowledge_layer(*indices)
 
 
-def add_sdd(circuit: Circuit, sdd: "SddNode"):
+def add_sdd(circuit: Circuit, sdd: "SddNode", **kwargs):
     import os
     from pathlib import Path
 
     sdd.save(bytes(Path("tmp.sdd")))
-    circuit.add_SDD_from_file("tmp.sdd")
+    circuit.add_SDD_from_file("tmp.sdd", **kwargs)
     os.remove("tmp.sdd")
 
 
