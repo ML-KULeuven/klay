@@ -1,6 +1,9 @@
+import argparse
 import io
 import zipfile
 from pathlib import Path
+from time import perf_counter
+
 import requests
 
 import klay
@@ -93,7 +96,8 @@ class VisualSudokuModule(nn.Module):
     def __init__(self, grid_size: int):
         super(VisualSudokuModule, self).__init__()
         self.net = LeNet(grid_size)
-        self.circuit = torch.vmap(get_circuit(grid_size))
+        self.circuit = get_circuit(grid_size)
+        self.circuit_batched = torch.vmap(self.circuit)
         self.grid_size = grid_size
 
     def forward(self, images):
@@ -102,8 +106,8 @@ class VisualSudokuModule(nn.Module):
         images = images.reshape(-1, 1, 28, 28)
         image_probs = self.net(images)
         assert not torch.isnan(image_probs).any()
-        image_probs = image_probs.reshape(shape[:-2] + (self.grid_size,)).reshape(shape[0], -1)
-        return self.circuit(image_probs, torch.zeros_like(image_probs))
+        image_probs = image_probs.reshape(shape[0], -1)
+        return self.circuit_batched(image_probs, torch.zeros_like(image_probs))
 
 
 def get_circuit(grid_size: int):
@@ -119,14 +123,16 @@ def nll_loss(preds, targets):
     return nll.mean()
 
 
-def main(grid_size: int, batch_size: int, nb_epochs: int):
+def main(grid_size: int, batch_size: int, nb_epochs: int, learning_rate: float, device="cuda"):
     train_dataloader = get_dataloader(grid_size, "train", batch_size)
-    model = VisualSudokuModule(grid_size)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0003, weight_decay=0.00001)
+    model = VisualSudokuModule(grid_size).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.00001)
 
     for epoch in range(nb_epochs):
         losses = []
+        t1 = perf_counter()
         for xs, ys in train_dataloader:
+            xs, ys = xs.to(device), ys.to(device)
             preds = model(xs)
             loss = nll_loss(preds[0], ys)
             losses.append(loss.item())
@@ -135,12 +141,13 @@ def main(grid_size: int, batch_size: int, nb_epochs: int):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 2)
             optimizer.step()
             optimizer.zero_grad()
-        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f}")
+        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f} (in {perf_counter() - t1:.2f}s)")
 
     model = model.eval()
     val_dataloader = get_dataloader(grid_size, "valid", 1)
     accs = []
     for xs, ys in val_dataloader:
+        xs, ys = xs.to(device), ys.to(device)
         preds = model(xs).exp()
         acc = (preds[0] > 0.5) == ys
         accs += acc.tolist()
@@ -148,4 +155,17 @@ def main(grid_size: int, batch_size: int, nb_epochs: int):
 
 
 if __name__ == "__main__":
-    main(4, 4, 50)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', '--batch_size', type=int, default=4)
+    parser.add_argument('-e', '--nb_epochs', type=int, default=10)
+    parser.add_argument('-d', '--device', default='cpu')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=0.0003)
+    args = parser.parse_args()
+
+    main(
+        grid_size=4,
+        batch_size=args.batch_size,
+        nb_epochs=args.nb_epochs,
+        learning_rate=args.learning_rate,
+        device=args.device
+    )
