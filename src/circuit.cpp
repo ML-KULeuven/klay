@@ -67,7 +67,7 @@ Node* Circuit::add_node_level(Node* node) {
 }
 
 Node* Circuit::add_node_level_compressed(Node* node) {
-    return add_node_level(node);
+    // return add_node_level(node);
     if (node->type != NodeType::And && node->type != NodeType::Or)
         return add_node_level(node);
 
@@ -126,7 +126,7 @@ Node* Circuit::add_node_level_compressed(Node* node) {
 /**
  * Auxiliary method for Circuit::add_SDD_from_file
  */
-Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
+Node* parseSDDFile(const std::string& filename, Circuit& circuit, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
@@ -160,7 +160,12 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit) {
         } else if (type == "L") {
             int vtree, literal;
             iss >> vtree >> literal;
-            node = Node::createLiteralNode(Lit::fromInt(literal));
+            if (std::find(true_lits.begin(), true_lits.end(), literal) != true_lits.end())
+                node = Node::createTrueNode();
+            else if (std::find(false_lits.begin(), false_lits.end(), literal) != false_lits.end())
+                node = Node::createFalseNode();
+            else
+                node = Node::createLiteralNode(Lit::fromInt(literal));
         } else if (type == "D") {
             int vtree, numElements;
             iss >> vtree >> numElements;
@@ -236,7 +241,7 @@ void Circuit::remove_unused_nodes() {
         roots[i]->ix = i;
 }
 
-Node* parseD4File(const std::string& filename, Circuit& circuit) {
+Node* parseD4File(const std::string& filename, Circuit& circuit, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
@@ -281,7 +286,12 @@ Node* parseD4File(const std::string& filename, Circuit& circuit) {
             }
             edge->add_child(nodes[child]);
             while (lit != 0) {
-                node = Node::createLiteralNode(Lit::fromInt(lit));
+                if (std::find(true_lits.begin(), true_lits.end(), lit) != true_lits.end())
+                    node = Node::createTrueNode();
+                else if (std::find(false_lits.begin(), false_lits.end(), lit) != false_lits.end())
+                    node = Node::createFalseNode();
+                else
+                    node = Node::createLiteralNode(Lit::fromInt(lit));
                 edge->add_child(circuit.add_node_level_compressed(node));
                 iss >> lit;
             }
@@ -334,9 +344,9 @@ void Circuit::add_root(Node* new_root, int old_depth) {
 }
 
 
-void Circuit::add_SDD_from_file(const std::string &filename) {
+void Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     int old_depth = layers.size() - 1;
-    Node* new_root = parseSDDFile(filename, *this);
+    Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
     add_root(new_root, old_depth);
     remove_unused_nodes();
 #ifndef NDEBUG
@@ -344,9 +354,9 @@ void Circuit::add_SDD_from_file(const std::string &filename) {
 #endif
 }
 
-void Circuit::add_D4_from_file(const std::string &filename) {
+void Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     int old_depth = layers.size() - 1;
-    Node* new_root = parseD4File(filename, *this);
+    Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
     add_root(new_root, old_depth);
     remove_unused_nodes();
 #ifndef NDEBUG
@@ -430,7 +440,6 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
         indices_ndarrays.push_back(indices_ndarray);
         csr_ndarrays.push_back(csr_ndarray);
     }
-
     return std::make_pair(indices_ndarrays, csr_ndarrays);
 }
 
@@ -444,8 +453,8 @@ m.doc() = "Layerize an SDD";
 
 nb::class_<Circuit>(m, "Circuit")
 .def(nb::init<>())
-.def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a)
-.def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a)
+.def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
+.def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("get_indices", &Circuit::get_indices)
 .def("condition", &Circuit::condition, "lits"_a)
 .def("nb_nodes", &Circuit::nb_nodes);
