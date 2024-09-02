@@ -80,12 +80,13 @@ def benchmark_pysdd(sdd, weights, nb_repeats=10, device='cpu'):
     backward_timings.append(timings[2:])
 
 
-def run_sdd_bench(nb_vars: int, target: str, device: str = 'cpu'):
+def run_sdd_bench(nb_vars: int, nb_repeats: int, target: str, device: str = 'cpu'):
     sdd_nodes = []
-    for seed in tqdm(range(args.nb_repeats)):
+    for seed in tqdm(range(nb_repeats)):
         generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=seed)
         sdd = compile_sdd('tmp.cnf')
         sdd_nodes.append(sdd.count())
+        print(f"Nb of Nodes in SDD: {sdd_nodes[-1]//1000}k")
         weights = [np.random.rand() for _ in range(nb_vars)]
 
         if target == 'pysdd':
@@ -117,33 +118,44 @@ def run_d4_bench(file_name: str, target:str, device: str):
         benchmark_torch(circuit, weights, device=device)
 
 
-if __name__ == "__main__":
+def main():
+    global forward_timings, backward_timings, layerize_timings
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--nb_vars', type=int)
+    parser.add_argument('-v', '--nb_vars', nargs="+", type=int)
     parser.add_argument('-r', '--nb_repeats', type=int)
     parser.add_argument('-d', '--device', default='cpu')
     parser.add_argument('-t', '--target', default='jax')
     parser.add_argument('-b', '--benchmark', required=True)
     args = parser.parse_args()
 
-    print(f'Benchmarking {args.benchmark}-{args.target} on {args.device}  ({args.nb_vars} variables)')
+    all_backward_timings = []
+    for nb_vars in args.nb_vars:
+        print(f'Benchmarking {args.benchmark}-{args.target} on {args.device}  ({nb_vars} variables)')
 
-    forward_timings = []
-    backward_timings = []
-    layerize_timings = []
+        forward_timings = []
+        backward_timings = []
+        layerize_timings = []
 
-    if args.benchmark == 'sdd':
-        run_sdd_bench(args.nb_vars, target=args.target, device=args.device)
-    if args.benchmark == 'd4':
-        run_d4_bench('experiments/synthetic/d4_large.nnf', target=args.target, device=args.device)
+        if args.benchmark == 'sdd':
+            run_sdd_bench(nb_vars, args.nb_repeats, target=args.target, device=args.device)
+        if args.benchmark == 'd4':
+            run_d4_bench('experiments/synthetic/d4_large.nnf', target=args.target, device=args.device)
 
-    if forward_timings:
-        mean_timings = [np.mean(runs) for runs in zip(*forward_timings)]
-        mean_timings = np.array(mean_timings) * 1000  # in milliseconds
-        print(f'Forward Timings: {mean_timings.mean():.4f} ± {mean_timings.std():.4f}')
-    if backward_timings:
-        mean_timings = [np.mean(runs) for runs in zip(*backward_timings)]
-        mean_timings = np.array(mean_timings) * 1000  # in milliseconds
-        print(f'Backward Timings: {mean_timings.mean():.4f} ± {mean_timings.std():.4f}')
-    if layerize_timings:
-        print(f'Layerize Timings: {np.mean(layerize_timings):.3f} ± {np.std(layerize_timings):.3f}')  # in seconds
+        if forward_timings:
+            mean_timings = [np.mean(runs) for runs in zip(*forward_timings)]
+            mean_timings = np.array(mean_timings) * 1000  # in milliseconds
+            print(f'Forward Timings: {mean_timings.mean():.4f} ± {mean_timings.std():.4f}')
+        if backward_timings:
+            mean_timings = [np.mean(runs) for runs in zip(*backward_timings)]
+            mean_timings = np.array(mean_timings) * 1000  # in milliseconds
+            print(f'Backward Timings: {mean_timings.mean():.4f} ± {mean_timings.std():.4f}')
+            all_backward_timings.append(float(mean_timings.mean()))
+        if layerize_timings:
+            print(f'Layerize Timings: {np.mean(layerize_timings):.3f} ± {np.std(layerize_timings):.3f}')  # in seconds
+
+    if all_backward_timings:
+        print(all_backward_timings)
+
+
+if __name__ == "__main__":
+    main()
