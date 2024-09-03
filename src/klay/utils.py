@@ -4,6 +4,8 @@ from array import array
 
 import torch
 
+from klay.backends.torch_backend import log1mexp
+
 
 def generate_random_dimacs(file_name: str, var_count: int, clause_count: int, seed: int = 1, clause_length: int = 3):
     """
@@ -27,15 +29,19 @@ def pysdd_wmc(sdd: "SddNode", weights: list[float]):
     return wmc_manager.propagate()
 
 
-def torch_wmc_d4(nnf_file: str, weights: list[float]):
+def torch_wmc_d4(nnf_file: str, weights: list[float], neg_weights: list[float] = None):
     with open(nnf_file) as f:
         nnf_string = f.read()
 
-    ONE = torch.tensor(1., dtype=torch.float32)
-    ZERO = torch.tensor(0., dtype=torch.float32)
+    ONE = torch.tensor(0., dtype=torch.float32, device=weights.device)
+    ZERO = torch.tensor(float('-inf'), dtype=torch.float32, device=weights.device)
 
     weights = torch.as_tensor(weights, dtype=torch.float32)
-    weights = torch.stack([1 - weights, weights], dim=1)
+    if neg_weights is None:
+        neg_weights = log1mexp(weights)
+    else:
+        neg_weights = torch.as_tensor(neg_weights, dtype=torch.float32)
+    weights = torch.stack([neg_weights, weights], dim=1)
 
     lines = [s.split(" ")[:-1] for s in nnf_string.split("\n")]
     nodes = [None]
@@ -53,13 +59,13 @@ def torch_wmc_d4(nnf_file: str, weights: list[float]):
             else:
                 ix1 = [abs(lit) - 1 for lit in literals]
                 ix2 = [int(lit > 0) for lit in literals]
-                lit_weights = weights[ix1, ix2]
-                lits_val = nodes[target][0] * lit_weights.prod()
+                lit_weights = weights[..., ix2, ix1]
+                lits_val = nodes[target][0] + lit_weights.sum(axis=1)
 
             if nodes[source][1] == 'o':
-                nodes[source][0] = nodes[source][0] + lits_val
+                nodes[source][0] = torch.logaddexp(nodes[source][0], lits_val)
             elif nodes[source][1] == 'a':
-                nodes[source][0] = nodes[source][0] * lits_val
+                nodes[source][0] = nodes[source][0] + lits_val
     return nodes[1][0]
 
 
