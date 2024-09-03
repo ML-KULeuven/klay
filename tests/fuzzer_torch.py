@@ -47,8 +47,11 @@ def check_d4(nnf_file, weights):
 
 
 def fuzzer(nb_trials, nb_vars):
+    import sys
+    seed_offset = random.randint(0, sys.maxsize)
+    print("Seed offset: ", seed_offset)
     for i in tqdm(range(nb_trials)):
-        generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=i)
+        generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=i + seed_offset)
         weights = [random.random() for _ in range(nb_vars)]
 
         sdd = compile_sdd('tmp.cnf')
