@@ -6,7 +6,7 @@ from klay.utils import benchmark_klay_jax, benchmark_klay_torch, benchmark_sdd_t
 from pysdd.sdd import SddManager, Vtree
 
 
-CIRCUITS = ["4-grid", "road_r", "sudoku_4", "warcraft_12"]
+CIRCUITS = ["sudoku_4", "4-grid", "seq_fun", "warcraft_12"]
 
 
 def print_results(results):
@@ -36,13 +36,14 @@ def main():
             result = benchmark_klay_torch(circuit, weights, device=device)
             print_results(result)
 
-            # print(f"Benchmarking Jax {device}")
-            # result = benchmark_klay_jax(circuit, weights, device=device)
-            # print_results(result)
+            print(f"Benchmarking Jax {device}")
+            result = benchmark_klay_jax(circuit, weights, device=device)
+            print_results(result)
 
             print(f"Benchmarking Torch Naive {device}")
             result = benchmark_sdd_torch_naive(manager, sdd, weights, device=device)
             print_results(result)
+        print()
 
 
 if __name__ == "__main__":
