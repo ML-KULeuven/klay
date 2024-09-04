@@ -49,7 +49,7 @@ def main():
         ax.grid()
         ax.set_yscale('log')
         ax.set_xlabel("Instances")
-        ax.set_xlim(0, len(results["sdd_pysdd_cpu"]))
+        ax.set_xlim(0, len(results["sdd_pysdd_cpu"])-1)
         ax.legend()
 
     fig.savefig("sdd_bench.pdf", bbox_inches='tight')
