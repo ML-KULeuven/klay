@@ -1,8 +1,11 @@
 import math
+from time import perf_counter
 import random
 from array import array
 
 import torch
+import jax
+
 
 from klay.backends.torch_backend import log1mexp
 
@@ -27,6 +30,22 @@ def pysdd_wmc(sdd: "SddNode", weights: list[float]):
     wmc_manager = sdd.wmc(log_mode=True)
     wmc_manager.set_literal_weights_from_array(pysdd_weights)
     return wmc_manager.propagate()
+
+
+def benchmark_pysdd(sdd, weights, nb_repeats=10, device='cpu'):
+    assert device == 'cpu'
+    # WARNING: pysdd computes both the forward and backward passes in propagate
+    neg_weights = [1.0 - x for x in weights[::-1]]
+    pysdd_weights = array('d', [math.log(x) for x in neg_weights + weights])
+    wmc_manager = sdd.wmc(log_mode=True)
+    wmc_manager.set_literal_weights_from_array(pysdd_weights)
+
+    timings = []
+    for _ in range(nb_repeats+2):
+        t1 = perf_counter()
+        wmc_manager.propagate()
+        timings.append(perf_counter() - t1)
+    return {'backward': timings[2:]}
 
 
 def torch_wmc_d4(nnf_file: str, weights: list[float], neg_weights: list[float] = None):
@@ -88,3 +107,49 @@ def plot_circuit_overhead(module):
     # plt.yscale("log")
     plt.xlabel("Layer")
     plt.show()
+
+
+def benchmark_jax(circuit, weights, nb_repeats=10, device='cpu'):
+    with jax.default_device(jax.devices(device)[0]):
+        weights = jax.numpy.log(jax.numpy.array(weights))
+        _circuit_forward = circuit.to_jax_function()
+        circuit_forward = lambda x: _circuit_forward(x)[0]
+        t_forward = []
+        for _ in range(nb_repeats+2): # 2 warmup runs
+            t1 = perf_counter()
+            circuit_forward(weights).block_until_ready()
+            t_forward.append(perf_counter() - t1)
+
+        circuit_backward = jax.jit(jax.value_and_grad(circuit_forward))
+        t_backward = []
+        for _ in range(nb_repeats+2):
+            t1 = perf_counter()
+            v, grad = circuit_backward(weights)
+            v.block_until_ready()
+            t_backward.append(perf_counter() - t1)
+    return {'forward': t_forward[2:], 'backward': t_backward[2:]}
+
+
+def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
+    weights = torch.as_tensor(weights).log().to(device)
+    circuit_forward = circuit.to_torch_module().to(device)
+    t_forward = []
+    with torch.inference_mode():
+        for _ in range(nb_repeats+2):
+            t1 = perf_counter()
+            circuit_forward(weights)
+            if device == 'cuda':
+                torch.cuda.synchronize()
+            t_forward.append(perf_counter() - t1)
+
+    t_backward = []
+    weights = weights.detach()
+    weights.requires_grad = True
+    for _ in range(nb_repeats + 2):
+        t1 = perf_counter()
+        circuit_forward(weights).backward()
+        if device == 'cuda':
+            torch.cuda.synchronize()
+        t_backward.append(perf_counter() - t1)
+        weights.grad.zero_()
+    return {'forward': t_forward[2:], 'backward': t_backward[2:]}

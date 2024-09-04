@@ -12,30 +12,47 @@ def main():
         print("Loading", folder)
         if not folder.exists():
             continue
+        nb_nodes_klay = []
+        nb_nodes_sdd = []
 
         for experiment in folder.iterdir():
             assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
             with open(experiment) as f:
                 data = json.load(f)
-                data_point = data['sdd_edges'], np.mean(data['backward']) * 1000
+                data_point = np.mean(data['backward']) * 1000
                 results[folder_name].append(data_point)
+                if 'klay_nodes' in data:
+                    nb_nodes_klay.append(data['klay_nodes'])
+                nb_nodes_sdd.append(data['sdd_nodes'])
 
-    plt.figure(figsize=(5, 3))
-    for name, data in results.items():
-        if data:
-            nb_nodes, timings = zip(*data)
-            plt.scatter(nb_nodes, timings, label=name[4:].replace("_", " ").title(), s=4)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel("Number of Edges")
-    plt.ylabel("Time (ms)")
-    plt.xlim(10**3, 10**9)
-    # plt.title("SDD Backpropagation Time")
-    plt.legend()
-    plt.grid()
-    # plt.show()
-    plt.savefig("sdd_backpropagation_time.pdf", bbox_inches='tight')
+    timings = np.cumsum(sorted(results['sdd_pysdd_cpu']))
+    ax1.plot(timings, label="PySDD (cpu)", linewidth=1.5, color='black')
+    timings = np.cumsum(sorted(results['sdd_jax_cpu']))
+    ax1.plot(timings, label="KLay (Jax, cpu)", linewidth=1.5, color='blue')
+    timings = np.cumsum(sorted(results['sdd_jax_cuda']))
+    ax1.plot(timings, label="KLay (Jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+    timings = np.cumsum(sorted(results['sdd_torch_cpu']))
+    ax1.plot(timings, label="KLay (Torch, cpu)", linewidth=1.5, color='red')
+    timings = np.cumsum(sorted(results['sdd_torch_cuda']))
+    ax1.plot(timings, label="KLay (Torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+
+    ax1.set_ylabel("Cumulative Time (ms)")
+
+    ax2.plot(sorted(nb_nodes_sdd), label="Nb of Nodes in SDD", linewidth=1.5, color='black')
+    ax2.plot(sorted(nb_nodes_klay), label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+
+    ax2.set_ylabel("Nb of Nodes")
+
+    for ax in [ax1, ax2]:
+        ax.grid()
+        ax.set_yscale('log')
+        ax.set_xlabel("Instances")
+        ax.set_xlim(0, len(results["sdd_pysdd_cpu"]))
+        ax.legend()
+
+    fig.savefig("sdd_bench.pdf", bbox_inches='tight')
 
 
 if __name__ == "__main__":
