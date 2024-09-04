@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 
 import klay
-from klay.utils import generate_random_dimacs, benchmark_jax, benchmark_torch, benchmark_pysdd
+from klay.utils import generate_random_dimacs, benchmark_klay_jax, benchmark_klay_torch, benchmark_pysdd
 from klay.compile import compile_sdd
 
 
@@ -25,9 +25,9 @@ def run_sdd_bench(nb_vars: int, target: str, seed: int, device: str = 'cpu'):
         circuit.add_sdd(sdd)
         results['klay_nodes'] = circuit.nb_nodes()
         if target == "jax":
-            results.update(benchmark_jax(circuit, weights, device=device))
+            results.update(benchmark_klay_jax(circuit, weights, device=device))
         elif target == "torch":
-            results.update(benchmark_torch(circuit, weights, device=device))
+            results.update(benchmark_klay_torch(circuit, weights, device=device))
     return results
 
 
@@ -39,9 +39,9 @@ def run_d4_bench(file_name: str, target:str, device: str):
     results = {"klay_nodes": circuit.nb_nodes()}
     print("nb nodes", circuit.nb_nodes())
     if target == "jax":
-        results.update(benchmark_jax(circuit, weights, device=device))
+        results.update(benchmark_klay_jax(circuit, weights, device=device))
     elif target == "torch":
-        results.update(benchmark_torch(circuit, weights, device=device))
+        results.update(benchmark_klay_torch(circuit, weights, device=device))
     return results
 
 

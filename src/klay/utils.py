@@ -8,6 +8,7 @@ import jax
 
 
 from klay.backends.torch_backend import log1mexp
+from pysdd.iterator import SddIterator
 
 
 def generate_random_dimacs(file_name: str, var_count: int, clause_count: int, seed: int = 1, clause_length: int = 3):
@@ -24,7 +25,7 @@ def generate_random_dimacs(file_name: str, var_count: int, clause_count: int, se
             f.write(" ".join(map(str, clause)) + " 0\n")
 
 
-def pysdd_wmc(sdd: "SddNode", weights: list[float]):
+def eval_pysdd(sdd: "SddNode", weights: list[float]):
     neg_weights = [1.0 - x for x in weights[::-1]]
     pysdd_weights = array('d', [math.log(x) for x in neg_weights + weights])
     wmc_manager = sdd.wmc(log_mode=True)
@@ -48,7 +49,7 @@ def benchmark_pysdd(sdd, weights, nb_repeats=10, device='cpu'):
     return {'backward': timings[2:]}
 
 
-def torch_wmc_d4(nnf_file: str, weights: list[float], neg_weights: list[float] = None):
+def eval_d4_torch_naive(nnf_file: str, weights: list[float], neg_weights: list[float] = None):
     with open(nnf_file) as f:
         nnf_string = f.read()
 
@@ -109,7 +110,7 @@ def plot_circuit_overhead(module):
     plt.show()
 
 
-def benchmark_jax(circuit, weights, nb_repeats=10, device='cpu'):
+def benchmark_klay_jax(circuit, weights, nb_repeats=10, device='cpu'):
     with jax.default_device(jax.devices(device)[0]):
         weights = jax.numpy.log(jax.numpy.array(weights))
         _circuit_forward = circuit.to_jax_function()
@@ -130,7 +131,7 @@ def benchmark_jax(circuit, weights, nb_repeats=10, device='cpu'):
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
 
 
-def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
+def benchmark_klay_torch(circuit, weights, nb_repeats=10, device='cpu'):
     weights = torch.as_tensor(weights).log().to(device)
     circuit_forward = circuit.to_torch_module().to(device)
     t_forward = []
@@ -153,3 +154,50 @@ def benchmark_torch(circuit, weights, nb_repeats=10, device='cpu'):
         t_backward.append(perf_counter() - t1)
         weights.grad.zero_()
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
+
+
+def benchmark_sdd_torch_naive(manager, sdd, weights, nb_repeats=10, device='cpu'):
+    weights = torch.as_tensor(weights).log().to(device)
+    neg_weights = log1mexp(weights)
+    t_forward = []
+    with torch.inference_mode():
+        for _ in range(nb_repeats+2):
+            t1 = perf_counter()
+            eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device)
+            if device == 'cuda':
+                torch.cuda.synchronize()
+            t_forward.append(perf_counter() - t1)
+
+    t_backward = []
+    weights = weights.detach()
+    weights.requires_grad = True
+    for _ in range(nb_repeats + 2):
+        t1 = perf_counter()
+        eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device).backward()
+        if device == 'cuda':
+            torch.cuda.synchronize()
+        t_backward.append(perf_counter() - t1)
+        weights.grad.zero_()
+    return {'forward': t_forward[2:], 'backward': t_backward[2:]}
+
+
+def eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
+    iterator = SddIterator(manager, smooth=False)
+
+    def _formula_evaluator(node, r_values, *_):
+        if node is not None:
+            if node.is_literal():
+                literal = node.literal
+                if literal < 0:
+                    return neg_weights[-literal - 1]
+                else:
+                    return pos_weights[literal - 1]
+            elif node.is_true():
+                return torch.tensor(0., device=device)
+            elif node.is_false():
+                return torch.tensor(float('-inf'), device=device)
+        # Decision node
+        return torch.logsumexp(torch.stack([value[0] + value[1] for value in r_values]), dim=0)
+
+    result = iterator.depth_first(sdd, _formula_evaluator)
+    return result
