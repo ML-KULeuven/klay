@@ -1,16 +1,17 @@
 import random
 import pytest
+import torch
 
 from tqdm import tqdm
 import jax.numpy as jnp
 
 import klay
-from klay.utils import generate_random_dimacs, pysdd_wmc, torch_wmc_d4
+from klay.utils import generate_random_dimacs, eval_pysdd, eval_d4_torch_naive
 from klay.compile import compile_sdd, compile_d4
 
 
 def check_sdd_torch(sdd, weights):
-    wmc_gt = pysdd_wmc(sdd, weights)
+    wmc_gt = eval_pysdd(sdd, weights)
 
     klay_weights = jnp.log(jnp.array(weights))
     circuit = klay.Circuit()
@@ -21,7 +22,7 @@ def check_sdd_torch(sdd, weights):
 
 
 def check_d4_torch(nnf_file, weights):
-    wmc_gt = torch_wmc_d4(nnf_file, weights)
+    wmc_gt = eval_d4_torch_naive(nnf_file, torch.tensor(weights).log())
 
     klay_weights = jnp.log(jnp.array(weights))
     circuit = klay.Circuit()
