@@ -5,15 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def main():
-    results = {"sdd_pysdd_cpu": [], "sdd_jax_cpu": [], "sdd_jax_cuda": [], "sdd_torch_cpu": [], "sdd_torch_cuda": []}
-    for folder_name in results.keys():
+def load_data(results):
+    for folder_name in list(results.keys()):
         folder = Path('results') / folder_name
-        print("Loading", folder)
         if not folder.exists():
             continue
-        nb_nodes_klay = []
-        nb_nodes_sdd = []
+        print("Loading", folder)
+        for node_count in ('klay_nodes', 'sdd_nodes', 'd4_nodes'):
+            results[node_count] = []
 
         for experiment in folder.iterdir():
             assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
@@ -21,27 +20,35 @@ def main():
                 data = json.load(f)
                 data_point = np.mean(data['backward']) * 1000
                 results[folder_name].append(data_point)
-                if 'klay_nodes' in data:
-                    nb_nodes_klay.append(data['klay_nodes'])
-                nb_nodes_sdd.append(data['sdd_nodes'])
+                for node_count in ('klay_nodes', 'sdd_nodes', 'd4_nodes'):
+                    if node_count in data:
+                        results[node_count].append(data[node_count])
+
+    for k, v in results.items():
+        v.sort()
+
+
+def plot_sdd():
+    results = {"sdd_pysdd_cpu": [], "sdd_jax_cpu": [], "sdd_jax_cuda": [], "sdd_torch_cpu": [], "sdd_torch_cuda": []}
+    load_data(results)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
-    timings = np.cumsum(sorted(results['sdd_pysdd_cpu']))
+    timings = np.cumsum(results['sdd_torch_cpu'])
+    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    timings = np.cumsum(results['sdd_torch_cuda'])
+    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    timings = np.cumsum(results['sdd_jax_cpu'])
+    ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
+    timings = np.cumsum(results['sdd_jax_cuda'])
+    ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+    timings = np.cumsum(results['sdd_pysdd_cpu'])
     ax1.plot(timings, label="PySDD (cpu)", linewidth=1.5, color='black')
-    timings = np.cumsum(sorted(results['sdd_jax_cpu']))
-    ax1.plot(timings, label="KLay (Jax, cpu)", linewidth=1.5, color='blue')
-    timings = np.cumsum(sorted(results['sdd_jax_cuda']))
-    ax1.plot(timings, label="KLay (Jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
-    timings = np.cumsum(sorted(results['sdd_torch_cpu']))
-    ax1.plot(timings, label="KLay (Torch, cpu)", linewidth=1.5, color='red')
-    timings = np.cumsum(sorted(results['sdd_torch_cuda']))
-    ax1.plot(timings, label="KLay (Torch, cuda)", linewidth=1.5, color='red', linestyle='--')
 
     ax1.set_ylabel("Cumulative Time (ms)")
 
-    ax2.plot(sorted(nb_nodes_sdd), label="Nb of Nodes in SDD", linewidth=1.5, color='black')
-    ax2.plot(sorted(nb_nodes_klay), label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+    ax2.plot(results['sdd_nodes'], label="Nb of Nodes in SDD", linewidth=1.5, color='black')
+    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
 
     ax2.set_ylabel("Nb of Nodes")
 
@@ -55,5 +62,38 @@ def main():
     fig.savefig("sdd_bench.pdf", bbox_inches='tight')
 
 
+def plot_d4():
+    results = {"d4_jax_cpu": [], "d4_jax_cuda": [], "d4_torch_cpu": [], "d4_torch_cuda": []}
+    load_data(results)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+
+    timings = np.cumsum(sorted(results['d4_torch_cpu']))
+    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    timings = np.cumsum(sorted(results['d4_torch_cuda']))
+    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    timings = np.cumsum(sorted(results['d4_jax_cpu']))
+    ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
+    timings = np.cumsum(sorted(results['d4_jax_cuda']))
+    ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+
+    ax1.set_ylabel("Cumulative Time (ms)")
+
+    ax2.plot(results['d4_nodes'], label="Nb of Nodes in d-DNNF", linewidth=1.5, color='black')
+    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+
+    ax2.set_ylabel("Nb of Nodes")
+
+    for ax in [ax1, ax2]:
+        ax.grid()
+        ax.set_yscale('log')
+        ax.set_xlabel("Instances")
+        ax.set_xlim(0, len(results["d4_jax_cpu"])-1)
+        ax.legend()
+
+    fig.savefig("d4_bench.pdf", bbox_inches='tight')
+
+
 if __name__ == "__main__":
-    main()
+    plot_sdd()
+    plot_d4()

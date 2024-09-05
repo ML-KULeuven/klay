@@ -7,7 +7,7 @@ import numpy as np
 
 import klay
 from klay.utils import generate_random_dimacs, benchmark_klay_jax, benchmark_klay_torch, benchmark_pysdd
-from klay.compile import compile_sdd
+from klay.compile import compile_sdd, compile_d4
 
 
 def run_sdd_bench(nb_vars: int, target: str, seed: int, device: str = 'cpu'):
@@ -31,12 +31,13 @@ def run_sdd_bench(nb_vars: int, target: str, seed: int, device: str = 'cpu'):
     return results
 
 
-def run_d4_bench(file_name: str, target:str, device: str):
-    weights = [np.random.rand() for _ in range(1000)]  # hacky, but should be enough
+def run_d4_bench(nb_vars: int, target:str, seed: int, device: str):
+    generate_random_dimacs('tmp.cnf', nb_vars, 2*nb_vars, seed=seed)
+    compile_d4('tmp.cnf', 'tmp.nnf')
+    weights = [np.random.rand() for _ in range(nb_vars)]
     circuit = klay.Circuit()
-
-    circuit.add_D4_from_file(file_name)
-    results = {"klay_nodes": circuit.nb_nodes()}
+    circuit.add_D4_from_file('tmp.nnf')
+    results = {"klay_nodes": circuit.nb_nodes(), 'd4_nodes': get_d4_node_count('tmp.nnf')}
     print("nb nodes", circuit.nb_nodes())
     if target == "jax":
         results.update(benchmark_klay_jax(circuit, weights, device=device))
@@ -54,9 +55,16 @@ def get_edge_count(sdd):
             if line[0] == 'D':
                 count += 1
                 count += int(line.split()[2]) * 2
-    print(f"Nb of Edges in SDD: {count}")
     os.remove("tmp.sdd")
     return count
+
+
+def get_d4_node_count(nnf_file):
+    with open(nnf_file) as f:
+        for line in reversed(list(f)):
+            if line[0] in ('a', 'o', 't', 'f'):
+                return int(line.split(' ')[1])
+    return None
 
 
 def main():
@@ -74,7 +82,7 @@ def main():
             if args.benchmark == 'sdd':
                 results = run_sdd_bench(nb_vars, target=args.target, device=args.device, seed=seed)
             if args.benchmark == 'd4':
-                results = run_d4_bench('experiments/synthetic/d4_large.nnf', target=args.target, device=args.device)
+                results = run_d4_bench(nb_vars, target=args.target, device=args.device, seed=seed)
 
             file_name = f"results/{args.benchmark}_{args.target}_{args.device}/v{nb_vars}_{seed}.txt"
             Path(file_name).parent.mkdir(exist_ok=True, parents=True)
