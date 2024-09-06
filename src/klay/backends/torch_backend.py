@@ -3,9 +3,6 @@ import math
 import torch
 
 
-EPSILON = 10e-16
-
-
 def log1mexp(x):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
@@ -20,7 +17,7 @@ def log1mexp(x):
     )
 
 
-def encode_input(pos, neg=None):
+def encode_input(pos, neg):
     if neg is None:
         neg = log1mexp(pos)
 
@@ -49,8 +46,8 @@ class KnowledgeLayer(torch.nn.Module):
                 layers.append(SumLayer(ptrs, csr))
         self.layers = torch.nn.Sequential(*layers)
 
-    def forward(self, *x):
-        x = encode_input(*x)
+    def forward(self, weights, neg_weights=None):
+        x = encode_input(weights, neg_weights)
         return self.layers(x)
 
 
@@ -61,16 +58,16 @@ class SumLayer(torch.nn.Module):
         self.register_buffer('csr', csr)
         self.out_shape = (self.csr[-1].item() + 1,)
 
-    def forward(self, x):
+    def forward(self, x, epsilon=10e-16):
         x = x[self.ptrs]
         with torch.no_grad():
             max_output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
             max_output = torch.scatter_reduce(max_output, 0, index=self.csr, src=x, reduce="amax", include_self=False)
-            x -= max_output[self.csr]
-            x.nan_to_num_(nan=0, posinf=float('inf'), neginf=float('-inf'))
+        x = x - max_output[self.csr]
+        x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
         x = torch.exp(x)
 
-        output = torch.full(self.out_shape, EPSILON, dtype=x.dtype, device=x.device)
+        output = torch.full(self.out_shape, epsilon, dtype=x.dtype, device=x.device)
         output = torch.scatter_add(output, 0, index=self.csr, src=x)
         output = torch.log(output) + max_output
         return output

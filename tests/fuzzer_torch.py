@@ -7,12 +7,12 @@ import torch
 from tqdm import tqdm
 
 import klay
-from klay.utils import generate_random_dimacs, pysdd_wmc, torch_wmc_d4
+from klay.utils import generate_random_dimacs, eval_pysdd, eval_d4_torch_naive
 from klay.compile import compile_sdd, compile_d4
 
 
 def check_sdd(sdd, weights):
-    wmc_gt = pysdd_wmc(sdd, weights)
+    wmc_gt = eval_pysdd(sdd, weights)
 
     weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
@@ -26,20 +26,19 @@ def check_sdd(sdd, weights):
     assert np.allclose(result, result_vmap), f"Expected {result}, got {result_vmap}"
 
 
-
 def check_d4(nnf_file, weights):
-    weights = torch.tensor(weights)
+    weights = torch.tensor(weights).log()
     weights.requires_grad = True
-    wmc_gt = torch_wmc_d4(nnf_file, weights)
+    wmc_gt = eval_d4_torch_naive(nnf_file, weights)
     wmc_gt.backward()
     grad_gt = weights.grad.numpy()
     weights.grad.zero_()
-    wmc_gt = float(wmc_gt.log())
+    wmc_gt = float(wmc_gt)
 
     circuit = klay.Circuit()
     circuit.add_D4_from_file(nnf_file)
     kl = circuit.to_torch_module()
-    result = kl(weights.log())
+    result = kl(weights)
     result.backward()
     grad = weights.grad.numpy()
     assert wmc_gt == pytest.approx(float(result), abs=1e-4), f"Expected {wmc_gt}, got {result}"

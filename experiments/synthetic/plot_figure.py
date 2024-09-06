@@ -1,38 +1,99 @@
+import json
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-import scienceplots
+import numpy as np
 
 
-# plt.style.use('science')
+def load_data(results):
+    for folder_name in list(results.keys()):
+        folder = Path('results') / folder_name
+        if not folder.exists():
+            continue
+        print("Loading", folder)
+        for node_count in ('klay_nodes', 'sdd_nodes', 'd4_nodes'):
+            results[node_count] = []
+
+        for experiment in folder.iterdir():
+            assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
+            with open(experiment) as f:
+                data = json.load(f)
+                data_point = np.mean(data['backward']) * 1000
+                results[folder_name].append(data_point)
+                for node_count in ('klay_nodes', 'sdd_nodes', 'd4_nodes'):
+                    if node_count in data:
+                        results[node_count].append(data[node_count])
+
+    for k, v in results.items():
+        v.sort()
 
 
-def main():
-    # nb_vars = [20, 30, 40, 50, 60, 70, 75]
-    nb_nodes = [193.93, 397.87, 903.74, 1753.53, 4358.48, 9338.56, 21773.59, 52762.80, 126374.52, 246182.42, 681941.41, 1688044.02]
-    torch_cpu = [0.3200040329247713, 0.3730423143133521, 0.35909230494871736, 0.4837735500186682, 0.6813387349247932, 1.0343240438960493, 1.8041189727373421, 3.325829206034541, 7.635452731512487, 20.08913907315582, 70.3088627262041, 192.3586]
-    torch_cuda = [1.01732621435076, 1.1716526057571173, 1.1596923032775521, 1.2076742169447243, 1.281857693567872, 1.2450913656502962, 1.389634268824011, 1.53893309738487, 2.033142472151667, 3.3978366116061807, 9.403250341769308, 23.7945]
-    jax_cpu = [0.014488214161247015, 0.019090229645371437, 0.030293438117951155, 0.05646511446684599, 0.13932584319263697, 0.33219868456944823, 0.8406636053696275, 2.2978106401860714, 6.307382673956454, 19.74813318438828, 72.03149974625558, 196.8136304402724]
-    jax_cuda = [0.09503859374672174, 0.09646617202088237, 0.09510866086930037, 0.10630244947969913, 0.11349100479856133, 0.12168397707864642, 0.1437637130729854, 0.2055689669214189, 0.31578732980415225, 0.5961176604032516, 1.5979951042681932, 4.116565994452685]
+def plot_sdd():
+    results = {"sdd_pysdd_cpu": [], "sdd_jax_cpu": [], "sdd_jax_cuda": [], "sdd_torch_cpu": [], "sdd_torch_cuda": []}
+    load_data(results)
 
-    pysdd = [0.01595478318631649, 0.041614765767008066, 0.11372894141823053, 0.27028424944728613, 0.7434073882177472, 1.9775472218170762, 5.21912951534614, 17.465345098637044, 53.54148547584191, 148.262805336155, 503.97210059547797, 1344.4649]
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
-    plt.figure(figsize=(5, 3))
-    plt.plot(nb_nodes, pysdd, label="PySDD", color='black')
-    plt.plot(nb_nodes, torch_cpu, label="KLay (Torch CPU)", color='red')
-    plt.plot(nb_nodes, torch_cuda, label="KLay (Torch CUDA)", color='red', linestyle='--')
-    plt.plot(nb_nodes, jax_cpu, label="KLay (JAX CPU)", color='steelblue')
-    plt.plot(nb_nodes, jax_cuda, label="KLay (JAX CUDA)", color='steelblue', linestyle='--')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel("Number of Nodes")
-    plt.ylabel("Time (ms)")
-    plt.xlim(nb_nodes[0], nb_nodes[-1])
-    # plt.title("SDD Backpropagation Time")
-    plt.legend()
-    plt.grid()
-    # plt.show()
-    # save as pdf
-    plt.savefig("sdd_backpropagation_time.pdf", bbox_inches='tight')
+    timings = np.cumsum(results['sdd_torch_cpu'])
+    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    timings = np.cumsum(results['sdd_torch_cuda'])
+    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    timings = np.cumsum(results['sdd_jax_cpu'])
+    ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
+    timings = np.cumsum(results['sdd_jax_cuda'])
+    ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+    timings = np.cumsum(results['sdd_pysdd_cpu'])
+    ax1.plot(timings, label="PySDD (cpu)", linewidth=1.5, color='black')
+
+    ax1.set_ylabel("Cumulative Time (ms)")
+
+    ax2.plot(results['sdd_nodes'], label="Nb of Nodes in SDD", linewidth=1.5, color='black')
+    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+
+    ax2.set_ylabel("Nb of Nodes")
+
+    for ax in [ax1, ax2]:
+        ax.grid()
+        ax.set_yscale('log')
+        ax.set_xlabel("Instances")
+        ax.set_xlim(0, len(results["sdd_pysdd_cpu"])-1)
+        ax.legend()
+
+    fig.savefig("sdd_bench.pdf", bbox_inches='tight')
+
+
+def plot_d4():
+    results = {"d4_jax_cpu": [], "d4_jax_cuda": [], "d4_torch_cpu": [], "d4_torch_cuda": []}
+    load_data(results)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+
+    timings = np.cumsum(sorted(results['d4_torch_cpu']))
+    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    timings = np.cumsum(sorted(results['d4_torch_cuda']))
+    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    timings = np.cumsum(sorted(results['d4_jax_cpu']))
+    ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
+    timings = np.cumsum(sorted(results['d4_jax_cuda']))
+    ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+
+    ax1.set_ylabel("Cumulative Time (ms)")
+
+    ax2.plot(results['d4_nodes'], label="Nb of Nodes in d-DNNF", linewidth=1.5, color='black')
+    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+
+    ax2.set_ylabel("Nb of Nodes")
+
+    for ax in [ax1, ax2]:
+        ax.grid()
+        ax.set_yscale('log')
+        ax.set_xlabel("Instances")
+        ax.set_xlim(0, len(results["d4_jax_cpu"])-1)
+        ax.legend()
+
+    fig.savefig("d4_bench.pdf", bbox_inches='tight')
 
 
 if __name__ == "__main__":
-    main()
+    plot_sdd()
+    plot_d4()

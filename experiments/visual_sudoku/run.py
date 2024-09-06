@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+from klay.utils import torch_wmc_d4
 from torch.utils.data import Dataset
 
 
@@ -94,7 +95,7 @@ class LeNet(nn.Module):
 
 class VisualSudokuModule(nn.Module):
     def __init__(self, grid_size: int):
-        super(VisualSudokuModule, self).__init__()
+        super().__init__()
         self.net = LeNet(grid_size)
         self.circuit = get_circuit(grid_size)
         self.circuit_batched = torch.vmap(self.circuit)
@@ -110,9 +111,19 @@ class VisualSudokuModule(nn.Module):
         return self.circuit_batched(image_probs, torch.zeros_like(image_probs))
 
 
+class VisualSudokuNaive(VisualSudokuModule):
+    def __init__(self, grid_size: int):
+        super().__init__(grid_size)
+        self.net = LeNet(grid_size)
+        self.circuit = None
+        nnf_file = f"experiments/visual_sudoku/sudoku_{grid_size}.nnf"
+        self.circuit_batched = lambda x, y: torch_wmc_d4(nnf_file, x, y)
+        self.grid_size = grid_size
+
+
 def get_circuit(grid_size: int):
     circuit = klay.Circuit()
-    const_lits = [-x for x in range(1, grid_size**3+1)]
+    const_lits = [] # [-x for x in range(1, grid_size**3+1)]
     circuit.add_D4_from_file(f"experiments/visual_sudoku/sudoku_{grid_size}.nnf", true_lits = const_lits)
     print("Nb nodes", circuit.nb_nodes())
     return circuit.to_torch_module()
@@ -124,10 +135,14 @@ def nll_loss(preds, targets):
     return nll.mean()
 
 
-def main(grid_size: int, batch_size: int, nb_epochs: int, learning_rate: float, device="cuda"):
+def main(grid_size: int, batch_size: int, nb_epochs: int, learning_rate: float, naive=False, device="cuda"):
     train_dataloader = get_dataloader(grid_size, "train", batch_size)
-    model = VisualSudokuModule(grid_size).to(device)
+    if naive:
+        model = VisualSudokuNaive(grid_size).to(device)
+    else:
+        model = VisualSudokuModule(grid_size).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.00001)
+    timings = []
 
     for epoch in range(nb_epochs):
         losses = []
@@ -142,7 +157,10 @@ def main(grid_size: int, batch_size: int, nb_epochs: int, learning_rate: float, 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 2)
             optimizer.step()
             optimizer.zero_grad()
-        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f} (in {perf_counter() - t1:.2f}s)")
+        timings.append(perf_counter() - t1)
+        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f}")
+
+    print(f"Mean Epoch Time (s) {np.mean(timings):.3f} ± {np.std(timings):.3f}")
 
     model = model.eval()
     val_dataloader = get_dataloader(grid_size, "valid", 1)
@@ -161,6 +179,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--nb_epochs', type=int, default=10)
     parser.add_argument('-d', '--device', default='cpu')
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.0003)
+    parser.add_argument("-n", '--naive', action=argparse.BooleanOptionalAction, default=False)
     args = parser.parse_args()
 
     main(
@@ -168,5 +187,6 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         nb_epochs=args.nb_epochs,
         learning_rate=args.learning_rate,
+        naive=args.naive,
         device=args.device
     )
