@@ -4,7 +4,10 @@ import random
 from array import array
 
 import torch
-import jax
+try:
+    import jax
+except ImportError:
+    pass
 
 
 from klay.backends.torch_backend import log1mexp
