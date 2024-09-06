@@ -67,7 +67,7 @@ Node* Circuit::add_node_level(Node* node) {
 }
 
 Node* Circuit::add_node_level_compressed(Node* node) {
-    return add_node_level(node);
+    //return add_node_level(node);
     if (node->type != NodeType::And && node->type != NodeType::Or)
         return add_node_level(node);
 
@@ -229,9 +229,21 @@ void Circuit::remove_unused_nodes() {
         }
     }
 
+    // Clean-up: last layers can be empty (but intermediate ones should not)
+    for (std::size_t i = nb_layers()-1; i > 0; --i) {
+        if (layers[i].empty()) {
+            layers.pop_back();
+        } else {
+            break;
+        }
+    }
+
     // Clean-up: Update ix
     for (std::size_t i = 1; i < nb_layers(); ++i) {
-        assert(!layers[i].empty()); // TODO: A layer could become empty. maybe issue for tensorize()?
+        // I do not think an intermediate layer can become empty.
+        // However, we can have layers of only unit nodes.
+        // This is an opportunity to optimise in the future.
+        assert(!layers[i].empty());
         int index = 0;
         for (auto &node : layers[i])
             node->ix = index++;
