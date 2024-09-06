@@ -326,56 +326,6 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-/**
- * Returns the number of nodes (decision + and nodes) in a given sdd file.
- */
-unsigned sdd_node_counter(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open file: " + filename);
-    }
-
-    unsigned sdd_node_counter = 0;
-
-    std::string line;
-    while (std::getline(file, line)) {
-        // Ignore comment lines
-        if (line[0] == 'c') continue;
-
-        std::istringstream iss(line);
-        std::string type;
-        iss >> type;
-
-        if (type == "sdd") {
-            int nbNodes;
-            iss >> nbNodes;
-            continue;
-        }
-        std::size_t nodeId;
-        iss >> nodeId;
-
-        if (type == "F" || type == "T") {
-            continue;
-        } else if (type == "L") {
-            int vtree, literal;
-            iss >> vtree >> literal;
-        } else if (type == "D") {
-            int vtree, numElements;
-            iss >> vtree >> numElements;
-            for (std::size_t i = 0; i < numElements; ++i) {
-                int primeId, subId;
-                iss >> primeId >> subId;
-            }
-            sdd_node_counter += numElements; // and nodes
-            sdd_node_counter++; // or node
-        } else {
-            throw std::runtime_error("Unknown node type: " + type);
-        }
-    }
-    file.close();
-    return sdd_node_counter;
-}
-
 void Circuit::add_root(Node* new_root, int old_depth) {
     // Bring roots to the same layer
     if (old_depth >= 0) {
@@ -508,5 +458,4 @@ nb::class_<Circuit>(m, "Circuit")
 .def("get_indices", &Circuit::get_indices)
 .def("condition", &Circuit::condition, "lits"_a)
 .def("nb_nodes", &Circuit::nb_nodes);
-m.def("sdd_node_counter", &sdd_node_counter);
 }
