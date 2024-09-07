@@ -1,3 +1,4 @@
+import argparse
 from collections import defaultdict
 from functools import reduce
 from time import perf_counter
@@ -63,7 +64,9 @@ def get_dataloader(nb_digits: int, batch_size: int, train: bool = True):
     return torch.utils.data.DataLoader(
         dataset,
         batch_size=nb_digits*2 * batch_size,
-        shuffle=True
+        shuffle=train,
+        num_workers=2,
+        pin_memory=True,
     )
 
 
@@ -103,11 +106,9 @@ class MnistAdditionModule(nn.Module):
         self.nb_digits = nb_digits
 
     def forward(self, images):
-        image_probs = self.net(images)
-        # print(image_probs.shape)
-        # image_probs = image_probs.reshape(-1, 2*self.nb_digits, 10)
+        image_probs = self.net(images)  # (batch_size*2*nb_digits, 10)
         batch_size = image_probs.shape[0] // (2*self.nb_digits)
-        image_probs = image_probs.reshape(batch_size, -1)
+        image_probs = image_probs.reshape(batch_size, -1) # (batch_size, 2*nb_digits*10)
         zeros = torch.zeros_like(image_probs)
         # print(image_probs.shape)
         return self.circuit_batched(image_probs, zeros)
@@ -119,21 +120,20 @@ def to_label(ys, nb_digits: int):
     return (ys * exponents).sum(dim=1)
 
 
-def main(nb_digits: int, batch_size: int, nb_epochs: int, device: str):
+def main(nb_digits: int, learning_rate: float, batch_size: int, nb_epochs: int, device: str):
     dataloader = get_dataloader(nb_digits, batch_size)
     model = MnistAdditionModule(nb_digits).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.00001)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=10e-6)
 
     epoch_times = []
     for epoch in range(nb_epochs):
-        print(f"### Epoch {epoch} ###")
+        print(f"### Epoch {epoch+1} ###")
         losses = []
         t1 = perf_counter()
         for xs, ys in dataloader:
             xs, ys = xs.to(device), ys.to(device)
             preds = model(xs)
             labels = to_label(ys, nb_digits)
-            # print(preds.shape, labels.shape)
             loss = nn.functional.nll_loss(preds, labels)
             losses.append(loss.item())
             assert not torch.isnan(loss).any()
@@ -141,11 +141,10 @@ def main(nb_digits: int, batch_size: int, nb_epochs: int, device: str):
             optimizer.step()
             optimizer.zero_grad()
 
-        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f}")
-        if epoch >= 2:
-            epoch_times.append(perf_counter() - t1)
+        epoch_times.append(perf_counter() - t1)
+        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f} ({epoch_times[-1]:.2f}s)")
 
-    print(f"Mean epoch time {np.mean(epoch_times):.2f} \pm {np.std(epoch_times):.2f}")
+    print(f"Mean epoch time {np.mean(epoch_times[2:]):.2f} \\pm {np.std(epoch_times[2:]):.2f}")
 
     dataloader = get_dataloader(nb_digits, batch_size, train=False)
     correct = []
@@ -158,5 +157,13 @@ def main(nb_digits: int, batch_size: int, nb_epochs: int, device: str):
 
 
 if __name__ == "__main__":
-    main(1, 128, 10, 'cuda')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--nb_digits', type=int, default=2)
+    parser.add_argument('-b', '--batch_size', type=int, default=128)
+    parser.add_argument('-e', '--nb_epochs', type=int, default=12)
+    parser.add_argument('-d', '--device', default='cpu')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=0.0003)
+    args = parser.parse_args()
+
+    main(args.nb_digits, args.learning_rate, args.batch_size, args.nb_epochs, args.device)
 
