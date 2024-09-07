@@ -24,7 +24,7 @@ def main():
         vtree = Vtree.from_file(vtree_file.encode())
         manager = SddManager.from_vtree(vtree)
         sdd = manager.read_sdd_file(sdd_file.encode())
-        print("Loaded SDD", sdd.count())
+        print("Loaded SDD", sdd.count() + sdd.size())
 
         circuit = klay.Circuit()
         circuit.add_SDD_from_file(sdd_file)

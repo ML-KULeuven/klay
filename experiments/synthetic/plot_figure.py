@@ -11,8 +11,6 @@ def load_data(results):
         if not folder.exists():
             continue
         print("Loading", folder)
-        for node_count in ('klay_nodes', 'sdd_nodes', 'd4_nodes'):
-            results[node_count] = []
 
         for experiment in folder.iterdir():
             assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
@@ -20,17 +18,31 @@ def load_data(results):
                 data = json.load(f)
                 data_point = np.mean(data['backward']) * 1000
                 results[folder_name].append(data_point)
-                for node_count in ('klay_nodes', 'sdd_nodes', 'd4_nodes'):
-                    if node_count in data:
-                        results[node_count].append(data[node_count])
 
     for k, v in results.items():
         v.sort()
 
 
+def load_node_counts(results, folder_name, node_name):
+    folder = Path('results') / folder_name
+    if not folder.exists():
+        return
+    print("Loading", node_name, 'from', folder)
+
+    results[node_name] = []
+    for experiment in folder.iterdir():
+        assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
+        with open(experiment) as f:
+            data = json.load(f)
+            results[node_name].append(data[node_name])
+    results[node_name].sort()
+
+
 def plot_sdd():
     results = {"sdd_pysdd_cpu": [], "sdd_jax_cpu": [], "sdd_jax_cuda": [], "sdd_torch_cpu": [], "sdd_torch_cuda": []}
     load_data(results)
+    load_node_counts(results, "sdd_torch_cpu", "klay_nodes")
+    load_node_counts(results, "sdd_nodes", "sdd_nodes")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
@@ -65,6 +77,8 @@ def plot_sdd():
 def plot_d4():
     results = {"d4_jax_cpu": [], "d4_jax_cuda": [], "d4_torch_cpu": [], "d4_torch_cuda": []}
     load_data(results)
+    load_node_counts(results, "d4_jax_cpu", "d4_nodes")
+    load_node_counts(results, "d4_jax_cpu", "klay_nodes")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 

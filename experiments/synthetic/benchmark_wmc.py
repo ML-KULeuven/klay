@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 import argparse
 
@@ -13,10 +12,10 @@ from klay.compile import compile_sdd, compile_d4
 def run_sdd_bench(nb_vars: int, target: str, seed: int, device: str = 'cpu'):
     generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=seed)
     sdd = compile_sdd('tmp.cnf')
-    nb_nodes = sdd.count()
+    nb_nodes = sdd.count() + sdd.size()
     print(f"Nb of Nodes in SDD: {nb_nodes//1000}k")
     weights = [np.random.rand() for _ in range(nb_vars)]
-    results = {'sdd_nodes': nb_nodes, "sdd_edges": get_edge_count(sdd)}
+    results = {'sdd_nodes': nb_nodes}
 
     if target == 'pysdd':
         results.update(benchmark_pysdd(sdd, weights, device=device))
@@ -44,19 +43,6 @@ def run_d4_bench(nb_vars: int, target:str, seed: int, device: str):
     elif target == "torch":
         results.update(benchmark_klay_torch(circuit, weights, device=device))
     return results
-
-
-def get_edge_count(sdd):
-    sdd.save(bytes(Path("tmp.sdd")))
-    count = 0
-    with open("tmp.sdd", "rb") as f:
-        for line in f:
-            line = line.decode()
-            if line[0] == 'D':
-                count += 1
-                count += int(line.split()[2]) * 2
-    os.remove("tmp.sdd")
-    return count
 
 
 def get_d4_node_count(nnf_file):
