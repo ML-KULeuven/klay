@@ -67,7 +67,7 @@ Node* Circuit::add_node_level(Node* node) {
 }
 
 Node* Circuit::add_node_level_compressed(Node* node) {
-    return add_node_level(node);
+    //return add_node_level(node);
     if (node->type != NodeType::And && node->type != NodeType::Or)
         return add_node_level(node);
 
@@ -94,30 +94,38 @@ Node* Circuit::add_node_level_compressed(Node* node) {
     // remove child from children.
     // if child->type == annihilateType
     // result should be true or false node (depends)
-    bool annihilate = false;
-    for (auto it = node->children.begin(); it != node->children.end(); ) {
-        if ((*it)->type == neutralType) {
-            it = node->children.erase(it);
-        } else if ((*it)->type == annihilateType) {
-            annihilate = true;
-            break;
+    std::list<Node*> new_children = {};
+    for (auto &child : node->children) {
+        if (child->type == neutralType) {
+            continue;
+        } else if (child->type == annihilateType) {
+            delete node;
+            return add_node_level(annihilate_function());
         } else {
-            ++it;
+            new_children.push_back(child);
         }
     }
 
-    if (annihilate) { // a child was annihilating
-        delete node;
-        return add_node_level(annihilate_function());
-    }
-    if (node->children.empty()) { // all children are neutral
+    if (new_children.empty()) { // all children are neutral
         delete node;
         return add_node_level(neutral_function());
     }
-    if (node->children.size() == 1) {
-        Node* child = node->children.front();
+    if (new_children.size() == 1) {
+        Node* child = new_children.front();
         delete node;
         return child;
+    }
+    if (new_children.size() != node->children.size()) {
+        // recreate node because the hash is wrong
+        // when we change children
+        NodeType t = node->type;
+        delete node;
+        if (t == NodeType::And)
+            node = Node::createAndNode();
+        else
+            node = Node::createOrNode();
+        for(auto child: new_children)
+            node->add_child(child);
     }
 
     return add_node_level(node);
@@ -251,6 +259,25 @@ void Circuit::remove_unused_nodes() {
     // Clean-up: last layer has fixed ix order
     for(size_t i = 0; i < roots.size(); ++i)
         roots[i]->ix = i;
+
+#ifndef NDEBUG
+    // print_circuit();
+    // assert, last layer should only contain root nodes.
+    assert(roots.size() == layers[nb_layers()-1].size());
+
+    if (layers.size() > 2) {
+        // check for each layer, for each node, whether the idx
+        // of the children is smaller than previous layer's size.
+        // We skip layer 1, because input layer does not have all nodes.
+        for (std::size_t i = 2; i < nb_layers(); ++i) {
+            for (auto &node: layers[i]) {
+                for (auto &child: node->children) {
+                    assert(child->ix < layers[i - 1].size());
+                }
+            }
+        }
+    }
+#endif
 }
 
 Node* parseD4File(const std::string& filename, Circuit& circuit, std::vector<int>& true_lits, std::vector<int>& false_lits) {
@@ -350,9 +377,34 @@ void Circuit::add_root(Node* new_root, int old_depth) {
         }
     }
     roots.push_back(new_root);
-    if (nb_layers() > 1)
-        for(size_t i = 0; i < roots.size(); ++i)
+    if (nb_layers() > 1) {
+        if (roots.size() != layers[new_root->layer].size()) {
+            // All root nodes should be in the same layer.
+            // Due to compression, other nodes can also be
+            // present in the root layer. If so, we remove them.
+            // we then also remove any layer above.
+            assert(roots.size() < layers[new_root->layer].size());
+            // Remove other nodes in the root layer
+            for (auto it = layers[new_root->layer].begin(); it != layers[new_root->layer].end();) {
+                if (std::find(roots.begin(), roots.end(), *it) == roots.end()) {
+                    delete *it;
+                    it = layers[new_root->layer].erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            // Remove layers above root layer
+            for (std::size_t i = nb_layers()-1; i > new_root->layer; --i) {
+                for (auto *node: layers[i])
+                    delete node;
+                layers.pop_back();
+            }
+        }
+        // Fix index for each root correctly
+        // Important for output order expectation
+        for (size_t i = 0; i < roots.size(); ++i)
             roots[i]->ix = i;
+    }
 }
 
 

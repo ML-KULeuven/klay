@@ -72,6 +72,8 @@ std::string Node::get_label() const {
         case NodeType::Or: labelName = "O "; break;
         case NodeType::And: labelName = "A "; break;
         case NodeType::Leaf: labelName = "L "; break;
+        default: // should not happen. Indicates node was deleted?
+            assert(false);
     }
     return labelName + std::to_string(ix);
 }
