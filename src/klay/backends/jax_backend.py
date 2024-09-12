@@ -4,7 +4,7 @@ from functools import partial
 import numpy as np
 import jax
 import jax.numpy as jnp
-from jax.ops import segment_max, segment_sum
+from jax.ops import segment_max, segment_sum, segment_prod
 from jax.lax import stop_gradient
 
 
@@ -38,17 +38,18 @@ def encode_input(pos, neg=None):
     return result
 
 
-def create_knowledge_layer(pointers, csrs):
+def create_knowledge_layer(pointers, csrs, semiring):
     pointers = [np.array(ptrs) for ptrs in pointers]
     num_segments = [len(csr) - 1 for csr in csrs]  # needed for the jit
     csrs = [unroll_csr(np.array(csr, dtype=np.int32)) for csr in csrs]
+    sum_layer, prod_layer = get_semiring(semiring)
 
     @jax.jit
     def wrapper(x):
         x = encode_input(x)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             if i % 2 == 0:
-                x = product_layer(num_segments[i], ptrs, csr, x)
+                x = prod_layer(num_segments[i], ptrs, csr, x)
             else:
                 x = sum_layer(num_segments[i], ptrs, csr, x)
         return x
@@ -63,7 +64,7 @@ def unroll_csr(csr):
 
 
 @partial(jax.jit, static_argnums=(0,), inline=True)
-def sum_layer(num_segments, ptrs, csr, x):
+def log_sum_layer(num_segments, ptrs, csr, x):
     x = x[ptrs]
     a_add = segment_max(stop_gradient(x), csr, indices_are_sorted=True, num_segments=num_segments)
     x = jnp.exp(x - a_add[csr])
@@ -75,7 +76,23 @@ def sum_layer(num_segments, ptrs, csr, x):
 
 
 @partial(jax.jit, static_argnums=(0,), inline=True)
-def product_layer(num_segments, ptrs, csr, x):
+def sum_layer(num_segments, ptrs, csr, x):
     x = x[ptrs]
     x = segment_sum(x, csr, num_segments=num_segments)
     return x
+
+
+@partial(jax.jit, static_argnums=(0,), inline=True)
+def prod_layer(num_segments, ptrs, csr, x):
+    x = x[ptrs]
+    x = segment_prod(x, csr, num_segments=num_segments)
+    return x
+
+
+def get_semiring(name: str):
+    if name == 'real':
+        return sum_layer, prod_layer
+    elif name == 'log':
+        return log_sum_layer, sum_layer
+    else:
+        raise ValueError(f"Unknown semiring {name}")

@@ -2,16 +2,16 @@
 from .nanobind_ext import Circuit
 
 
-def to_torch_module(circuit: Circuit):
+def to_torch_module(circuit: Circuit, semiring: str = "log"):
     from .backends import torch_backend
     indices = circuit.get_indices()
-    return torch_backend.KnowledgeLayer(*indices)
+    return torch_backend.KnowledgeLayer(*indices, semiring=semiring)
 
 
-def to_jax_function(circuit: Circuit):
+def to_jax_function(circuit: Circuit, semiring: str = "log"):
     from .backends import jax_backend
     indices = circuit.get_indices()
-    return jax_backend.create_knowledge_layer(*indices)
+    return jax_backend.create_knowledge_layer(*indices, semiring=semiring)
 
 
 def add_sdd(circuit: Circuit, sdd: "SddNode", **kwargs):
