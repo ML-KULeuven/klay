@@ -229,8 +229,9 @@ void Circuit::remove_unused_nodes() {
     for (std::size_t i = 1; i < nb_layers(); ++i) {
         for (auto it = layers[i].begin(); it != layers[i].end();) {
             if (!used[i][(*it)->ix]) {
-                delete *it;
+                Node* del_node = *it;
                 it = layers[i].erase(it);
+                delete del_node;
             } else {
                 ++it;
             }
@@ -387,8 +388,9 @@ void Circuit::add_root(Node* new_root, int old_depth) {
             // Remove other nodes in the root layer
             for (auto it = layers[new_root->layer].begin(); it != layers[new_root->layer].end();) {
                 if (std::find(roots.begin(), roots.end(), *it) == roots.end()) {
-                    delete *it;
+                    Node* del_node = *it;
                     it = layers[new_root->layer].erase(it);
+                    delete del_node;
                 } else {
                     ++it;
                 }
