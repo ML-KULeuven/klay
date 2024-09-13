@@ -1,5 +1,4 @@
 import math
-from functools import partial
 
 import numpy as np
 import jax
@@ -25,30 +24,23 @@ def log1mexp(x):
     )
 
 
-def encode_input_log(pos, neg=None):
+def encode_input_log(pos, neg):
     if neg is None:
         neg = log1mexp(pos)
 
-    shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
-    result = jnp.empty(shape, dtype=jnp.float32)
-    result = result.at[2::2].set(pos)
-    result = result.at[3::2].set(neg)
-    result = result.at[0].set(float('-inf'))
-    result = result.at[1].set(0)
-    return result
+    result = jnp.stack([pos, neg], axis=1).flatten()
+    constants = jnp.array([float('-inf'), 0], dtype=jnp.float32)
+    return jnp.concat([constants, result])
 
 
-def encode_input_real(pos, neg=None):
+def encode_input_real(pos, neg):
     if neg is None:
         neg = 1 - pos
 
-    shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
-    result = jnp.empty(shape, dtype=jnp.float32)
-    result = result.at[2::2].set(pos)
-    result = result.at[3::2].set(neg)
-    result = result.at[0].set(0)
-    result = result.at[1].set(1)
-    return result
+    result = jnp.stack([pos, neg], axis=1).flatten()
+    constants = jnp.array([0., 1,], dtype=jnp.float32)
+    return jnp.concat([constants, result])
+
 
 
 def create_knowledge_layer(pointers, csrs, semiring):
@@ -59,8 +51,8 @@ def create_knowledge_layer(pointers, csrs, semiring):
     encode_input = {'log': encode_input_log, 'real': encode_input_real}[semiring]
 
     @jax.jit
-    def wrapper(x):
-        x = encode_input(x)
+    def wrapper(pos, neg=None):
+        x = encode_input(pos, neg)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             if i % 2 == 0:
                 x = prod_layer(num_segments[i], ptrs, csr, x)
@@ -77,7 +69,6 @@ def unroll_csr(csr):
     return np.repeat(ixs, repeats=deltas)
 
 
-@partial(jax.jit, static_argnums=(0,), inline=True)
 def log_sum_layer(num_segments, ptrs, csr, x):
     x = x[ptrs]
     x_max = segment_max(stop_gradient(x), csr, indices_are_sorted=True, num_segments=num_segments)
@@ -89,18 +80,12 @@ def log_sum_layer(num_segments, ptrs, csr, x):
     return x
 
 
-@partial(jax.jit, static_argnums=(0,), inline=True)
 def sum_layer(num_segments, ptrs, csr, x):
-    x = x[ptrs]
-    x = segment_sum(x, csr, num_segments=num_segments, indices_are_sorted=True)
-    return x
+    return segment_sum(x[ptrs], csr, num_segments=num_segments, indices_are_sorted=True)
 
 
-@partial(jax.jit, static_argnums=(0,), inline=True)
 def prod_layer(num_segments, ptrs, csr, x):
-    x = x[ptrs]
-    x = segment_prod(x, csr, num_segments=num_segments, indices_are_sorted=True)
-    return x
+    return segment_prod(x[ptrs], csr, num_segments=num_segments, indices_are_sorted=True)
 
 
 def get_semiring(name: str):

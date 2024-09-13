@@ -115,6 +115,18 @@ def plot_circuit_overhead(module):
     plt.show()
 
 
+def _to_dot_graphs(func, *args):
+    with open("unopt.dot", "w") as f:
+        x = jax.xla_computation(func)(*args)
+        f.write(x.as_hlo_dot_graph())
+    with open("opt.dot", "w") as f:
+        x = func.lower(*args).compile()
+        print(x.cost_analysis())
+        x = jax.lib.xla_client._xla.hlo_module_from_text(x)
+        x = jax.lib.xla_client._xla.hlo_module_to_dot_graph(x)
+        f.write(x.as_text())
+
+
 def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
     with jax.default_device(jax.devices(device)[0]):
         _circuit_forward = circuit.to_jax_function(semiring)
@@ -123,7 +135,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
         for _ in range(nb_repeats+2): # 2 warmup runs
             weights, neg_weights = jax_weights(nb_vars, semiring)
             t1 = perf_counter()
-            circuit_forward(weights).block_until_ready()
+            circuit_forward(weights, neg_weights).block_until_ready()
             t_forward.append(perf_counter() - t1)
 
         circuit_backward = jax.jit(jax.value_and_grad(circuit_forward))
@@ -131,7 +143,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
         for _ in range(nb_repeats+2):
             weights, neg_weights = jax_weights(nb_vars, semiring)
             t1 = perf_counter()
-            v, grad = circuit_backward(weights)
+            v, grad = circuit_backward(weights, neg_weights)
             grad.block_until_ready()
             t_backward.append(perf_counter() - t1)
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
