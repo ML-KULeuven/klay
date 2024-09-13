@@ -115,15 +115,13 @@ def plot_circuit_overhead(module):
     plt.show()
 
 
-def benchmark_klay_jax(circuit, weights, semiring, nb_repeats=10, device='cpu'):
+def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
     with jax.default_device(jax.devices(device)[0]):
-        weights = jax.numpy.array(weights)
-        if semiring == "log":
-            weights = jax.numpy.log(weights)
         _circuit_forward = circuit.to_jax_function(semiring)
         circuit_forward = lambda x: _circuit_forward(x)[0]
         t_forward = []
         for _ in range(nb_repeats+2): # 2 warmup runs
+            weights, neg_weights = jax_weights(nb_vars, semiring)
             t1 = perf_counter()
             circuit_forward(weights).block_until_ready()
             t_forward.append(perf_counter() - t1)
@@ -131,48 +129,44 @@ def benchmark_klay_jax(circuit, weights, semiring, nb_repeats=10, device='cpu'):
         circuit_backward = jax.jit(jax.value_and_grad(circuit_forward))
         t_backward = []
         for _ in range(nb_repeats+2):
+            weights, neg_weights = jax_weights(nb_vars, semiring)
             t1 = perf_counter()
             v, grad = circuit_backward(weights)
-            v.block_until_ready()
+            grad.block_until_ready()
             t_backward.append(perf_counter() - t1)
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
 
 
-def benchmark_klay_torch(circuit, weights, semiring, nb_repeats=10, device='cpu'):
-    weights = torch.as_tensor(weights).to(device)
-    if semiring == "log":
-        weights = weights.log()
+def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
     circuit_forward = circuit.to_torch_module(semiring).to(device)
     circuit_forward = torch.compile(circuit_forward, mode="reduce-overhead")
 
     t_forward = []
     with torch.no_grad():
         for _ in range(nb_repeats+2):
+            weights, neg_weights = torch_weights(nb_vars, semiring,  device)
             t1 = perf_counter()
-            circuit_forward(weights)
+            circuit_forward(weights, neg_weights)
             if device == 'cuda':
                 torch.cuda.synchronize()
             t_forward.append(perf_counter() - t1)
 
     t_backward = []
-    weights = weights.detach()
-    weights.requires_grad = True
     for _ in range(nb_repeats + 2):
+        weights, neg_weights = torch_weights(nb_vars, semiring,  device)
         t1 = perf_counter()
-        circuit_forward(weights).backward()
+        circuit_forward(weights, neg_weights).backward()
         if device == 'cuda':
             torch.cuda.synchronize()
         t_backward.append(perf_counter() - t1)
-        weights.grad.zero_()
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
 
 
-def benchmark_sdd_torch_naive(manager, sdd, weights, nb_repeats=10, device='cpu'):
-    weights = torch.as_tensor(weights).log().to(device)
-    neg_weights = log1mexp(weights)
+def benchmark_sdd_torch_naive(manager, sdd, nb_vars, nb_repeats=10, device='cpu'):
     t_forward = []
     with torch.inference_mode():
         for _ in range(nb_repeats+2):
+            weights, neg_weights = torch_weights(nb_vars, 'log',  device)
             t1 = perf_counter()
             eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device)
             if device == 'cuda':
@@ -180,15 +174,13 @@ def benchmark_sdd_torch_naive(manager, sdd, weights, nb_repeats=10, device='cpu'
             t_forward.append(perf_counter() - t1)
 
     t_backward = []
-    weights = weights.detach()
-    weights.requires_grad = True
     for _ in range(nb_repeats + 2):
+        weights, neg_weights = torch_weights(manager.var_count(), 'log',  device)
         t1 = perf_counter()
         eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device).backward()
         if device == 'cuda':
             torch.cuda.synchronize()
         t_backward.append(perf_counter() - t1)
-        weights.grad.zero_()
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
 
 
@@ -212,3 +204,28 @@ def eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
 
     result = iterator.depth_first(sdd, _formula_evaluator)
     return result
+
+
+def torch_weights(nb_vars, semiring = 'log', device='cpu'):
+    weights, neg_weights = python_weights(nb_vars, semiring)
+    weights = torch.tensor(weights, dtype=torch.float32, device=device)
+    neg_weights = torch.tensor(neg_weights, dtype=torch.float32, device=device)
+    weights.requires_grad = True
+    neg_weights.requires_grad = True
+    return weights, neg_weights
+
+
+def python_weights(nb_vars, semiring = "log"):
+    weights = [random.random() for _ in range(nb_vars)]
+    neg_weights = [1-x for x in weights]
+    if semiring == "log":
+        weights = [math.log(x) for x in weights]
+        neg_weights = [math.log(x) for x in neg_weights]
+    return weights, neg_weights
+
+
+def jax_weights(nb_vars, semiring = "log"):
+    weights, neg_weights = python_weights(nb_vars, semiring)
+    weights = jax.numpy.array(weights)
+    neg_weights = jax.numpy.array(neg_weights)
+    return weights, neg_weights
