@@ -9,7 +9,7 @@ from klay.utils import generate_random_dimacs, benchmark_klay_jax, benchmark_kla
 from klay.compile import compile_sdd, compile_d4
 
 
-def run_sdd_bench(nb_vars: int, target: str, seed: int, device: str = 'cpu'):
+def run_sdd_bench(nb_vars: int, target: str, semiring: str, seed: int, device: str = 'cpu'):
     generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=seed)
     sdd = compile_sdd('tmp.cnf')
     nb_nodes = sdd.count() + sdd.size()
@@ -18,19 +18,19 @@ def run_sdd_bench(nb_vars: int, target: str, seed: int, device: str = 'cpu'):
     results = {'sdd_nodes': nb_nodes}
 
     if target == 'pysdd':
-        results.update(benchmark_pysdd(sdd, weights, device=device))
+        results.update(benchmark_pysdd(sdd, weights, semiring, device=device))
     else:
         circuit = klay.Circuit()
         circuit.add_sdd(sdd)
         results['klay_nodes'] = circuit.nb_nodes()
         if target == "jax":
-            results.update(benchmark_klay_jax(circuit, weights, device=device))
+            results.update(benchmark_klay_jax(circuit, weights, semiring, device=device))
         elif target == "torch":
-            results.update(benchmark_klay_torch(circuit, weights, device=device))
+            results.update(benchmark_klay_torch(circuit, weights, semiring, device=device))
     return results
 
 
-def run_d4_bench(nb_vars: int, target:str, seed: int, device: str):
+def run_d4_bench(nb_vars: int, target:str, semiring: str, seed: int, device: str):
     generate_random_dimacs('tmp.cnf', nb_vars, 2*nb_vars, seed=seed)
     compile_d4('tmp.cnf', 'tmp.nnf')
     weights = [np.random.rand() for _ in range(nb_vars)]
@@ -39,9 +39,9 @@ def run_d4_bench(nb_vars: int, target:str, seed: int, device: str):
     results = {"klay_nodes": circuit.nb_nodes(), 'd4_nodes': get_d4_node_count('tmp.nnf')}
     print("nb nodes", circuit.nb_nodes())
     if target == "jax":
-        results.update(benchmark_klay_jax(circuit, weights, device=device))
+        results.update(benchmark_klay_jax(circuit, weights, semiring, device=device))
     elif target == "torch":
-        results.update(benchmark_klay_torch(circuit, weights, device=device))
+        results.update(benchmark_klay_torch(circuit, weights, semiring, device=device))
     return results
 
 
@@ -60,17 +60,18 @@ def main():
     parser.add_argument('-d', '--device', default='cpu')
     parser.add_argument('-t', '--target', default='jax')
     parser.add_argument('-b', '--benchmark', required=True)
+    parser.add_argument('-s', '--semiring', default='log', choices=['log', 'real'])
     args = parser.parse_args()
 
     for nb_vars in args.nb_vars:
         print(f'Benchmarking {args.benchmark}-{args.target} on {args.device}  ({nb_vars} variables)')
         for seed in range(args.nb_repeats):
             if args.benchmark == 'sdd':
-                results = run_sdd_bench(nb_vars, target=args.target, device=args.device, seed=seed)
+                results = run_sdd_bench(nb_vars, args.target, args.semiring, seed, args.device)
             if args.benchmark == 'd4':
-                results = run_d4_bench(nb_vars, target=args.target, device=args.device, seed=seed)
+                results = run_d4_bench(nb_vars, args.target, args.semiring, seed, args.device)
 
-            file_name = f"results/{args.benchmark}_{args.target}_{args.device}/v{nb_vars}_{seed}.txt"
+            file_name = f"results/{args.benchmark}_{args.target}_{args.semiring}_{args.device}/v{nb_vars}_{seed}.txt"
             Path(file_name).parent.mkdir(exist_ok=True, parents=True)
             with open(file_name, 'w') as f:
                 json.dump(results, f)

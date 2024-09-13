@@ -36,12 +36,14 @@ def eval_pysdd(sdd: "SddNode", weights: list[float]):
     return wmc_manager.propagate()
 
 
-def benchmark_pysdd(sdd, weights, nb_repeats=10, device='cpu'):
+def benchmark_pysdd(sdd, weights, semiring, nb_repeats=10, device='cpu'):
     assert device == 'cpu'
     # WARNING: pysdd computes both the forward and backward passes in propagate
-    neg_weights = [1.0 - x for x in weights[::-1]]
-    pysdd_weights = array('d', [math.log(x) for x in neg_weights + weights])
-    wmc_manager = sdd.wmc(log_mode=True)
+    lit_weights = [1.0 - x for x in weights[::-1]] + weights
+    if semiring == "log":
+        lit_weights = [math.log(x) for x in lit_weights]
+    pysdd_weights = array('d', lit_weights)
+    wmc_manager = sdd.wmc(log_mode=(semiring == "log"))
     wmc_manager.set_literal_weights_from_array(pysdd_weights)
 
     timings = []
@@ -113,10 +115,12 @@ def plot_circuit_overhead(module):
     plt.show()
 
 
-def benchmark_klay_jax(circuit, weights, nb_repeats=10, device='cpu'):
+def benchmark_klay_jax(circuit, weights, semiring, nb_repeats=10, device='cpu'):
     with jax.default_device(jax.devices(device)[0]):
-        weights = jax.numpy.log(jax.numpy.array(weights))
-        _circuit_forward = circuit.to_jax_function()
+        weights = jax.numpy.array(weights)
+        if semiring == "log":
+            weights = jax.numpy.log(weights)
+        _circuit_forward = circuit.to_jax_function(semiring)
         circuit_forward = lambda x: _circuit_forward(x)[0]
         t_forward = []
         for _ in range(nb_repeats+2): # 2 warmup runs
@@ -134,9 +138,11 @@ def benchmark_klay_jax(circuit, weights, nb_repeats=10, device='cpu'):
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
 
 
-def benchmark_klay_torch(circuit, weights, nb_repeats=10, device='cpu'):
-    weights = torch.as_tensor(weights).log().to(device)
-    circuit_forward = circuit.to_torch_module().to(device)
+def benchmark_klay_torch(circuit, weights, semiring, nb_repeats=10, device='cpu'):
+    weights = torch.as_tensor(weights).to(device)
+    if semiring == "log":
+        weights = weights.log()
+    circuit_forward = circuit.to_torch_module(semiring).to(device)
     circuit_forward = torch.compile(circuit_forward, mode="reduce-overhead")
 
     t_forward = []

@@ -78,14 +78,14 @@ def log_sum_layer(num_segments, ptrs, csr, x):
 @partial(jax.jit, static_argnums=(0,), inline=True)
 def sum_layer(num_segments, ptrs, csr, x):
     x = x[ptrs]
-    x = segment_sum(x, csr, num_segments=num_segments)
+    x = segment_sum(x, csr, num_segments=num_segments, indices_are_sorted=True)
     return x
 
 
 @partial(jax.jit, static_argnums=(0,), inline=True)
 def prod_layer(num_segments, ptrs, csr, x):
     x = x[ptrs]
-    x = segment_prod(x, csr, num_segments=num_segments)
+    x = segment_prod(x, csr, num_segments=num_segments, indices_are_sorted=True)
     return x
 
 
