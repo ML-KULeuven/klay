@@ -17,12 +17,21 @@ def log1mexp(x):
     )
 
 
-def encode_input(pos, neg):
+def encode_input_log(pos, neg):
     if neg is None:
         neg = log1mexp(pos)
 
     result = torch.stack([pos, neg], dim=1).flatten()
     constants = torch.tensor([float('-inf'), 0], dtype=torch.float32, device=pos.device)
+    return torch.cat([constants, result])
+
+
+def encode_input_real(pos, neg):
+    if neg is None:
+        neg = 1 - pos
+
+    result = torch.stack([pos, neg], dim=1).flatten()
+    constants = torch.tensor([0, 1], dtype=torch.float32, device=pos.device)
     return torch.cat([constants, result])
 
 
@@ -46,10 +55,11 @@ class KnowledgeLayer(torch.nn.Module):
             else:
                 layers.append(sum_layer(ptrs, csr))
         self.layers = torch.nn.Sequential(*layers)
+        self.encode_input = {'log': encode_input_log, 'real': encode_input_real}[semiring]
 
     def forward(self, weights, neg_weights=None):
-        x = encode_input(weights, neg_weights)
-        return self.layers(x)
+            x = self.encode_input(weights, neg_weights)
+            return self.layers(x)
 
 
 class SumLayer(torch.nn.Module):

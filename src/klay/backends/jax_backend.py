@@ -25,7 +25,7 @@ def log1mexp(x):
     )
 
 
-def encode_input(pos, neg=None):
+def encode_input_log(pos, neg=None):
     if neg is None:
         neg = log1mexp(pos)
 
@@ -38,11 +38,25 @@ def encode_input(pos, neg=None):
     return result
 
 
+def encode_input_real(pos, neg=None):
+    if neg is None:
+        neg = 1 - pos
+
+    shape = (2 * pos.shape[0] + 2,) + pos.shape[1:]
+    result = jnp.empty(shape, dtype=jnp.float32)
+    result = result.at[2::2].set(pos)
+    result = result.at[3::2].set(neg)
+    result = result.at[0].set(0)
+    result = result.at[1].set(1)
+    return result
+
+
 def create_knowledge_layer(pointers, csrs, semiring):
     pointers = [np.array(ptrs) for ptrs in pointers]
     num_segments = [len(csr) - 1 for csr in csrs]  # needed for the jit
     csrs = [unroll_csr(np.array(csr, dtype=np.int32)) for csr in csrs]
     sum_layer, prod_layer = get_semiring(semiring)
+    encode_input = {'log': encode_input_log, 'real': encode_input_real}[semiring]
 
     @jax.jit
     def wrapper(x):
@@ -66,12 +80,12 @@ def unroll_csr(csr):
 @partial(jax.jit, static_argnums=(0,), inline=True)
 def log_sum_layer(num_segments, ptrs, csr, x):
     x = x[ptrs]
-    a_add = segment_max(stop_gradient(x), csr, indices_are_sorted=True, num_segments=num_segments)
-    x = jnp.exp(x - a_add[csr])
+    x_max = segment_max(stop_gradient(x), csr, indices_are_sorted=True, num_segments=num_segments)
+    x = x - x_max[csr]
     x = jnp.nan_to_num(x, copy=False, nan=0.0, posinf=float('inf'), neginf=float('-inf'))
-    # x = x.at[jnp.isnan(x)].set(0)
+    x = jnp.exp(x)
     x = segment_sum(x, csr, indices_are_sorted=True, num_segments=num_segments)
-    x = jnp.log(x + EPSILON) + a_add
+    x = jnp.log(x + EPSILON) + x_max
     return x
 
 
