@@ -190,4 +190,36 @@ public:
         }
     }
 
+    nb::capsule true_node() {
+        Node* node = Node::createTrueNode();
+        return nb::capsule(add_node_level_compressed(node));
+    }
+
+    nb::capsule false_node() {
+        Node* node = Node::createFalseNode();
+        return nb::capsule(add_node_level_compressed(node));
+    }
+
+    nb::capsule literal_node(int lit) {
+        Node* node = Node::createLiteralNode(Lit::fromInt(lit));
+        return nb::capsule(add_node_level_compressed(node));
+    }
+
+    nb::capsule and_node(std::vector<nb::capsule> children) {
+        Node* node = Node::createAndNode();
+        for (auto child: children) {
+            Node *child_cast = static_cast<Node *>(child.data());
+            node->add_child(child_cast);
+        }
+        return nb::capsule(add_node_level_compressed(node));
+    }
+
+    nb::capsule or_node(std::vector<nb::capsule> children) {
+        Node* node = Node::createOrNode();
+        for (auto child: children) {
+            Node *child_cast = static_cast<Node *>(child.data());
+            node->add_child(child_cast);
+        }
+        return nb::capsule(add_node_level_compressed(node));
+    }
 };

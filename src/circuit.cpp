@@ -523,5 +523,10 @@ nb::class_<Circuit>(m, "Circuit")
 .def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("get_indices", &Circuit::get_indices)
 .def("condition", &Circuit::condition, "lits"_a)
-.def("nb_nodes", &Circuit::nb_nodes);
+.def("nb_nodes", &Circuit::nb_nodes)
+.def("true_node", &Circuit::true_node)
+.def("false_node", &Circuit::false_node)
+.def("or_node", &Circuit::or_node)
+.def("literal_node", &Circuit::literal_node)
+.def("and_node", &Circuit::and_node);
 }
