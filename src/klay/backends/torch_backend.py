@@ -41,9 +41,9 @@ def unroll_csr(csr):
     return ixs.repeat_interleave(repeats=deltas)
 
 
-class KnowledgeLayer(torch.nn.Module):
+class KnowledgeModule(torch.nn.Module):
     def __init__(self, pointers, csrs, semiring='real'):
-        super(KnowledgeLayer, self).__init__()
+        super(KnowledgeModule, self).__init__()
         layers = []
         sum_layer, prod_layer = get_semiring(semiring)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
@@ -62,39 +62,43 @@ class KnowledgeLayer(torch.nn.Module):
             return self.layers(x)
 
 
-class SumLayer(torch.nn.Module):
+class KnowledgeLayer(torch.nn.Module):
     def __init__(self, ptrs, csr):
         super().__init__()
         self.register_buffer('ptrs', ptrs)
         self.register_buffer('csr', csr)
         self.out_shape = (self.csr[-1].item() + 1,)
 
+
+class SumLayer(KnowledgeLayer):
     def forward(self, x):
         output = torch.zeros(self.out_shape, dtype=x.dtype, device=x.device)
         output = torch.scatter_add(output, 0, index=self.csr, src=x[self.ptrs])
         return output
 
 
-class ProdLayer(torch.nn.Module):
-    def __init__(self, ptrs, csr):
-        super().__init__()
-        self.register_buffer('ptrs', ptrs)
-        self.register_buffer('csr', csr)
-        self.out_shape = (self.csr[-1].item() + 1,)
-
+class ProdLayer(KnowledgeLayer):
     def forward(self, x):
-        output = torch.zeros(self.out_shape, dtype=x.dtype, device=x.device)
+        output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
         output = torch.scatter_reduce(output, 0, index=self.csr, src=x[self.ptrs], reduce="prod", include_self=False)
         return output
 
 
-class LogSumLayer(torch.nn.Module):
-    def __init__(self, ptrs, csr):
-        super().__init__()
-        self.register_buffer('ptrs', ptrs)
-        self.register_buffer('csr', csr)
-        self.out_shape = (self.csr[-1].item() + 1,)
+class MinLayer(KnowledgeLayer):
+    def forward(self, x):
+        output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
+        output = torch.scatter_reduce(output, 0, index=self.csr, src=x[self.ptrs], reduce="amin", include_self=False)
+        return output
 
+
+class MaxLayer(KnowledgeLayer):
+    def forward(self, x):
+        output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
+        output = torch.scatter_reduce(output, 0, index=self.csr, src=x[self.ptrs], reduce="amax", include_self=False)
+        return output
+
+
+class LogSumLayer(KnowledgeLayer):
     def forward(self, x, epsilon=10e-16):
         x = x[self.ptrs]
         with torch.no_grad():

@@ -5,7 +5,7 @@ from .nanobind_ext import Circuit
 def to_torch_module(circuit: Circuit, semiring: str = "log"):
     from .backends import torch_backend
     indices = circuit.get_indices()
-    return torch_backend.KnowledgeLayer(*indices, semiring=semiring)
+    return torch_backend.KnowledgeModule(*indices, semiring=semiring)
 
 
 def to_jax_function(circuit: Circuit, semiring: str = "log"):
