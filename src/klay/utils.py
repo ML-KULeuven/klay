@@ -130,7 +130,7 @@ def _to_dot_graphs(func, *args):
 def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
     with jax.default_device(jax.devices(device)[0]):
         _circuit_forward = circuit.to_jax_function(semiring)
-        circuit_forward = lambda x: _circuit_forward(x)[0]
+        circuit_forward = lambda x, y: _circuit_forward(x, y)[0]
         t_forward = []
         for _ in range(nb_repeats+2): # 2 warmup runs
             weights, neg_weights = jax_weights(nb_vars, semiring)
