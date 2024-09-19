@@ -366,7 +366,8 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-void Circuit::add_root(Node* new_root, int old_depth) {
+void Circuit::add_root(Node* new_root) {
+    int old_depth = roots.empty() ? -1 : roots[0]->layer;
     // Bring roots to the same layer
     if (old_depth >= 0) {
         while (old_depth > new_root->layer)
@@ -406,50 +407,26 @@ void Circuit::add_root(Node* new_root, int old_depth) {
         // Important for output order expectation
         for (size_t i = 0; i < roots.size(); ++i)
             roots[i]->ix = i;
+
+        remove_unused_nodes();
     }
 }
 
 
 void Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
-    int old_depth = layers.size() - 1;
     Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
-    add_root(new_root, old_depth);
-    remove_unused_nodes();
+    add_root(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_sdd.dot");
 #endif
 }
 
 void Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
-    int old_depth = layers.size() - 1;
     Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
-    add_root(new_root, old_depth);
-    remove_unused_nodes();
+    add_root(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_d4.dot");
 #endif
-}
-
-/**
- * Condition the vec of literals to be true.
- */
-void Circuit::condition(const std::vector<int>& lits) {
-    std::vector<Lit> lits_formatted;
-    lits_formatted.reserve(lits.size());
-    for (auto lit: lits)
-        lits_formatted.emplace_back(Lit::fromInt(lit));
-    // condition
-    for (auto *node: layers[0]) {
-        if (node->type == NodeType::Leaf) {
-            if (std::find(lits_formatted.begin(), lits_formatted.end(), Lit(node->ix)) != lits_formatted.end()) {
-                node->type = NodeType::True;
-                node->ix = 1;
-            } else if (std::find(lits_formatted.begin(), lits_formatted.end(), Lit(node->ix)) != lits_formatted.end()) {
-                node->type = NodeType::False;
-                node->ix = 0;
-            }
-        }
-    }
 }
 
 
@@ -522,11 +499,11 @@ nb::class_<Circuit>(m, "Circuit")
 .def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("get_indices", &Circuit::get_indices)
-.def("condition", &Circuit::condition, "lits"_a)
 .def("nb_nodes", &Circuit::nb_nodes)
 .def("true_node", &Circuit::true_node)
 .def("false_node", &Circuit::false_node)
 .def("or_node", &Circuit::or_node)
 .def("literal_node", &Circuit::literal_node)
-.def("and_node", &Circuit::and_node);
+.def("and_node", &Circuit::and_node)
+.def("set_root", &Circuit::set_root, "root"_a);
 }

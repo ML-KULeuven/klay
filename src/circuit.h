@@ -86,9 +86,13 @@ private:
      * Add a root node to the circuit, and adjust the circuit
      * so that all roots are still on the same level.
      */
-    void add_root(Node* new_root, int old_depth);
+    void add_root(Node* new_root);
 
 public:
+    void set_root(nb::capsule root) {
+        Node* root_cast = static_cast<Node *>(root.data());
+        add_root(root_cast);
+    }
 
     /**
      * Add node to this circuit and ensure each child is in the previous adjacent layer.
@@ -156,11 +160,6 @@ public:
     inline std::pair<Arrays, Arrays> get_indices() { return tensorize(); }
 
     std::pair<Arrays, Arrays> tensorize();
-
-    /**
-     * Condition the vec of literals to be true.
-     */
-    void condition(const std::vector<int>& lits);
 
     /**
      * Number of nodes in the whole circuit.
