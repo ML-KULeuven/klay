@@ -36,7 +36,7 @@ def run_d4_bench(nb_vars: int, target:str, semiring: str, seed: int, device: str
     circuit = klay.Circuit()
     circuit.add_D4_from_file('tmp.nnf')
     results = {"klay_nodes": circuit.nb_nodes(), 'd4_nodes': get_d4_node_count('tmp.nnf')}
-    print("nb nodes", circuit.nb_nodes())
+    print(f"Nb of Nodes in KLay: {circuit.nb_nodes()//1000}k")
     if target == "jax":
         results.update(benchmark_klay_jax(circuit, nb_vars, semiring, device=device))
     elif target == "torch":
@@ -58,20 +58,22 @@ def main():
     parser.add_argument('-r', '--nb_repeats', type=int, default=1)
     parser.add_argument('-d', '--device', default='cpu')
     parser.add_argument('-t', '--target', default='jax')
-    parser.add_argument('-b', '--benchmark', required=True)
+    parser.add_argument('-b', '--benchmark', required=True, choices=['sdd', 'd4'])
     parser.add_argument('-s', '--semiring', default='log', choices=['log', 'real'])
     args = parser.parse_args()
 
     for nb_vars in args.nb_vars:
         print(f'Benchmarking {args.benchmark}-{args.target} on {args.device}  ({nb_vars} variables)')
         for seed in range(args.nb_repeats):
+            file_name = Path(f"results/{args.benchmark}_{args.target}_{args.semiring}_{args.device}/v{nb_vars}_{seed}.txt")
+            if file_name.exists():
+                continue
             if args.benchmark == 'sdd':
                 results = run_sdd_bench(nb_vars, args.target, args.semiring, seed, args.device)
             if args.benchmark == 'd4':
                 results = run_d4_bench(nb_vars, args.target, args.semiring, seed, args.device)
 
-            file_name = f"results/{args.benchmark}_{args.target}_{args.semiring}_{args.device}/v{nb_vars}_{seed}.txt"
-            Path(file_name).parent.mkdir(exist_ok=True, parents=True)
+            file_name.parent.mkdir(exist_ok=True, parents=True)
             with open(file_name, 'w') as f:
                 json.dump(results, f)
 

@@ -4,13 +4,18 @@ using DataFrames: DataFrame, Tables
 using CUDA
 
 var_range = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]
-device = "cpu"
+device = "cuda"
+
+results_folder = "results/sdd_juice_$(device)"
+if !isdir(results_folder)
+    mkdir(results_folder)
+end
 
 for nb_vars in var_range
     for seed in 0:9
 
-        sdd_path = "results/sdd/v$(nb_vars)_$(seed).sdd"
-        vtree_path = "results/sdd/v$(nb_vars)_$(seed).vtree"
+        sdd_path = "results_old/sdd/v$(nb_vars)_$(seed).sdd"
+        vtree_path = "results_old/sdd/v$(nb_vars)_$(seed).vtree"
         paths = (sdd_path, vtree_path)
         formats = (SddFormat(), VtreeFormat())
         sdd = read(paths, StructLogicCircuit, formats)
