@@ -27,6 +27,8 @@ def run_sdd_bench(nb_vars: int, target: str, semiring: str, seed: int, device: s
             results.update(benchmark_klay_jax(circuit, nb_vars, semiring, device=device))
         elif target == "torch":
             results.update(benchmark_klay_torch(circuit, nb_vars, semiring, device=device))
+        else:
+            raise ValueError(f"Unknown target {target}")
     return results
 
 
@@ -41,6 +43,8 @@ def run_d4_bench(nb_vars: int, target:str, semiring: str, seed: int, device: str
         results.update(benchmark_klay_jax(circuit, nb_vars, semiring, device=device))
     elif target == "torch":
         results.update(benchmark_klay_torch(circuit, nb_vars, semiring, device=device))
+    else:
+        raise ValueError(f"Unknown target {target}")
     return results
 
 

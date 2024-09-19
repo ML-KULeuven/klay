@@ -17,21 +17,9 @@ def log1mexp(x):
     )
 
 
-def encode_input_log(pos, neg):
-    if neg is None:
-        neg = log1mexp(pos)
-
+def encode_input(pos, neg, zero, one):
     result = torch.stack([pos, neg], dim=1).flatten()
-    constants = torch.tensor([float('-inf'), 0], dtype=torch.float32, device=pos.device)
-    return torch.cat([constants, result])
-
-
-def encode_input_real(pos, neg):
-    if neg is None:
-        neg = 1 - pos
-
-    result = torch.stack([pos, neg], dim=1).flatten()
-    constants = torch.tensor([0, 1], dtype=torch.float32, device=pos.device)
+    constants = torch.tensor([zero, one], dtype=torch.float32, device=pos.device)
     return torch.cat([constants, result])
 
 
@@ -45,7 +33,7 @@ class KnowledgeModule(torch.nn.Module):
     def __init__(self, pointers, csrs, semiring='real'):
         super(KnowledgeModule, self).__init__()
         layers = []
-        sum_layer, prod_layer = get_semiring(semiring)
+        sum_layer, prod_layer, self.zero, self.one, self.negate = get_semiring(semiring)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             ptrs = torch.as_tensor(ptrs)
             csr = torch.as_tensor(csr, dtype=torch.long)
@@ -55,11 +43,12 @@ class KnowledgeModule(torch.nn.Module):
             else:
                 layers.append(sum_layer(ptrs, csr))
         self.layers = torch.nn.Sequential(*layers)
-        self.encode_input = {'log': encode_input_log, 'real': encode_input_real}[semiring]
 
     def forward(self, weights, neg_weights=None):
-            x = self.encode_input(weights, neg_weights)
-            return self.layers(x)
+        if neg_weights is None:
+            neg_weights = self.negate(weights)
+        x = encode_input(weights, neg_weights, self.zero, self.one)
+        return self.layers(x)
 
 
 class KnowledgeLayer(torch.nn.Module):
@@ -115,9 +104,17 @@ class LogSumLayer(KnowledgeLayer):
 
 
 def get_semiring(name: str):
+    """
+    For a given semiring, returns the sum and product layer,
+    the zero and one elements, and a negation function.
+    """
     if name == "real":
-        return SumLayer, ProdLayer
+        return SumLayer, ProdLayer, 0, 1, lambda x: 1 - x
     elif name == "log":
-        return LogSumLayer, SumLayer
+        return LogSumLayer, SumLayer, float('-inf'), 0, log1mexp
+    elif name == "mpe":
+        return MaxLayer, ProdLayer, 0, 1, lambda x: 1 - x
+    elif name == "godel":
+        return MaxLayer, MinLayer, 0, 1, lambda x: 1 - x
     else:
         raise ValueError(f"Unknown semiring {name}")
