@@ -13,7 +13,6 @@ def load_data(results):
         print("Loading", folder)
 
         for experiment in folder.iterdir():
-            assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
             with open(experiment) as f:
                 data = json.load(f)
                 data_point = np.mean(data['backward']) * 1000
@@ -38,24 +37,29 @@ def load_node_counts(results, folder_name, node_name):
     results[node_name].sort()
 
 
-def plot_sdd():
-    results = {"sdd_pysdd_cpu": [], "sdd_jax_cpu": [], "sdd_jax_cuda": [], "sdd_torch_cpu": [], "sdd_torch_cuda": []}
+def plot_sdd_log():
+    results = {
+        "sdd_jax_log_cpu": [], "sdd_jax_log_cuda": [],
+        "sdd_torch_log_cpu": [], "sdd_torch_log_cuda": [],
+        "sdd_pysdd_log_cpu": [],
+    }
     load_data(results)
-    load_node_counts(results, "sdd_torch_cpu", "klay_nodes")
-    load_node_counts(results, "sdd_nodes", "sdd_nodes")
+    load_node_counts(results, "sdd_torch_log_cpu", "klay_nodes")
+    load_node_counts(results, "sdd_torch_log_cpu", "sdd_nodes")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
-    timings = np.cumsum(results['sdd_torch_cpu'])
+    timings = np.cumsum(results['sdd_torch_log_cpu'])
     ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
-    timings = np.cumsum(results['sdd_torch_cuda'])
+    timings = np.cumsum(results['sdd_torch_log_cuda'])
     ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
-    timings = np.cumsum(results['sdd_jax_cpu'])
+    timings = np.cumsum(results['sdd_jax_log_cpu'])
     ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
-    timings = np.cumsum(results['sdd_jax_cuda'])
+    timings = np.cumsum(results['sdd_jax_log_cuda'])
     ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
-    timings = np.cumsum(results['sdd_pysdd_cpu'])
-    ax1.plot(timings, label="PySDD (cpu)", linewidth=1.5, color='black')
+
+    timings = np.cumsum(results['sdd_pysdd_log_cpu'])
+    ax1.plot(timings, label="Depth-first (cpu)", linewidth=1.5, color='black')
 
     ax1.set_ylabel("Cumulative Time (ms)")
 
@@ -68,28 +72,73 @@ def plot_sdd():
         ax.grid()
         ax.set_yscale('log')
         ax.set_xlabel("Instances")
-        ax.set_xlim(0, len(results["sdd_pysdd_cpu"])-1)
+        ax.set_xlim(0, len(results["sdd_torch_log_cpu"])-1)
         ax.legend()
 
-    fig.savefig("sdd_bench.pdf", bbox_inches='tight')
+    fig.savefig("sdd_bench_log.pdf", bbox_inches='tight')
 
 
-def plot_d4():
-    results = {"d4_jax_cpu": [], "d4_jax_cuda": [], "d4_torch_cpu": [], "d4_torch_cuda": []}
+def plot_sdd_real():
+    results = {
+        "sdd_torch_real_cpu": [], "sdd_torch_real_cuda": [],
+        "sdd_juice_cpu": [], "sdd_juice_cuda": [],
+        "sdd_pysdd_real_cpu": [],
+    }
     load_data(results)
-    load_node_counts(results, "d4_jax_cpu", "d4_nodes")
-    load_node_counts(results, "d4_jax_cpu", "klay_nodes")
+    load_node_counts(results, "sdd_torch_log_cpu", "klay_nodes")
+    load_node_counts(results, "sdd_torch_log_cpu", "sdd_nodes")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
-    timings = np.cumsum(sorted(results['d4_torch_cpu']))
+    timings = np.cumsum(results['sdd_torch_real_cpu'])
     ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
-    timings = np.cumsum(sorted(results['d4_torch_cuda']))
+    timings = np.cumsum(results['sdd_torch_real_cuda'])
     ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
-    timings = np.cumsum(sorted(results['d4_jax_cpu']))
+
+    timings = np.cumsum(results['sdd_juice_cpu'])
+    ax1.plot(timings, label="Juice (cpu)", linewidth=1.5, color='green')
+    timings = np.cumsum(results['sdd_juice_cuda'])
+    ax1.plot(timings, label="Juice (cuda)", linewidth=1.5, color='green', linestyle="--")
+
+    timings = np.cumsum(results['sdd_pysdd_real_cpu'])
+    ax1.plot(timings, label="Depth-first (cpu)", linewidth=1.5, color='black')
+
+    ax1.set_ylabel("Cumulative Time (ms)")
+
+    ax2.plot(results['sdd_nodes'], label="Nb of Nodes in SDD", linewidth=1.5, color='black')
+    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+
+    ax2.set_ylabel("Nb of Nodes")
+
+    for ax in [ax1, ax2]:
+        ax.grid()
+        ax.set_yscale('log')
+        ax.set_xlabel("Instances")
+        ax.set_xlim(0, len(results["sdd_torch_real_cpu"])-1)
+        ax.legend()
+
+    fig.savefig("sdd_bench_real.pdf", bbox_inches='tight')
+
+
+
+def plot_d4():
+    results = {"d4_jax_log_cpu": [], "d4_jax_log_cuda": [], "d4_torch_log_cpu": [], "d4_torch_log_cuda": [], "d4_kompyle": []}
+    load_data(results)
+    load_node_counts(results, "d4_jax_log_cpu", "d4_nodes")
+    load_node_counts(results, "d4_jax_log_cpu", "klay_nodes")
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+
+    timings = np.cumsum(sorted(results['d4_torch_log_cpu']))
+    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    timings = np.cumsum(sorted(results['d4_torch_log_cuda']))
+    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    timings = np.cumsum(sorted(results['d4_jax_log_cpu']))
     ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
-    timings = np.cumsum(sorted(results['d4_jax_cuda']))
+    timings = np.cumsum(sorted(results['d4_jax_log_cuda']))
     ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+    timings = np.cumsum(sorted(results['d4_kompyle']))
+    ax1.plot(timings, label="Depth-first (cpu)", linewidth=1.5, color='black')
 
     ax1.set_ylabel("Cumulative Time (ms)")
 
@@ -102,12 +151,13 @@ def plot_d4():
         ax.grid()
         ax.set_yscale('log')
         ax.set_xlabel("Instances")
-        ax.set_xlim(0, len(results["d4_jax_cpu"])-1)
+        ax.set_xlim(0, len(results["d4_torch_log_cpu"])-1)
         ax.legend()
 
     fig.savefig("d4_bench.pdf", bbox_inches='tight')
 
 
 if __name__ == "__main__":
-    plot_sdd()
+    plot_sdd_log()
+    plot_sdd_real()
     plot_d4()

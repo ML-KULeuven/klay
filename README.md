@@ -44,6 +44,11 @@ Then run:
 julia experiments/synthetic/benchmark_juice.jl
 ```
 
+You can reproduce the plots of the paper using:
+```bash
+python experiments/synthetic/plot_figure.py
+```
+
 ### NeSy experiments
 ```bash
 python experiments/nesy/run.py
