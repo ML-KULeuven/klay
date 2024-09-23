@@ -9,7 +9,7 @@ description = "Arithmetic circuits on the GPU"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
-    { name = "Jaron Maene", email = "jaron.maene@kuleuven.be" },
+    { name = "Anonymized", email = "anonymized" },
 ]
 classifiers = [
     "License :: OSI Approved :: BSD License",
