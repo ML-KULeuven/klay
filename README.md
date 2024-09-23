@@ -14,7 +14,7 @@ pip install .
 
 Most dependencies are optional. However, to replicate all the experiments, make sure to install the following:
 ```bash
-pip install jax torch matplotlib numpy pysdd tqdm graphviz
+pip install jax torch torchvision matplotlib numpy pysdd tqdm graphviz
 ```
 
 ## Experiments
@@ -26,19 +26,19 @@ The synthetic experiments take a couple of hours to run.
 
 To run all the synthetic experiments of Figure 6.
 ```bash
-python experiments/synthetic/run_sdd.sh
+bash experiments/synthetic/run_sdd.sh
 ```
 
 Similarly, to run all the same synthetic experiments with d4 (as in Figure 7).
 ```bash
-python experiments/synthetic/run_d4.sh
+bash experiments/synthetic/run_d4.sh
 ```
 And for the synthetic experiments in the real semiring (as in Figure 8).
 ```bash
-python experiments/synthetic/run_real.sh
+bash experiments/synthetic/run_real.sh
 ```
 
-To run the juice baseline, you need to install Julia and the juice.jl package.
+To run the juice baseline, install [Julia](https://julialang.org/) and the [LogicCircuits.jl](https://github.com/Tractables/LogicCircuits.jl) package.
 Then run:
 ```bash
 julia experiments/synthetic/benchmark_juice.jl
