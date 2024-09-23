@@ -7,7 +7,7 @@ C++ implementation of the Knowledge Layers. Includes support for:
 
 ## Installation
 
-KLay has been tested on Linux and Mac. It requires a C++ compiler and Python 3.9 or higher.
+KLay has been tested on Linux (x86) and Mac (x86/ARM), no guarantees are made for Windows. KLay requires a C++ compiler and Python 3.9 or higher.
 ```bash
 pip install .
 ```

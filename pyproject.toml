@@ -7,16 +7,16 @@ name = "klay"
 version = "0.0.1"
 description = "Arithmetic circuits on the GPU"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
-    { name = "Anonymized", email = "anonymized" },
+    { name = "Anonymized", email = "anonymized@example.com" },
 ]
 classifiers = [
     "License :: OSI Approved :: BSD License",
 ]
 
 [project.urls]
-Homepage = "https://github.com/jjcmoon/klay"
+Homepage = "https://github.com/anonymized"
 
 
 [tool.scikit-build]
