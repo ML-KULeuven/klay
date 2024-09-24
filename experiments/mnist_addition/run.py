@@ -20,39 +20,25 @@ def get_circuit(nb_digits: int):
     but here we construct the circuit manually to keep the code self-contained.
     """
     circuit = klay.Circuit()
-    var_count = 20 * nb_digits
-    vtree = Vtree(var_count=var_count, vtree_type="balanced")
+    vtree = Vtree(var_count=20 * nb_digits, vtree_type="balanced")
     manager = SddManager.from_vtree(vtree)
-    formula = manager.true()
-
-    for i in range(2 * nb_digits):
-        formula &= categorical([manager.l(i * 10 + j+1) for j in range(10)])
 
     sdds = defaultdict(manager.false)
-    for i in tqdm(range(10**nb_digits)):
-        for j in range(10**nb_digits):
-            digits1 = [int(x)+1 + k*10 for k, x in enumerate(f"{i:0{nb_digits}d}")]
-            digits2 = [int(x)+1 + k*10 + nb_digits*10 for k, x in enumerate(f"{j:0{nb_digits}d}")]
-            model = reduce(lambda x, y: x & y, map(manager.l, digits1 + digits2), formula)
-            sdds[i+j] |= model
+    for n1 in tqdm(range(10**nb_digits)):
+        for n2 in range(10**nb_digits):
+            model = [~manager.l(i+1) for i in range(20 * nb_digits)]
+            n1_digits = map(int, f"{n1:0{nb_digits}d}")
+            n2_digits = map(int, f"{n2:0{nb_digits}d}")
+            n1_vars = [x + i*10 for i, x in enumerate(n1_digits)]
+            n2_vars = [x + i*10 + nb_digits*10 for i, x in enumerate(n2_digits)]
+            for v in n1_vars + n2_vars:
+                model[v] = manager.l(v+1)
+            sdds[n1+n2] |= reduce(lambda x, y: x & y, model)
 
-    const_lits = [-x for x in range(1, var_count+1)]
     for sdd in tqdm(sdds.values()):
-        circuit.add_sdd(sdd, true_lits=const_lits)
+        circuit.add_sdd(sdd)
     print("Nb nodes", circuit.nb_nodes())
     return circuit
-
-
-def categorical(vs):
-    """
-    Create a categorical constraint over the given variables.
-    (I.e. one of the variables must be true, and all others must be false.)
-    """
-    formula = reduce(lambda x, y: x | y, vs)
-    for i in range(len(vs)):
-        for j in range(i + 1, len(vs)):
-            formula &= ~vs[i] | ~vs[j]
-    return formula
 
 
 def get_dataloader(nb_digits: int, batch_size: int, train: bool = True):
@@ -110,13 +96,12 @@ class MnistAdditionModule(nn.Module):
         batch_size = image_probs.shape[0] // (2*self.nb_digits)
         image_probs = image_probs.reshape(batch_size, -1) # (batch_size, 2*nb_digits*10)
         zeros = torch.zeros_like(image_probs)
-        # print(image_probs.shape)
         return self.circuit_batched(image_probs, zeros)
 
 
 def to_label(ys, nb_digits: int):
     ys = ys.reshape(-1, 2*nb_digits)
-    exponents = 10 ** torch.arange(nb_digits, device=ys.device).repeat(2)
+    exponents = 10 ** torch.arange(start=nb_digits-1, end=-1, step=-1, device=ys.device).repeat(2)
     return (ys * exponents).sum(dim=1)
 
 
