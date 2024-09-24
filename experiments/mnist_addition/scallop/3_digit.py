@@ -44,19 +44,19 @@ class MNISTSumDouble2Dataset(torch.utils.data.Dataset):
         random.shuffle(self.index_map)
 
     def __len__(self):
-        return int(len(self.mnist_dataset) / 8)
+        return int(len(self.mnist_dataset) / 6)
 
     def __getitem__(self, idx):
         # Get two data points
-        (a_img, a_digit) = self.mnist_dataset[self.index_map[idx * 4]]
-        (b_img, b_digit) = self.mnist_dataset[self.index_map[idx * 4 + 1]]
-        (c_img, c_digit) = self.mnist_dataset[self.index_map[idx * 4 + 2]]
-        (d_img, d_digit) = self.mnist_dataset[self.index_map[idx * 4 + 3]]
-        (e_img, e_digit) = self.mnist_dataset[self.index_map[idx * 4 + 4]]
-        (f_img, f_digit) = self.mnist_dataset[self.index_map[idx * 4 + 5]]
+        (a_img, a_digit) = self.mnist_dataset[self.index_map[idx * 6]]
+        (b_img, b_digit) = self.mnist_dataset[self.index_map[idx * 6 + 1]]
+        (c_img, c_digit) = self.mnist_dataset[self.index_map[idx * 6 + 2]]
+        (d_img, d_digit) = self.mnist_dataset[self.index_map[idx * 6 + 3]]
+        (e_img, e_digit) = self.mnist_dataset[self.index_map[idx * 6 + 4]]
+        (f_img, f_digit) = self.mnist_dataset[self.index_map[idx * 6 + 5]]
 
         # Each data has two images and the GT is the sum of two digits
-        return (a_img, b_img, c_img, d_img, a_digit * 100 + b_digit * 10 + c_digit + d_digit * 100 + e_digit * 10 + f_digit)
+        return (a_img, b_img, c_img, d_img, e_img, f_img, a_digit * 100 + b_digit * 10 + c_digit + d_digit * 100 + e_digit * 10 + f_digit)
 
     @staticmethod
     def collate_fn(batch):
@@ -66,8 +66,9 @@ class MNISTSumDouble2Dataset(torch.utils.data.Dataset):
         d_imgs = torch.stack([item[3] for item in batch])
         e_imgs = torch.stack([item[4] for item in batch])
         f_imgs = torch.stack([item[5] for item in batch])
+        images = torch.stack([a_imgs, b_imgs, c_imgs, d_imgs, e_imgs, f_imgs])
         digits = torch.stack([torch.tensor(item[6]).long() for item in batch])
-        return ((a_imgs, b_imgs, c_imgs, d_imgs), digits)
+        return images, digits
 
 
 def mnist_sum_double_2_loader(data_dir, batch_size_train, batch_size_test):
@@ -80,7 +81,8 @@ def mnist_sum_double_2_loader(data_dir, batch_size_train, batch_size_test):
         ),
         collate_fn=MNISTSumDouble2Dataset.collate_fn,
         batch_size=batch_size_train,
-        shuffle=True
+        shuffle=True,
+        num_workers=2,
     )
 
     test_loader = torch.utils.data.DataLoader(
@@ -140,22 +142,18 @@ class MNISTSumDouble2Net(nn.Module):
         self.scl_ctx.add_relation("digit_4", int, input_mapping=list(range(10)))
         self.scl_ctx.add_relation("digit_5", int, input_mapping=list(range(10)))
         self.scl_ctx.add_relation("digit_6", int, input_mapping=list(range(10)))
-        self.scl_ctx.add_rule("sum_double_2(a * 100 + b * 10 + c + d * 100 + e * 10 + f) :- digit_1(a), digit_2(b), digit_3(c), digit_4(d), digit_5(e), digit_6(f)")
+        self.scl_ctx.add_rule("sum(a * 100 + b * 10 + c + d * 100 + e * 10 + f) :- digit_1(a), digit_2(b), digit_3(c), digit_4(d), digit_5(e), digit_6(f)")
 
         # The `sum_double_2` logical reasoning module
-        self.sum_double_2 = self.scl_ctx.forward_function("sum_double_2", output_mapping=list(range(200)))
+        self.sum_double_2 = self.scl_ctx.forward_function("sum", output_mapping=list(range(200)))
 
-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]):
-        (a_imgs, b_imgs, c_imgs, d_imgs) = x
-
+    def forward(self, x: torch.Tensor):
         # First recognize the two digits
-        a_distrs = self.mnist_net(a_imgs) # Tensor 64 x 10
-        b_distrs = self.mnist_net(b_imgs) # Tensor 64 x 10
-        c_distrs = self.mnist_net(c_imgs) # Tensor 64 x 10
-        d_distrs = self.mnist_net(d_imgs) # Tensor 64 x 10
+        x = self.mnist_net(x.reshape(-1, 1, 28, 28))
+        x = x.reshape(6, -1, 10)
 
         # Then execute the reasoning module; the result is a size 19 tensor
-        return self.sum_double_2(digit_1=a_distrs, digit_2=b_distrs, digit_3=c_distrs, digit_4=d_distrs) # Tensor 64 x 19
+        return self.sum_double_2(digit_1=x[0], digit_2=x[1], digit_3=x[2], digit_4=x[3], digit_5=x[4], digit_6=x[5])
 
 
 def bce_loss(output, ground_truth):
@@ -219,7 +217,7 @@ class Trainer():
 
 if __name__ == "__main__":
     # Argument parser
-    parser = ArgumentParser("mnist_sum_2")
+    parser = ArgumentParser("mnist_sum_3")
     parser.add_argument("-e", "--n-epochs", type=int, default=12)
     parser.add_argument("-b", "--batch-size", type=int, default=128)
     parser.add_argument("--learning-rate", type=float, default=0.001)
