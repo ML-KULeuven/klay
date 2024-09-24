@@ -190,7 +190,7 @@ class Trainer():
             self.optimizer.step()
             iter.set_description(f"[Train Epoch {epoch}] Loss: {loss.item():.4f}")
 
-    def test(self, epoch):
+    def test_epoch(self, epoch):
         self.network.eval()
         num_items = len(self.test_loader.dataset)
         test_loss = 0
