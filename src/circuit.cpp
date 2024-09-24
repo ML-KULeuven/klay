@@ -67,7 +67,7 @@ Node* Circuit::add_node_level(Node* node) {
 }
 
 Node* Circuit::add_node_level_compressed(Node* node) {
-    //return add_node_level(node);
+    return add_node_level(node);
     if (node->type != NodeType::And && node->type != NodeType::Or)
         return add_node_level(node);
 
