@@ -149,6 +149,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
 
 def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', batch_size=None):
     circuit_forward = circuit.to_torch_module(semiring).to(device)
+    sparsity = circuit_forward.sparsity(nb_vars)
     if batch_size is not None:
         circuit_forward = torch.vmap(circuit_forward)
     circuit_forward = torch.compile(circuit_forward, mode="reduce-overhead")
@@ -171,7 +172,7 @@ def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'
         if device == 'cuda':
             torch.cuda.synchronize()
         t_backward.append(perf_counter() - t1)
-    return {'forward': t_forward[2:], 'backward': t_backward[2:]}
+    return {'forward': t_forward[2:], 'backward': t_backward[2:], "sparsity": sparsity}
 
 
 def benchmark_sdd_torch_naive(manager, sdd, nb_vars, nb_repeats=10, device='cpu', batch_size=None):

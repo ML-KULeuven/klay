@@ -50,6 +50,12 @@ class KnowledgeModule(torch.nn.Module):
         x = encode_input(weights, neg_weights, self.zero, self.one)
         return self.layers(x)
 
+    def sparsity(self, nb_vars):
+        sparse_params = sum(len(l.csr) for l in self.layers)
+        layer_widths = [nb_vars] + [l.out_shape[0] for l in self.layers]
+        dense_params  = sum(layer_widths[i] * layer_widths[i+1] for i in range(len(layer_widths) - 1))
+        return sparse_params / dense_params
+
 
 class KnowledgeLayer(torch.nn.Module):
     def __init__(self, ptrs, csr):
