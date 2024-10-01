@@ -4,8 +4,15 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+plt.style.use('seaborn-v0_8-paper')
 
-def load_data(results):
+textwidth = 5.50107
+aspect_ratio = 3/8
+scale = 1
+width = textwidth * scale
+height = width * aspect_ratio
+
+def load_timings(results):
     for folder_name in list(results.keys()):
         folder = Path('results') / folder_name
         if not folder.exists():
@@ -22,110 +29,117 @@ def load_data(results):
         v.sort()
 
 
-def load_node_counts(results, folder_name, node_name):
+def load_stat(results, folder_name, name):
     folder = Path('results') / folder_name
     if not folder.exists():
         return
-    print("Loading", node_name, 'from', folder)
+    print("Loading", name, 'from', folder)
 
-    results[node_name] = []
+    results[name] = []
     for experiment in folder.iterdir():
         assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
         with open(experiment) as f:
             data = json.load(f)
-            results[node_name].append(data[node_name])
-    results[node_name].sort()
+            results[name].append(data[name])
+    results[name].sort()
 
 
-def plot_sdd_log():
+def plot_sdd_stats():
+    results = dict()
+    load_stat(results, "sdd_torch_log_cuda", "klay_nodes")
+    load_stat(results, "sdd_torch_log_cuda", "sdd_nodes")
+    load_stat(results, "sdd_torch_log_cuda", "sparsity")
+
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(width, height), constrained_layout=True)
+
+    ax1.plot(results['sdd_nodes'], label="Nb of Nodes in SDD", color='black')
+    ax1.plot(results['klay_nodes'], label="Nb of Nodes in KLay", color='black', linestyle='--')
+
+    ax1.set_ylabel("Nb of Nodes")
+    legend = ax1.legend(fancybox=False)
+    legend.get_frame().set_linewidth(0.)
+
+    ax2.plot(list(reversed(results['sparsity'])), color='black')
+    ax2.set_ylabel("Sparsity")
+
+    for ax in [ax1, ax2]:
+        ax.grid()
+        ax.set_yscale('log')
+        ax.set_xlabel("Instances")
+        ax.set_xlim(0, len(results["sdd_nodes"])-1)
+
+    fig.savefig("sdd_stats.pdf", bbox_inches='tight')
+
+
+def plot_sdd():
     results = {
         "sdd_jax_log_cpu": [], "sdd_jax_log_cuda": [],
         "sdd_torch_log_cpu": [], "sdd_torch_log_cuda": [],
         "sdd_pysdd_log_cpu": [],
+        "sdd_torch_real_cpu": [], "sdd_torch_real_cuda": [],
+        "sdd_juice_cpu": [], "sdd_juice_cuda": [],
+        "sdd_pysdd_real_cpu": [],
     }
-    load_data(results)
-    load_node_counts(results, "sdd_torch_log_cpu", "klay_nodes")
-    load_node_counts(results, "sdd_torch_log_cpu", "sdd_nodes")
+    load_timings(results)
+    #
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(width, height), constrained_layout=True)
 
+    ### Left figure
     timings = np.cumsum(results['sdd_torch_log_cpu'])
-    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    ax1.plot(timings, label="KLay (torch, cpu)", color='red')
     timings = np.cumsum(results['sdd_torch_log_cuda'])
-    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    ax1.plot(timings, label="KLay (torch, cuda)", color='red', linestyle='--')
     timings = np.cumsum(results['sdd_jax_log_cpu'])
-    ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
+    ax1.plot(timings, label="KLay (jax, cpu)", color='blue')
     timings = np.cumsum(results['sdd_jax_log_cuda'])
-    ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+    ax1.plot(timings, label="KLay (jax, cuda)", color='blue', linestyle='--')
 
     timings = np.cumsum(results['sdd_pysdd_log_cpu'])
-    ax1.plot(timings, label="Depth-first (cpu)", linewidth=1.5, color='black')
+    ax1.plot(timings, label="Depth-first (cpu)", color='black')
 
     ax1.set_ylabel("Cumulative Time (ms)")
+    ax1.set_ylim(0.02, 50000)
+    ax1.set_title("Log Semiring")
 
-    ax2.plot(results['sdd_nodes'], label="Nb of Nodes in SDD", linewidth=1.5, color='black')
-    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
 
-    ax2.set_ylabel("Nb of Nodes")
+    ### Middle figure
+    timings = np.cumsum(results['sdd_torch_real_cpu'])
+    ax2.plot(timings, color='red')
+    timings = np.cumsum(results['sdd_torch_real_cuda'])
+    ax2.plot(timings, color='red', linestyle='--')
+
+    timings = np.cumsum(results['sdd_juice_cpu'])
+    ax2.plot(timings, label="Juice (cpu)", color='green')
+    timings = np.cumsum(results['sdd_juice_cuda'])
+    ax2.plot(timings, label="Juice (cuda)", color='green', linestyle="--")
+
+    timings = np.cumsum(results['sdd_pysdd_real_cpu'])
+    ax2.plot(timings, color='black')
+
+    ax2.set_ylim(0.02, 50000)
+    ax2.set_title("Real Semiring")
 
     for ax in [ax1, ax2]:
         ax.grid()
         ax.set_yscale('log')
         ax.set_xlabel("Instances")
         ax.set_xlim(0, len(results["sdd_torch_log_cpu"])-1)
-        ax.legend()
 
-    fig.savefig("sdd_bench_log.pdf", bbox_inches='tight')
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    legend = fig.legend(lines, labels, fancybox=False, edgecolor="black", loc='center', bbox_to_anchor=(1.14, 0.6))
+    legend.get_frame().set_linewidth(0.)
 
-
-def plot_sdd_real():
-    results = {
-        "sdd_torch_real_cpu": [], "sdd_torch_real_cuda": [],
-        "sdd_juice_cpu": [], "sdd_juice_cuda": [],
-        "sdd_pysdd_real_cpu": [],
-    }
-    load_data(results)
-    load_node_counts(results, "sdd_torch_log_cpu", "klay_nodes")
-    load_node_counts(results, "sdd_torch_log_cpu", "sdd_nodes")
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
-
-    timings = np.cumsum(results['sdd_torch_real_cpu'])
-    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
-    timings = np.cumsum(results['sdd_torch_real_cuda'])
-    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
-
-    timings = np.cumsum(results['sdd_juice_cpu'])
-    ax1.plot(timings, label="Juice (cpu)", linewidth=1.5, color='green')
-    timings = np.cumsum(results['sdd_juice_cuda'])
-    ax1.plot(timings, label="Juice (cuda)", linewidth=1.5, color='green', linestyle="--")
-
-    timings = np.cumsum(results['sdd_pysdd_real_cpu'])
-    ax1.plot(timings, label="Depth-first (cpu)", linewidth=1.5, color='black')
-
-    ax1.set_ylabel("Cumulative Time (ms)")
-
-    ax2.plot(results['sdd_nodes'], label="Nb of Nodes in SDD", linewidth=1.5, color='black')
-    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
-
-    ax2.set_ylabel("Nb of Nodes")
-
-    for ax in [ax1, ax2]:
-        ax.grid()
-        ax.set_yscale('log')
-        ax.set_xlabel("Instances")
-        ax.set_xlim(0, len(results["sdd_torch_real_cpu"])-1)
-        ax.legend()
-
-    fig.savefig("sdd_bench_real.pdf", bbox_inches='tight')
+    fig.savefig("sdd_bench.pdf", bbox_inches='tight')
 
 
 
 def plot_d4():
     results = {"d4_jax_log_cpu": [], "d4_jax_log_cuda": [], "d4_torch_log_cpu": [], "d4_torch_log_cuda": [], "d4_kompyle": []}
-    load_data(results)
-    load_node_counts(results, "d4_jax_log_cpu", "d4_nodes")
-    load_node_counts(results, "d4_jax_log_cpu", "klay_nodes")
+    load_timings(results)
+    load_stat(results, "d4_jax_log_cpu", "d4_nodes")
+    load_stat(results, "d4_jax_log_cpu", "klay_nodes")
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
 
@@ -158,6 +172,6 @@ def plot_d4():
 
 
 if __name__ == "__main__":
-    plot_sdd_log()
-    plot_sdd_real()
+    plot_sdd()
+    plot_sdd_stats()
     plot_d4()
