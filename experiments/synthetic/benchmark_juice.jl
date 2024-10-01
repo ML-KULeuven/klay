@@ -14,8 +14,13 @@ end
 for nb_vars in var_range
     for seed in 0:9
 
-        sdd_path = "results_old/sdd/v$(nb_vars)_$(seed).sdd"
-        vtree_path = "results_old/sdd/v$(nb_vars)_$(seed).vtree"
+        sdd_path = "results/sdd/v$(nb_vars)_$(seed).sdd"
+        vtree_path = "results/sdd/v$(nb_vars)_$(seed).vtree"
+        result_path = "results/sdd_juice_$(device)/v$(nb_vars)_$(seed).txt"
+        if isfile(result_path)
+            continue
+        end
+
         paths = (sdd_path, vtree_path)
         formats = (SddFormat(), VtreeFormat())
         sdd = read(paths, StructLogicCircuit, formats)
@@ -41,9 +46,9 @@ for nb_vars in var_range
 
         avg = mean(timings[3:end])
         println(nb_vars, " ", avg)
-        filepath = "results/sdd_juice_$(device)/v$(nb_vars)_$(seed).txt"
+
         json = "{\"backward\": $(avg)}"
-        open(filepath, "w") do f
+        open(result_path, "w") do f
             write(f, json)
         end
     end

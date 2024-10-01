@@ -14,11 +14,14 @@ def run_sdd_bench(nb_vars: int, target: str, semiring: str, seed: int, device: s
     sdd = compile_sdd('tmp.cnf')
     nb_nodes = sdd.count() + sdd.size()
     print(f"Nb of Nodes in SDD: {nb_nodes//1000}k")
-    weights = [np.random.rand() for _ in range(nb_vars)]
     results = {'sdd_nodes': nb_nodes}
 
+    # save sdd and vtree for juice
+    sdd.save(bytes(Path(f'results/sdd/v{nb_vars}_{seed}.sdd')))
+    sdd.vtree().save(bytes(Path(f'results/sdd/v{nb_vars}_{seed}.vtree')))
+
     if target == 'pysdd':
-        results.update(benchmark_pysdd(sdd, weights, semiring, device=device))
+        results.update(benchmark_pysdd(sdd, nb_vars, semiring, device=device))
     else:
         circuit = klay.Circuit()
         circuit.add_sdd(sdd)
