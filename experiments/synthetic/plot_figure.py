@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,6 +21,8 @@ def load_timings(results):
         print("Loading", folder)
 
         for experiment in folder.iterdir():
+            if os.path.getsize(experiment) == 0:
+                continue
             with open(experiment) as f:
                 data = json.load(f)
                 data_point = np.mean(data['backward']) * 1000
@@ -37,6 +40,8 @@ def load_stat(results, folder_name, name):
 
     results[name] = []
     for experiment in folder.iterdir():
+        if os.path.getsize(experiment) == 0:
+            continue
         assert experiment.suffix == ".txt", f"File {experiment} is not a .txt file"
         with open(experiment) as f:
             data = json.load(f)
@@ -96,7 +101,7 @@ def plot_sdd():
     ax1.plot(timings, label="KLay (jax, cuda)", color='blue', linestyle='--')
 
     timings = np.cumsum(results['sdd_pysdd_log_cpu'])
-    ax1.plot(timings, label="Depth-first (cpu)", color='black')
+    ax1.plot(timings, label="Post-order (cpu)", color='black')
 
     ax1.set_ylabel("Cumulative Time (ms)")
     ax1.set_ylim(0.02, 50000)
@@ -141,32 +146,38 @@ def plot_d4():
     load_stat(results, "d4_jax_log_cpu", "d4_nodes")
     load_stat(results, "d4_jax_log_cpu", "klay_nodes")
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(width, height), constrained_layout=True)
 
     timings = np.cumsum(sorted(results['d4_torch_log_cpu']))
-    ax1.plot(timings, label="KLay (torch, cpu)", linewidth=1.5, color='red')
+    ax2.plot(timings, label="KLay (torch, cpu)", color='red')
     timings = np.cumsum(sorted(results['d4_torch_log_cuda']))
-    ax1.plot(timings, label="KLay (torch, cuda)", linewidth=1.5, color='red', linestyle='--')
+    ax2.plot(timings, label="KLay (torch, cuda)", color='red', linestyle='--')
     timings = np.cumsum(sorted(results['d4_jax_log_cpu']))
-    ax1.plot(timings, label="KLay (jax, cpu)", linewidth=1.5, color='blue')
+    ax2.plot(timings, label="KLay (jax, cpu)", color='blue')
     timings = np.cumsum(sorted(results['d4_jax_log_cuda']))
-    ax1.plot(timings, label="KLay (jax, cuda)", linewidth=1.5, color='blue', linestyle='--')
+    ax2.plot(timings, label="KLay (jax, cuda)", color='blue', linestyle='--')
     timings = np.cumsum(sorted(results['d4_kompyle']))
-    ax1.plot(timings, label="Depth-first (cpu)", linewidth=1.5, color='black')
+    ax2.plot(timings, label="Post-order (cpu)", color='black')
 
     ax1.set_ylabel("Cumulative Time (ms)")
 
-    ax2.plot(results['d4_nodes'], label="Nb of Nodes in d-DNNF", linewidth=1.5, color='black')
-    ax2.plot(results['klay_nodes'], label="Nb of Nodes after Layerization", linewidth=1.5, color='black', linestyle='--')
+    ax1.plot(results['d4_nodes'], label="Nb of Nodes in d-DNNF",  color='black')
+    ax1.plot(results['klay_nodes'], label="Nb of Nodes in KLay", color='black', linestyle='--')
+    legend = ax1.legend(fancybox=False)
+    legend.get_frame().set_linewidth(0.)
 
-    ax2.set_ylabel("Nb of Nodes")
+    ax1.set_ylabel("Nb of Nodes")
 
     for ax in [ax1, ax2]:
         ax.grid()
         ax.set_yscale('log')
         ax.set_xlabel("Instances")
         ax.set_xlim(0, len(results["d4_torch_log_cpu"])-1)
-        ax.legend()
+
+    lines, labels = ax2.get_legend_handles_labels()
+    legend = fig.legend(lines, labels, fancybox=False, edgecolor="black", loc='center', bbox_to_anchor=(1.14, 0.7))
+    legend.get_frame().set_linewidth(0.)
+
 
     fig.savefig("d4_bench.pdf", bbox_inches='tight')
 

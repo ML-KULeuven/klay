@@ -13,6 +13,7 @@ end
 
 for nb_vars in var_range
     for seed in 0:9
+        println("SDD $(nb_vars) $(seed)")
 
         sdd_path = "results/sdd/v$(nb_vars)_$(seed).sdd"
         vtree_path = "results/sdd/v$(nb_vars)_$(seed).vtree"
