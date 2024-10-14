@@ -2,18 +2,19 @@ import math
 
 import torch
 
+CUTOFF = -math.log(2)
 
-def log1mexp(x):
+def log1mexp(x, eps):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
     See [Maechler2012accurate]_ for details.
     https://github.com/pytorch/pytorch/issues/39242
     """
-    mask = -math.log(2) < x  # x < 0
+    mask = CUTOFF < x  # x < 0
     return torch.where(
         mask,
-        (-x.expm1()).log(),
-        (-x.exp()).log1p(),
+        (-x.expm1()+eps).log(),
+        (-x.exp()+eps).log1p(),
     )
 
 
@@ -44,9 +45,9 @@ class KnowledgeModule(torch.nn.Module):
                 layers.append(sum_layer(ptrs, csr))
         self.layers = torch.nn.Sequential(*layers)
 
-    def forward(self, weights, neg_weights=None):
+    def forward(self, weights, neg_weights=None, eps=0):
         if neg_weights is None:
-            neg_weights = self.negate(weights)
+            neg_weights = self.negate(weights, eps)
         x = encode_input(weights, neg_weights, self.zero, self.one)
         return self.layers(x)
 
