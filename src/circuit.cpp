@@ -490,9 +490,6 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
 
 
 
-namespace nb = nanobind;
-using namespace nb::literals;
-
 NB_MODULE(nanobind_ext, m) {
 m.doc() = "Layerize arithmetic circuits";
 
@@ -505,11 +502,11 @@ nb::class_<Circuit>(m, "Circuit")
 .def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("get_indices", &Circuit::get_indices)
-.def("nb_nodes", &Circuit::nb_nodes)
-.def("true_node", &Circuit::true_node)
-.def("false_node", &Circuit::false_node)
-.def("or_node", &Circuit::or_node)
-.def("literal_node", &Circuit::literal_node)
-.def("and_node", &Circuit::and_node)
-.def("set_root", &Circuit::set_root, "root"_a);
+.def("nb_nodes", &Circuit::nb_nodes, "number of nodes in the circuit")
+.def("true_node", &Circuit::true_node, "adds a true node to the circuit, and returns a pointer")
+.def("false_node", &Circuit::false_node, "adds a false node to the circuit, and returns a pointer")
+.def("literal_node", &Circuit::literal_node, "adds a literal node to the circuit ,and returns a pointer")
+.def("or_node", &Circuit::or_node, "children"_a, "adds an or node to the circuit, and returns a pointer")
+.def("and_node", &Circuit::and_node, "children"_a, "adds an and node to the circuit, and returns a pointer")
+.def("set_root", &Circuit::set_root, "root"_a, "marks a node pointer as root");
 }
