@@ -28,3 +28,18 @@ def test_multi_rooted():
     weights = torch.tensor([0.4, 0.8])
     expected = torch.tensor([0.4 + 0.2, 0.4 * 0.2])
     assert torch.allclose(m(weights), expected)
+    
+def test_multi_rooted_deeplog():
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    
+    and1 = c.and_node([l1, l2])
+    and2 = c.and_node([l2, l3])
+    
+    c.set_root(and1)
+    c.set_root(and2)
+
+    m = c.to_torch_module(semiring='real')
+    weights = torch.tensor([0.4, 0.8, 0.6])
+    expected = torch.tensor([0.4 * 0.8, 0.8 * 0.6])
+    assert torch.allclose(m(weights), expected)
