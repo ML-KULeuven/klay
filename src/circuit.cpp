@@ -492,7 +492,11 @@ namespace nb = nanobind;
 using namespace nb::literals;
 
 NB_MODULE(nanobind_ext, m) {
-m.doc() = "Layerize an SDD";
+m.doc() = "Layerize arithmetic circuits";
+
+nb::class_<NodePtr>(m, "NodePtr")
+.def("__repr__", &NodePtr::to_string)
+.def(nb::self == nb::self);
 
 nb::class_<Circuit>(m, "Circuit")
 .def(nb::init<>())

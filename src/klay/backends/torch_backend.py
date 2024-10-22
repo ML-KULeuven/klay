@@ -4,7 +4,7 @@ import torch
 
 CUTOFF = -math.log(2)
 
-def log1mexp(x, eps):
+def negate_log(x, eps):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
     See [Maechler2012accurate]_ for details.
@@ -16,6 +16,9 @@ def log1mexp(x, eps):
         (-x.expm1()+eps).log(),
         (-x.exp()+eps).log1p(),
     )
+
+def negate_real(x, eps):
+    return 1 - x
 
 
 def encode_input(pos, neg, zero, one):
@@ -116,12 +119,12 @@ def get_semiring(name: str):
     the zero and one elements, and a negation function.
     """
     if name == "real":
-        return SumLayer, ProdLayer, 0, 1, lambda x: 1 - x
+        return SumLayer, ProdLayer, 0, 1, negate_real
     elif name == "log":
-        return LogSumLayer, SumLayer, float('-inf'), 0, log1mexp
+        return LogSumLayer, SumLayer, float('-inf'), 0, negate_log
     elif name == "mpe":
-        return MaxLayer, ProdLayer, 0, 1, lambda x: 1 - x
+        return MaxLayer, ProdLayer, 0, 1, negate_real
     elif name == "godel":
-        return MaxLayer, MinLayer, 0, 1, lambda x: 1 - x
+        return MaxLayer, MinLayer, 0, 1, negate_real
     else:
         raise ValueError(f"Unknown semiring {name}")

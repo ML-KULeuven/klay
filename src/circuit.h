@@ -29,6 +29,7 @@ SOFTWARE.
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/ndarray.h>
+#include <nanobind/operators.h>
 
 #include <iostream>
 #include <fstream>
@@ -43,6 +44,30 @@ namespace nb = nanobind;
 using namespace nb::literals;
 
 typedef std::vector<nb::ndarray<nb::numpy, long int, nb::shape<-1>>> Arrays;
+
+
+class NodePtr {
+public:
+    NodePtr(Node* ptr) : ptr(ptr) { }
+
+    Node* get() {
+        return ptr;
+    }
+
+    std::string to_string() const {
+        const void * address = static_cast<const void*>(ptr);
+        std::stringstream ss;
+        ss << "NodePtr(" << address << ")";
+        return ss.str();
+    }
+
+    bool operator==(NodePtr other) const {
+        return this->ptr == other.ptr;
+    }
+
+private:
+    Node* ptr;
+};
 
 
 class Circuit {
@@ -89,8 +114,8 @@ private:
     void add_root(Node* new_root);
 
 public:
-    void set_root(nb::capsule root) {
-        Node* root_cast = static_cast<Node *>(root.data());
+    void set_root(NodePtr root) {
+        Node* root_cast = static_cast<Node *>(root.get());
         add_root(root_cast);
     }
 
@@ -189,36 +214,36 @@ public:
         }
     }
 
-    nb::capsule true_node() {
+    NodePtr true_node() {
         Node* node = Node::createTrueNode();
-        return nb::capsule(add_node_level_compressed(node));
+        return NodePtr(add_node_level_compressed(node));
     }
 
-    nb::capsule false_node() {
+    NodePtr false_node() {
         Node* node = Node::createFalseNode();
-        return nb::capsule(add_node_level_compressed(node));
+        return NodePtr(add_node_level_compressed(node));
     }
 
-    nb::capsule literal_node(int lit) {
+    NodePtr literal_node(int lit) {
         Node* node = Node::createLiteralNode(Lit::fromInt(lit));
-        return nb::capsule(add_node_level_compressed(node));
+        return NodePtr(add_node_level_compressed(node));
     }
 
-    nb::capsule and_node(std::vector<nb::capsule> children) {
+    NodePtr and_node(std::vector<NodePtr> children) {
         Node* node = Node::createAndNode();
         for (auto child: children) {
-            Node *child_cast = static_cast<Node *>(child.data());
+            Node *child_cast = child.get();
             node->add_child(child_cast);
         }
-        return nb::capsule(add_node_level_compressed(node));
+        return NodePtr(add_node_level_compressed(node));
     }
 
-    nb::capsule or_node(std::vector<nb::capsule> children) {
+    NodePtr or_node(std::vector<NodePtr> children) {
         Node* node = Node::createOrNode();
         for (auto child: children) {
-            Node *child_cast = static_cast<Node *>(child.data());
+            Node *child_cast = child.get();
             node->add_child(child_cast);
         }
-        return nb::capsule(add_node_level_compressed(node));
+        return NodePtr(add_node_level_compressed(node));
     }
 };
