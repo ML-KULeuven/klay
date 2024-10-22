@@ -379,6 +379,7 @@ void Circuit::add_root(Node* new_root) {
         }
     }
     roots.push_back(new_root);
+    /*
     if (nb_layers() > 1) {
         if (roots.size() != layers[new_root->layer].size()) {
             // All root nodes should be in the same layer.
@@ -410,6 +411,7 @@ void Circuit::add_root(Node* new_root) {
 
         remove_unused_nodes();
     }
+    */
 }
 
 
