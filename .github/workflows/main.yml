@@ -66,4 +66,4 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: dist/
           skip_existing: true
-          repository-url: https://gitlab.kuleuven.be/api/v4/projects/u0124251/deeplog/packages/pypi
+          repository-url: https://gitlab.kuleuven.be/api/v4/projects/19071/packages/pypi
