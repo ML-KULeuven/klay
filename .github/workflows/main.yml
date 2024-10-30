@@ -19,9 +19,50 @@ jobs:
         env:
           CIBW_TEST_REQUIRES: pytest torch numpy
           CIBW_TEST_COMMAND: "pytest {project}/tests"
-          CIBW_SKIP: cp36-* cp37-* cp38-* cp313-* pp* *i686 *ppc64le *s390x *win32*
+          CIBW_SKIP: cp36-* cp37-* cp38-* cp313-* pp* *i686 *ppc64le *s390x *win32* *musllinux*
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          name: dist-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
+
+  build_sdist:
+    name: Prepare source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Build
+        run: |
+          python -m pip install build
+          python -m build --sdist
+      - name: Store artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-source
+          path: dist/*.tar.gz
+
+  upload_wheels:
+    name: Upload wheels to private PyPI
+    runs-on: ubuntu-latest
+    needs: [ build_wheels,build_sdist ]
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: klay-deploy-user
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: dist/
+          skip_existing: true
+          repository-url: https://gitlab.kuleuven.be/u0124251/deeplog/-/packages/pypi
