@@ -19,6 +19,7 @@ jobs:
         env:
           CIBW_TEST_REQUIRES: pytest torch numpy
           CIBW_TEST_COMMAND: "pytest {project}/tests"
+          CIBW_SKIP: cp36-* cp37-* cp38-* cp313-* pp* *i686 *ppc64le *s390x *win32*
 
       - uses: actions/upload-artifact@v4
         with:
