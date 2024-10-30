@@ -9,7 +9,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14]
+       #os: [ubuntu-latest, windows-latest, macos-14]
+        os: [macos-14]
 
     steps:
       - uses: actions/checkout@v4
@@ -61,8 +62,8 @@ jobs:
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: klay-deploy-user
+          user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: dist/
           skip_existing: true
-          repository-url: https://gitlab.kuleuven.be/u0124251/deeplog/-/packages/pypi
+          repository-url: https://gitlab.kuleuven.be/api/v4/projects/u0124251/deeplog/packages/pypi
