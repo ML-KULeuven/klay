@@ -8,6 +8,7 @@ version = "0.0.1"
 description = "Arithmetic circuits on the GPU"
 readme = "README.md"
 requires-python = ">=3.9"
+dependencies = ["numpy"]
 authors = [
     { name = "Anonymized", email = "anonymized@example.com" },
 ]
