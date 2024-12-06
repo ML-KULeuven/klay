@@ -28,7 +28,8 @@ def test_multi_rooted():
     weights = torch.tensor([0.4, 0.8])
     expected = torch.tensor([0.4 + 0.2, 0.4 * 0.2])
     assert torch.allclose(m(weights), expected)
-    
+
+
 def test_multi_rooted2():
     c = klay.Circuit()
     l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
@@ -38,6 +39,21 @@ def test_multi_rooted2():
     c.set_root(and2)
 
     m = c.to_torch_module(semiring='real')
-    weights = torch.tensor([0.4, 0.8, 0.6])
+    w = torch.tensor([0.4, 0.8, 0.6])
     expected = torch.tensor([0.4 * 0.8, 0.8 * 0.6])
-    assert torch.allclose(m(weights), expected)
+    assert torch.allclose(m(w), expected)
+
+
+def test_multi_rooted_ordering():
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    and1 = c.and_node([l1, l2])
+    and2 = c.and_node([l2, l3])
+    c.set_root(and2)
+    c.set_root(and1)
+
+    m = c.to_torch_module(semiring='real')
+    w = torch.tensor([0.4, 0.8, 0.6])
+    expected = torch.tensor([0.8 * 0.6, 0.4 * 0.8])
+    print(m(w), expected)
+    assert torch.allclose(m(w), expected)

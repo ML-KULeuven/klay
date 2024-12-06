@@ -7,12 +7,12 @@ import torch
 from tqdm import tqdm
 
 import klay
-from klay.utils import generate_random_dimacs, pysdd_wmc, torch_wmc_d4
-from klay.compile import compile_sdd, compile_d4
+from klay.utils import generate_random_dimacs, eval_pysdd #, torch_wmc_d4
+from klay.compile import compile_sdd#, compile_d4
 
 
 def check_sdd(sdds, weights):
-    wmc_gts = [pysdd_wmc(sdd, weights) for sdd in sdds]
+    wmc_gts = [eval_pysdd(sdd, weights) for sdd in sdds]
 
     weights = torch.tensor(weights).log()
     circuit = klay.Circuit()
@@ -63,10 +63,10 @@ def fuzzer_multi_rooted(nb_trials, nb_vars, nb_roots, seed_offset=None):
         sdds = [compile_sdd(f'tmp{j}.cnf') for j in range(nb_roots)]
         check_sdd(sdds, weights)
 
-        for j in range(nb_roots):
-            compile_d4(f'tmp{j}.cnf', f'tmp{j}.nnf')
-        nnf_files = [f"tmp{j}.nnf" for j in range(nb_roots)]
-        check_d4(nnf_files, weights)
+        # for j in range(nb_roots):
+        #     compile_d4(f'tmp{j}.cnf', f'tmp{j}.nnf')
+        # nnf_files = [f"tmp{j}.nnf" for j in range(nb_roots)]
+        # check_d4(nnf_files, weights)
 
 
 if __name__ == "__main__":

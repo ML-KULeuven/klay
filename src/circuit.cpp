@@ -367,9 +367,9 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
 }
 
 void Circuit::add_root(Node* new_root) {
-    int old_depth = roots.empty() ? -1 : roots[0]->layer;
     // Bring roots to the same layer
-    if (old_depth >= 0) {
+    if (!roots.empty()) {
+        std::size_t old_depth = roots[0]->layer;
         while (old_depth > new_root->layer)
             new_root = add_node(new_root->dummy_parent());
 
@@ -379,6 +379,11 @@ void Circuit::add_root(Node* new_root) {
         }
     }
     roots.push_back(new_root);
+
+    // Fix ordering of roots
+    for (size_t i = 0; i < roots.size(); ++i)
+        roots[i]->ix = i;
+
     /*
     if (nb_layers() > 1) {
         if (roots.size() != layers[new_root->layer].size()) {
@@ -404,10 +409,6 @@ void Circuit::add_root(Node* new_root) {
                 layers.pop_back();
             }
         }
-        // Fix index for each root correctly
-        // Important for output order expectation
-        for (size_t i = 0; i < roots.size(); ++i)
-            roots[i]->ix = i;
 
         remove_unused_nodes();
     }

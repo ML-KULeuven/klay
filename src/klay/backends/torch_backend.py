@@ -4,7 +4,7 @@ import torch
 
 CUTOFF = -math.log(2)
 
-def negate_log(x, eps):
+def log1mexp(x, eps):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
     See [Maechler2012accurate]_ for details.
@@ -121,7 +121,7 @@ def get_semiring(name: str):
     if name == "real":
         return SumLayer, ProdLayer, 0, 1, negate_real
     elif name == "log":
-        return LogSumLayer, SumLayer, float('-inf'), 0, negate_log
+        return LogSumLayer, SumLayer, float('-inf'), 0, log1mexp
     elif name == "mpe":
         return MaxLayer, ProdLayer, 0, 1, negate_real
     elif name == "godel":
