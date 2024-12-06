@@ -380,9 +380,11 @@ void Circuit::add_root(Node* new_root) {
     }
     roots.push_back(new_root);
 
-    // Fix ordering of roots
-    for (size_t i = 0; i < roots.size(); ++i)
-        roots[i]->ix = i;
+
+    if (new_root->layer != 0) {
+	    for (size_t i = 0; i < roots.size(); ++i)
+        	roots[i]->ix = i;
+    }
 
     /*
     if (nb_layers() > 1) {
