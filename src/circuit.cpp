@@ -382,8 +382,18 @@ void Circuit::add_root(Node* new_root) {
 
 
     if (new_root->layer != 0) {
-	    for (size_t i = 0; i < roots.size(); ++i)
-        	roots[i]->ix = i;
+    	// root layer's order might have changed:
+        // set ix back to those according to `roots` list.
+        // Since `roots` may contain duplicate node refs:
+        // we first set all ix to -1 to detect the duplicate refs.
+      	for (size_t i = 0; i < roots.size(); ++i)
+        	roots[i]->ix = -1;
+
+      	int root_idx = 0;
+	    for (size_t i = 0; i < roots.size(); ++i) {
+        	if (roots[i]->ix == -1)
+        		roots[i]->ix = root_idx++;
+        }
     }
 
     /*
