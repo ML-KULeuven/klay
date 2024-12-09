@@ -17,7 +17,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.3
         env:
-          CIBW_TEST_REQUIRES: pytest torch==2.5.1
+          CIBW_TEST_REQUIRES: pytest torch==2.5.1, pysdd==1.0.0
           CIBW_TEST_COMMAND: "pytest {project}/tests"
           CIBW_SKIP: cp36-* cp37-* cp38-* cp313-* pp* *i686 *ppc64le *s390x *win32* *musllinux*
           CIBW_TEST_SKIP: cp39-macosx_x86_64 cp310-macosx_x86_64 cp311-macosx_x86_64 cp312-macosx_x86_64
