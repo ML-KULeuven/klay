@@ -484,6 +484,8 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
         csr_ndarrays.push_back(csr_ndarray);
     }
     // remove root layer again
+    for (Node* node: layers.back())
+        delete node;
     layers.pop_back();
 
     return std::make_pair(indices_ndarrays, csr_ndarrays);
