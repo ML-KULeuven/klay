@@ -380,22 +380,6 @@ void Circuit::add_root(Node* new_root) {
     }
     roots.push_back(new_root);
 
-
-    if (new_root->layer != 0) {
-    	// root layer's order might have changed:
-        // set ix back to those according to `roots` list.
-        // Since `roots` may contain duplicate node refs:
-        // we first set all ix to -1 to detect the duplicate refs.
-      	for (size_t i = 0; i < roots.size(); ++i)
-        	roots[i]->ix = -1;
-
-      	int root_idx = 0;
-	    for (size_t i = 0; i < roots.size(); ++i) {
-        	if (roots[i]->ix == -1)
-        		roots[i]->ix = root_idx++;
-        }
-    }
-
     /*
     if (nb_layers() > 1) {
         if (roots.size() != layers[new_root->layer].size()) {
@@ -458,11 +442,12 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
     // per layer, a vector representing the layer
     Arrays csr_ndarrays;
 
-    if (layers.size() == 1)
-        // add node for roots
-        for (Node* root: roots)
-            add_node(root->dummy_parent());
-
+    // add root layer on top
+    for (std::size_t i=0; i<roots.size(); i++) {
+        Node* root = roots[i]->dummy_parent();
+        root->hash = i;
+        add_node(root);
+    }
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
         std::vector<long int> child_counts(layers[i].size(), 0);
@@ -498,6 +483,9 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
         indices_ndarrays.push_back(indices_ndarray);
         csr_ndarrays.push_back(csr_ndarray);
     }
+    // remove root layer again
+    layers.pop_back();
+
     return std::make_pair(indices_ndarrays, csr_ndarrays);
 }
 
