@@ -2,6 +2,8 @@ import math
 from time import perf_counter
 import random
 from array import array
+# noinspection PyUnresolvedReferences
+from .nanobind_ext import to_dot_file
 
 import torch
 try:
@@ -249,3 +251,11 @@ def jax_weights(nb_vars, semiring = "log"):
     weights = jax.numpy.array(weights)
     neg_weights = jax.numpy.array(neg_weights)
     return weights, neg_weights
+
+def circuit_to_dot(circuit, filename):
+    """
+    Write the given circuit as dot format to a file.
+    :param circuit: The circuit to write as dot format.
+    :param filename: The filepath to write to.
+    """
+    to_dot_file(circuit, filename)

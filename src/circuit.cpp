@@ -363,6 +363,15 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
             file << "  " << node->hash << " [label=\"" << node->get_label() << "\"]" << std::endl;
         }
     }
+    // Group nodes per layer
+    // using { rank=same; 1; 2; } to group node 1 and 2
+    for (const auto &layer: circuit.layers) {
+          file << "  { rank=same; ";
+          for (const auto *node : layer) {
+              file << node->hash << "; ";
+          }
+          file << "}" << std::endl;
+    }
     file << "}" << std::endl;
 }
 
@@ -435,7 +444,7 @@ void cleanup(void* data) noexcept {
 
 
 std::pair<Arrays, Arrays> Circuit::tensorize() {
-    // print_circuit(); // Helpful for debugging small circuits
+    print_circuit(); // Helpful for debugging small circuits
     // per layer, a vector of size the number of children (but children can count twice
     // so this might be larger than simply the previous layer.
     Arrays indices_ndarrays;
@@ -512,4 +521,6 @@ nb::class_<Circuit>(m, "Circuit")
 .def("or_node", &Circuit::or_node, "children"_a, "adds an or node to the circuit, and returns a pointer")
 .def("and_node", &Circuit::and_node, "children"_a, "adds an and node to the circuit, and returns a pointer")
 .def("set_root", &Circuit::set_root, "root"_a, "marks a node pointer as root");
+
+m.def("to_dot_file", &to_dot_file, "circuit"_a, "filename"_a, "Write the given circuit as dot format to a file");
 }
