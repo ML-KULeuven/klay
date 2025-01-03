@@ -12,7 +12,7 @@ def test_node_equality():
 def test_or_node():
     c = klay.Circuit()
     l1, l2 = c.literal_node(1), c.literal_node(-2)
-    or_node = c.or_node([l1, l2])
+    c.set_root(c.or_node([l1, l2]))
 
     m = c.to_torch_module(semiring='real')
     weights = torch.tensor([0.4, 0.8])
@@ -72,6 +72,18 @@ def test_single_layer_multi_root():
     expected = torch.tensor([0.4, 0.2, 0.4])
     assert torch.allclose(m(weights), expected)
 
+def test_superfluous_nodes_after_root():
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    and_node = c.and_node([l1, l2])
+    or_node = c.or_node([and_node, l3])
+    c.set_root(and_node)
+
+    weights = torch.tensor([0.25, 0.5, 0.2])
+    expected = torch.tensor([0.125])
+    m = c.to_torch_module(semiring='real')
+    assert torch.allclose(m(weights), expected)
+
 
 def test_sdd_literal():
     sdd_mgr = SddManager(var_count=2)
@@ -94,6 +106,6 @@ def test_sdd_multiroot():
     c.add_sdd(a & b & b)
     c.add_sdd(a & a)
     m = c.to_torch_module(semiring='real')
-    weights = torch.tensor([0.4, 0.5])
-    expected = torch.tensor([0.4, 0.2, 0.2, 0.4])
+    weights = torch.tensor([0.2, 0.5])
+    expected = torch.tensor([0.2, 0.1, 0.1, 0.2])
     assert torch.allclose(m(weights), expected)
