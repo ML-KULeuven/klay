@@ -67,7 +67,7 @@ Node* Circuit::add_node_level(Node* node) {
 }
 
 Node* Circuit::add_node_level_compressed(Node* node) {
-    return add_node_level(node);
+    // return add_node_level(node);
     if (node->type != NodeType::And && node->type != NodeType::Or)
         return add_node_level(node);
 
@@ -206,6 +206,8 @@ size_t Circuit::max_layer_width() const {
 }
 
 void Circuit::remove_unused_nodes() {
+    // Should be run before adding a final root layer;
+    // because it might change ix's.
     std::vector<std::vector<bool>> used;
     used.reserve(nb_layers());
     for (const auto& layer : layers)
@@ -238,7 +240,8 @@ void Circuit::remove_unused_nodes() {
         }
     }
 
-    // Clean-up: last layers can be empty (but intermediate ones should not)
+    // Clean-up: last layers can be empty, pop those.
+    // Intermediate layers can not be empty because we use dummy nodes.
     for (std::size_t i = nb_layers()-1; i > 0; --i) {
         if (layers[i].empty()) {
             layers.pop_back();
@@ -257,14 +260,10 @@ void Circuit::remove_unused_nodes() {
         for (auto &node : layers[i])
             node->ix = index++;
     }
-    // Clean-up: last layer has fixed ix order
-    for(size_t i = 0; i < roots.size(); ++i)
-        roots[i]->ix = i;
+
 
 #ifndef NDEBUG
     // print_circuit();
-    // assert, last layer should only contain root nodes.
-    assert(roots.size() == layers[nb_layers()-1].size());
 
     if (layers.size() > 2) {
         // check for each layer, for each node, whether the idx
@@ -388,36 +387,7 @@ void Circuit::add_root(Node* new_root) {
         }
     }
     roots.push_back(new_root);
-
-    /*
-    if (nb_layers() > 1) {
-        if (roots.size() != layers[new_root->layer].size()) {
-            // All root nodes should be in the same layer.
-            // Due to compression, other nodes can also be
-            // present in the root layer. If so, we remove them.
-            // we then also remove any layer above.
-            assert(roots.size() < layers[new_root->layer].size());
-            // Remove other nodes in the root layer
-            for (auto it = layers[new_root->layer].begin(); it != layers[new_root->layer].end();) {
-                if (std::find(roots.begin(), roots.end(), *it) == roots.end()) {
-                    Node* del_node = *it;
-                    it = layers[new_root->layer].erase(it);
-                    delete del_node;
-                } else {
-                    ++it;
-                }
-            }
-            // Remove layers above root layer
-            for (std::size_t i = nb_layers()-1; i > new_root->layer; --i) {
-                for (auto *node: layers[i])
-                    delete node;
-                layers.pop_back();
-            }
-        }
-
-        remove_unused_nodes();
-    }
-    */
+    return;
 }
 
 
@@ -444,7 +414,9 @@ void cleanup(void* data) noexcept {
 
 
 std::pair<Arrays, Arrays> Circuit::tensorize() {
-    print_circuit(); // Helpful for debugging small circuits
+ 	remove_unused_nodes();
+
+    // print_circuit(); // Helpful for debugging small circuits
     // per layer, a vector of size the number of children (but children can count twice
     // so this might be larger than simply the previous layer.
     Arrays indices_ndarrays;
@@ -515,12 +487,14 @@ nb::class_<Circuit>(m, "Circuit")
 .def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("get_indices", &Circuit::get_indices)
 .def("nb_nodes", &Circuit::nb_nodes, "number of nodes in the circuit")
+.def("nb_root_nodes", &Circuit::nb_root_nodes, "number of root nodes in the circuit")
 .def("true_node", &Circuit::true_node, "adds a true node to the circuit, and returns a pointer")
 .def("false_node", &Circuit::false_node, "adds a false node to the circuit, and returns a pointer")
 .def("literal_node", &Circuit::literal_node, "adds a literal node to the circuit ,and returns a pointer")
 .def("or_node", &Circuit::or_node, "children"_a, "adds an or node to the circuit, and returns a pointer")
 .def("and_node", &Circuit::and_node, "children"_a, "adds an and node to the circuit, and returns a pointer")
-.def("set_root", &Circuit::set_root, "root"_a, "marks a node pointer as root");
+.def("set_root", &Circuit::set_root, "root"_a, "marks a node pointer as root")
+.def("remove_unused_nodes", &Circuit::remove_unused_nodes, "Removes unused non-root nodes from the circuit.\nCareful! This invalidates any NodePtr refering to an unused node (i.e., a node not conneected to a root node).");
 
 m.def("to_dot_file", &to_dot_file, "circuit"_a, "filename"_a, "Write the given circuit as dot format to a file");
 }
