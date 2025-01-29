@@ -374,26 +374,9 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-void Circuit::add_root(Node* new_root) {
-    // Bring roots to the same layer
-    if (!roots.empty()) {
-        std::size_t old_depth = roots[0]->layer;
-        while (old_depth > new_root->layer)
-            new_root = add_node(new_root->dummy_parent());
-
-        for (; old_depth < new_root->layer; ++old_depth) {
-            for (std::size_t i = 0; i < roots.size(); ++i)
-                roots[i] = add_node(roots[i]->dummy_parent());
-        }
-    }
-    roots.push_back(new_root);
-    return;
-}
-
-
 void Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
-    add_root(new_root);
+    roots.push_back(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_sdd.dot");
 #endif
@@ -401,34 +384,46 @@ void Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& t
 
 void Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
-    add_root(new_root);
+    roots.push_back(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_d4.dot");
 #endif
 }
 
 
+void Circuit::add_root_layer() {
+    if (roots.empty())
+        throw std::runtime_error("Cannot construct root layer, there are no roots!");
+
+    std::size_t root_layer_index = nb_layers();
+    for (std::size_t i=0; i<roots.size(); i++) {
+        Node* root = roots[i];
+        while (root->layer < root_layer_index) {
+            root = root->dummy_parent();
+            if (root->layer == root_layer_index)
+                root->hash = i; // in the final layer, nodes are placed in the same order as the roots vector
+            root = add_node(root);
+        }
+        roots[i] = root;
+    }
+}
+
+
 void cleanup(void* data) noexcept {
-    delete[] static_cast<long int*>(data);
+	delete[] static_cast<long int*>(data);
 }
 
 
 std::pair<Arrays, Arrays> Circuit::tensorize() {
- 	remove_unused_nodes();
+    remove_unused_nodes();
+	add_root_layer();
+    //print_circuit(); // Helpful for debugging small circuits
 
-    // print_circuit(); // Helpful for debugging small circuits
     // per layer, a vector of size the number of children (but children can count twice
     // so this might be larger than simply the previous layer.
     Arrays indices_ndarrays;
     // per layer, a vector representing the layer
     Arrays csr_ndarrays;
-
-    // add root layer on top
-    for (std::size_t i=0; i<roots.size(); i++) {
-        Node* root = roots[i]->dummy_parent();
-        root->hash = i;
-        add_node(root);
-    }
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
         std::vector<long int> child_counts(layers[i].size(), 0);
@@ -464,10 +459,6 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
         indices_ndarrays.push_back(indices_ndarray);
         csr_ndarrays.push_back(csr_ndarray);
     }
-    // remove root layer again
-    for (Node* node: layers.back())
-        delete node;
-    layers.pop_back();
 
     return std::make_pair(indices_ndarrays, csr_ndarrays);
 }

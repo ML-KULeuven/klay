@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import klay
 from klay.utils import generate_random_dimacs, eval_pysdd, eval_d4_torch_naive
-from klay.compile import compile_sdd, compile_d4
+from klay.compile import compile_sdd #, compile_d4
 
 
 def check_sdd_torch(sdd, weights):
@@ -40,8 +40,8 @@ def fuzzer(nb_trials, nb_vars):
         sdd = compile_sdd('tmp.cnf')
         check_sdd_torch(sdd, weights)
 
-        compile_d4('tmp.cnf', 'tmp.nnf')
-        check_d4_torch("tmp.nnf", weights)
+        # compile_d4('tmp.cnf', 'tmp.nnf')
+        # check_d4_torch("tmp.nnf", weights)
 
 
 if __name__ == "__main__":

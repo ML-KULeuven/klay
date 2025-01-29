@@ -108,15 +108,14 @@ private:
     Node* add_node(Node* node);
 
     /**
-     * Add a root node to the circuit, and adjust the circuit
-     * so that all roots are still on the same level.
+     *  Moves all roots to a new layer at the top of the circuit.
      */
-    void add_root(Node* new_root);
+    void add_root_layer();
 
 public:
     void set_root(NodePtr root) {
         Node* root_cast = static_cast<Node *>(root.get());
-        add_root(root_cast);
+        roots.push_back(root_cast);
     }
 
     /**
