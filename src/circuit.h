@@ -195,6 +195,10 @@ public:
         return count;
     }
 
+    std::size_t nb_root_nodes() const {
+        return roots.size();
+    }
+
     /**
      * For debugging purposes;
      * prints every node of each layer
