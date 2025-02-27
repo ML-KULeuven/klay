@@ -4,6 +4,7 @@ import torch
 
 CUTOFF = -math.log(2)
 
+
 def log1mexp(x, eps):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
@@ -13,9 +14,10 @@ def log1mexp(x, eps):
     mask = CUTOFF < x  # x < 0
     return torch.where(
         mask,
-        (-x.expm1()+eps).log(),
-        (-x.exp()+eps).log1p(),
+        (-x.expm1() + eps).log(),
+        (-x.exp() + eps).log1p(),
     )
+
 
 def negate_real(x, eps):
     return 1 - x
@@ -34,7 +36,7 @@ def unroll_csr(csr):
 
 
 class KnowledgeModule(torch.nn.Module):
-    def __init__(self, pointers, csrs, semiring='real'):
+    def __init__(self, pointers, csrs, semiring="real"):
         super(KnowledgeModule, self).__init__()
         layers = []
         sum_layer, prod_layer, self.zero, self.one, self.negate = get_semiring(semiring)
@@ -57,15 +59,17 @@ class KnowledgeModule(torch.nn.Module):
     def sparsity(self, nb_vars):
         sparse_params = sum(len(l.csr) for l in self.layers)
         layer_widths = [nb_vars] + [l.out_shape[0] for l in self.layers]
-        dense_params  = sum(layer_widths[i] * layer_widths[i+1] for i in range(len(layer_widths) - 1))
+        dense_params = sum(
+            layer_widths[i] * layer_widths[i + 1] for i in range(len(layer_widths) - 1)
+        )
         return sparse_params / dense_params
 
 
 class KnowledgeLayer(torch.nn.Module):
     def __init__(self, ptrs, csr):
         super().__init__()
-        self.register_buffer('ptrs', ptrs)
-        self.register_buffer('csr', csr)
+        self.register_buffer("ptrs", ptrs)
+        self.register_buffer("csr", csr)
         self.out_shape = (self.csr[-1].item() + 1,)
 
 
@@ -79,21 +83,42 @@ class SumLayer(KnowledgeLayer):
 class ProdLayer(KnowledgeLayer):
     def forward(self, x):
         output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-        output = torch.scatter_reduce(output, 0, index=self.csr, src=x[self.ptrs], reduce="prod", include_self=False)
+        output = torch.scatter_reduce(
+            output,
+            0,
+            index=self.csr,
+            src=x[self.ptrs],
+            reduce="prod",
+            include_self=False,
+        )
         return output
 
 
 class MinLayer(KnowledgeLayer):
     def forward(self, x):
         output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-        output = torch.scatter_reduce(output, 0, index=self.csr, src=x[self.ptrs], reduce="amin", include_self=False)
+        output = torch.scatter_reduce(
+            output,
+            0,
+            index=self.csr,
+            src=x[self.ptrs],
+            reduce="amin",
+            include_self=False,
+        )
         return output
 
 
 class MaxLayer(KnowledgeLayer):
     def forward(self, x):
         output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-        output = torch.scatter_reduce(output, 0, index=self.csr, src=x[self.ptrs], reduce="amax", include_self=False)
+        output = torch.scatter_reduce(
+            output,
+            0,
+            index=self.csr,
+            src=x[self.ptrs],
+            reduce="amax",
+            include_self=False,
+        )
         return output
 
 
@@ -102,9 +127,11 @@ class LogSumLayer(KnowledgeLayer):
         x = x[self.ptrs]
         with torch.no_grad():
             max_output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-            max_output = torch.scatter_reduce(max_output, 0, index=self.csr, src=x, reduce="amax", include_self=False)
+            max_output = torch.scatter_reduce(
+                max_output, 0, index=self.csr, src=x, reduce="amax", include_self=False
+            )
         x = x - max_output[self.csr]
-        x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
+        x.nan_to_num_(nan=0.0, posinf=float("inf"), neginf=float("-inf"))
         x = torch.exp(x)
 
         output = torch.full(self.out_shape, epsilon, dtype=x.dtype, device=x.device)
@@ -121,7 +148,7 @@ def get_semiring(name: str):
     if name == "real":
         return SumLayer, ProdLayer, 0, 1, negate_real
     elif name == "log":
-        return LogSumLayer, SumLayer, float('-inf'), 0, log1mexp
+        return LogSumLayer, SumLayer, float("-inf"), 0, log1mexp
     elif name == "mpe":
         return MaxLayer, ProdLayer, 0, 1, negate_real
     elif name == "godel":
