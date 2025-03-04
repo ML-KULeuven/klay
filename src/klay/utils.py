@@ -13,7 +13,11 @@ except ImportError:
 
 
 from klay.backends.torch_backend import log1mexp
-from pysdd.iterator import SddIterator
+
+try:
+    from pysdd.iterator import SddIterator
+except ImportError:
+    pass
 
 
 def generate_random_dimacs(file_name: str, var_count: int, clause_count: int, seed: int = 1, clause_length: int = 3):
