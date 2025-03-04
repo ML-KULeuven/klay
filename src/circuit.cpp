@@ -374,20 +374,22 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-void Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
+NodePtr Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_sdd.dot");
 #endif
+    return NodePtr(new_root);
 }
 
-void Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
+NodePtr Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_d4.dot");
 #endif
+    return NodePtr(new_root);
 }
 
 
