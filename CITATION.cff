@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Maene"
+  given-names: "Jaron"
+  orcid: "https://orcid.org/0000-0001-9474-6150"
+- family-names: "Derkinderen"
+  given-names: "Vincent"
+  orcid: "https://orcid.org/0000-0002-8894-270X"
+- family-names: "Zuidberg Dos Martires"
+  given-names: "Pedro"
+  orcid: "https://orcid.org/0000-0001-5834-0188"
+title: "KLay: Accelerating Arithmetic Circuits for Neurosymbolic AI"
+version: 0.0.2
+date-released: 2024-12-10
+url: "https://github.com/ML-KULeuven/klay/"
+keywords:
+  - Neurosymbolic AI
+  - Arithmetic Circuits
+  - Sparse Inference
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: "Maene"
+    given-names: "Jaron"
+    orcid: "https://orcid.org/0000-0001-9474-6150"
+  - family-names: "Derkinderen"
+    given-names: "Vincent"
+    orcid: "https://orcid.org/0000-0002-8894-270X"
+  - family-names: "Zuidberg Dos Martires"
+    given-names: "Pedro"
+    orcid: "https://orcid.org/0000-0001-5834-0188"
+  title: "{KLay}: Accelerating Arithmetic Circuits for Neurosymbolic AI"
+  year: 2025
+  publisher:
+    name: OpenReview.net
+  collection-title: "{ICLR}"
+
+
+
