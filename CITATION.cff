@@ -30,11 +30,11 @@ preferred-citation:
   - family-names: "Zuidberg Dos Martires"
     given-names: "Pedro"
     orcid: "https://orcid.org/0000-0001-5834-0188"
-  title: "{KLay}: Accelerating Arithmetic Circuits for Neurosymbolic AI"
+  title: "KLay: Accelerating Arithmetic Circuits for Neurosymbolic AI"
   year: 2025
   publisher:
     name: OpenReview.net
-  collection-title: "{ICLR}"
+  collection-title: "ICLR"
 
 
 
