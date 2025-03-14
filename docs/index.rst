@@ -13,11 +13,14 @@ At its core, KLay transforms sparse directed acyclic graphs into layers that can
 .. image:: _static/scatter_reduce.png
   :width: 400
 
+----
 
+Contents
+********
 
 .. toctree::
 
    Home <self>
    quickstart
-   api
+   circuit_creation
 

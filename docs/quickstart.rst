@@ -18,8 +18,7 @@ Usage
 *****
 
 First, we need to create a circuit. You can both manually define the circuit, or import it from a knowledge compiler.
-So far KLay supports the PySDD and d4 circuit formats.
-For example, you can load in a PySDD circuit as follows.
+For more information, check out the :ref:`circuit_construction` guide.
 
 .. code-block:: Python
 
@@ -28,21 +27,27 @@ For example, you can load in a PySDD circuit as follows.
    circuit = klaycircuits.Circuit()
    circuit.add_sdd(sdd_node)
 
-For more information on circuit construction, check out <todo>.
-
 Now that we have the circuit, we can evaluate it. To do this, we first turn the circuit into a PyTorch module.
-Other backends such as Jax are also supported.
 
 .. code-block:: Python
 
    import torch
 
    module = circuit.to_torch_module()
+   module = module.to("cuda:0")
 
-We can use this module as any other PyTorch module. The expected input is a tensor with the weights for each literal.
+We can use our circuit as any other PyTorch module. The input should be a tensor with the weights for each literal, and the output is the result of evaluating circuit.
 
 .. code-block:: Python
 
-   weights = torch.tensor([...])
+   weights = torch.tensor([...], device="cuda:0")
    result = module(weights)
    result.backward()
+
+Backends
+********
+
+KLay needs a backend to evaluate the circuit in. So far, we implemented two different backends.
+
+- PyTorch: :code:`torch_module = circuit.to_torch_module()`
+- Jax: :code:`jax_function = circuit.to_jax_function()`
