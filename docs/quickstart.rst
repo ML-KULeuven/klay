@@ -22,9 +22,9 @@ For more information, check out the :ref:`circuit_construction` guide.
 
 .. code-block:: Python
 
-   import klaycircuits
+   from klaycircuits import Circuit
 
-   circuit = klaycircuits.Circuit()
+   circuit = Circuit()
    circuit.add_sdd(sdd_node)
 
 Now that we have the circuit, we can evaluate it. To do this, we first turn the circuit into a PyTorch module.
@@ -36,7 +36,9 @@ Now that we have the circuit, we can evaluate it. To do this, we first turn the 
    module = circuit.to_torch_module()
    module = module.to("cuda:0")
 
-We can use our circuit as any other PyTorch module. The input should be a tensor with the weights for each literal, and the output is the result of evaluating circuit.
+We can use our circuit as any other PyTorch module.
+The input should be a tensor with the weights for each literal, and the output is the result of evaluating circuit.
+For more details, see the :ref:`circuit_eval` guide.
 
 .. code-block:: Python
 
@@ -44,10 +46,3 @@ We can use our circuit as any other PyTorch module. The input should be a tensor
    result = module(weights)
    result.backward()
 
-Backends
-********
-
-KLay needs a backend to evaluate the circuit in. So far, we implemented two different backends.
-
-- PyTorch: :code:`torch_module = circuit.to_torch_module()`
-- Jax: :code:`jax_function = circuit.to_jax_function()`

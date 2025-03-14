@@ -12,16 +12,16 @@ An SDD can be loaded from a file as follows.
 
 .. code-block:: Python
 
-   import klaycircuits
+   from klaycircuits import Circuit
 
-   circuit = klaycircuits.Circuit()
+   circuit = Circuit()
    circuit.add_SDD_from_file("path/to/my.sdd")
 
 Similarly, for d4 we can use
 
 .. code-block:: Python
 
-   circuit = klaycircuits.Circuit()
+   circuit = Circuit()
    circuit.add_D4_from_file("path/to/my.nnf")
 
 SDDs can also be loaded directly from a PySDD :code:`SddNode` object.
@@ -33,7 +33,7 @@ SDDs can also be loaded directly from a PySDD :code:`SddNode` object.
    manager = SddManager(var_count = 2)
    sdd_node = manager.literal(1) & manager.literal(2)
 
-   circuit = klaycircuits.Circuit()
+   circuit = Circuit()
    circuit.add_sdd(sdd_node)
 
 
@@ -44,7 +44,7 @@ If you want to evaluate multiple circuits in parallel, you can merge them into a
 
 .. code-block:: Python
 
-   circuit = klaycircuits.Circuit()
+   circuit = Circuit()
    circuit.add_sdd(first_sdd)
    circuit.add_sdd(second_sdd)
 
@@ -60,7 +60,7 @@ We start by defining some literals.
 
 .. code-block:: Python
 
-    circuit = klaycircuits.Circuit()
+    circuit = Circuit()
     a = circuit.literal_node(1)
     b = circuit.literal_node(-2)
 
