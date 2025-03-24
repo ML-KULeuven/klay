@@ -124,7 +124,7 @@ class VisualSudokuNaive(VisualSudokuModule):
 def get_circuit(grid_size: int):
     circuit = klay.Circuit()
     const_lits = [] # [-x for x in range(1, grid_size**3+1)]
-    circuit.add_D4_from_file(f"experiments/visual_sudoku/sudoku_{grid_size}.nnf", true_lits = const_lits)
+    circuit.add_d4_from_file(f"experiments/visual_sudoku/sudoku_{grid_size}.nnf", true_lits = const_lits)
     print("Nb nodes", circuit.nb_nodes())
     return circuit.to_torch_module()
 

@@ -15,14 +15,14 @@ An SDD can be loaded from a file as follows.
    from klaycircuits import Circuit
 
    circuit = Circuit()
-   circuit.add_SDD_from_file("path/to/my.sdd")
+   circuit.add_sdd_from_file("path/to/my.sdd")
 
 Similarly, for d4 we can use
 
 .. code-block:: Python
 
    circuit = Circuit()
-   circuit.add_D4_from_file("path/to/my.nnf")
+   circuit.add_d4_from_file("path/to/my.nnf")
 
 SDDs can also be loaded directly from a PySDD :code:`SddNode` object.
 

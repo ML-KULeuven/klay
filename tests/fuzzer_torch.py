@@ -36,7 +36,7 @@ def check_d4(nnf_file, weights):
     wmc_gt = float(wmc_gt)
 
     circuit = klay.Circuit()
-    circuit.add_D4_from_file(nnf_file)
+    circuit.add_d4_from_file(nnf_file)
     kl = circuit.to_torch_module()
     result = kl(weights)
     result.backward()

@@ -40,7 +40,7 @@ def add_sdd(self: Circuit, sdd: "SddNode", true_lits: Sequence[int] = (), false_
     from pathlib import Path
 
     sdd.save(bytes(Path("tmp.sdd")))
-    self.add_SDD_from_file("tmp.sdd", true_lits, false_lits)
+    self.add_sdd_from_file("tmp.sdd", true_lits, false_lits)
     os.remove("tmp.sdd")
 
 

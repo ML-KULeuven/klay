@@ -41,7 +41,7 @@ def check_d4(nnf_files, weights):
 
     circuit = klay.Circuit()
     for nnf_file in nnf_files:
-        circuit.add_D4_from_file(nnf_file)
+        circuit.add_d4_from_file(nnf_file)
     kl = circuit.to_torch_module()
     result = kl(weights.log())
     result.backward(torch.ones_like(result))

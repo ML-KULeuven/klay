@@ -27,7 +27,7 @@ def main(batch_size):
         print(f"Loaded SDD {sdd.count() + sdd.size()}")
 
         circuit = klay.Circuit()
-        circuit.add_SDD_from_file(sdd_file)
+        circuit.add_sdd_from_file(sdd_file)
         print(f"Layerized in {circuit.nb_nodes()} nodes and {len(circuit.to_torch_module().layers)} layers")
 
         for device in ['cpu', 'cuda']:

@@ -24,9 +24,9 @@ API Reference
 
     .. automethod:: remove_unused_nodes
 
-    .. automethod:: add_SDD_from_file
+    .. automethod:: add_sdd_from_file
 
-    .. automethod:: add_D4_from_file
+    .. automethod:: add_d4_from_file
 
     .. automethod:: to_torch_module
 

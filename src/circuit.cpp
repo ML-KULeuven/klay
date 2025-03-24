@@ -108,7 +108,7 @@ Node* Circuit::add_node_level_compressed(Node* node) {
 }
 
 /**
- * Auxiliary method for Circuit::add_SDD_from_file
+ * Auxiliary method for Circuit::add_sdd_from_file
  */
 Node* parseSDDFile(const std::string& filename, Circuit& circuit, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     std::ifstream file(filename);
@@ -350,7 +350,7 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-NodePtr Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
+NodePtr Circuit::add_sdd_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
@@ -359,7 +359,7 @@ NodePtr Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>
     return NodePtr(new_root);
 }
 
-NodePtr Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
+NodePtr Circuit::add_d4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
@@ -452,8 +452,8 @@ nb::class_<NodePtr>(m, "NodePtr")
 
 nb::class_<Circuit>(m, "Circuit")
 .def(nb::init<>())
-.def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
-.def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
+.def("add_sdd_from_file", &Circuit::add_sdd_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
+.def("add_d4_from_file", &Circuit::add_d4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
 .def("_get_indices", &Circuit::get_indices)
 .def("nb_nodes", &Circuit::nb_nodes, "Number of nodes in the circuit.")
 .def("nb_root_nodes", &Circuit::nb_root_nodes, "Number of root nodes in the circuit.")
@@ -463,7 +463,7 @@ nb::class_<Circuit>(m, "Circuit")
 .def("or_node", &Circuit::or_node, "children"_a, "Adds an :code:`or` node to the circuit, and returns it as a pointer.")
 .def("and_node", &Circuit::and_node, "children"_a, "Adds an :code:`and` node to the circuit, and returns it as a pointer.")
 .def("set_root", &Circuit::set_root, "root"_a, "Marks a node pointer as root.")
-.def("remove_unused_nodes", &Circuit::remove_unused_nodes, "Removes unused non-root nodes from the circuit.\nCareful! This invalidates any NodePtr refering to an unused node (i.e., a node not conneected to a root node).");
+.def("remove_unused_nodes", &Circuit::remove_unused_nodes, "Removes unused non-root nodes from the circuit.\nWarning: this invalidates any NodePtr referring to an unused node (i.e., a node not connected to a root node).");
 
 m.def("to_dot_file", &to_dot_file, "circuit"_a, "filename"_a, "Write the given circuit as dot format to a file");
 }

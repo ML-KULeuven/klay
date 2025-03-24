@@ -145,9 +145,9 @@ public:
      */
     std::size_t max_layer_width() const;
 
-    NodePtr add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
+    NodePtr add_sdd_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
 
-    NodePtr add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
+    NodePtr add_d4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
 
     /**
      * Remove all nodes from this circuit that are not used.
