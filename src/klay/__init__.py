@@ -35,6 +35,11 @@ def to_jax_function(self: Circuit, semiring: str = "log"):
 def add_sdd(self: Circuit, sdd: "SddNode", true_lits: Sequence[int] = (), false_lits: Sequence[int] = ()):
     """
     Add an SDD to the Circuit.
+
+    :param true_lits:
+        List of literals that are always true and should get propagated away.
+    :param false_lits:
+        List of literals that are always false and should get propagated away.
     """
     import os
     from pathlib import Path
