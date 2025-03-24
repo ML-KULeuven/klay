@@ -92,7 +92,7 @@ class KnowledgeLayer(nn.Module):
 class ProbabilisticKnowledgeLayer(KnowledgeLayer):
     def __init__(self, ptrs, csr):
         super().__init__(ptrs, csr)
-        self.weights = nn.Parameter(torch.randn_like(ptrs))
+        self.weights = nn.Parameter(torch.randn_like(ptrs, dtype=torch.float32))
 
 
 class SumLayer(KnowledgeLayer):
