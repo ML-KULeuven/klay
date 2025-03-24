@@ -1,9 +1,9 @@
 .. _circuit_construction:
 
-Circuit Creation
-================
+Circuit Creation Tutorial
+=========================
 
-There are several ways to create a circuit. You can either load in a circuit compiled by a PySDD or d4, or you can manually the circuit.
+There are two ways to create a circuit. You can either manually specify the circuit or you can load in circuit from a knowledge compiler (currently PySDD and d4 are supported).
 
 Loading Circuits
 ********************
@@ -40,7 +40,7 @@ SDDs can also be loaded directly from a PySDD :code:`SddNode` object.
 Multi-Rooted Circuits
 *********************
 
-If you want to evaluate multiple circuits in parallel, you can merge them into a single multi-rooted circuit.
+To evaluate multiple circuits in parallel, you can merge them into a single circuit with multiple roots.
 
 .. code-block:: Python
 
@@ -49,14 +49,14 @@ If you want to evaluate multiple circuits in parallel, you can merge them into a
    circuit.add_sdd(second_sdd)
 
 Evaluating this circuit will result in an output tensor with two elements. The order in which the circuits are added
-determines the order in the output when evaluating.
+determines the order of the roots in the output tensor.
 
 
 Manual Circuits
 ***************************
 
-If you want to create a custom circuit, you can manually define the circuit structure.
-We start by defining some literals.
+To create a custom circuit, you can manually define the circuit structure.
+We start by defining some literal nodes, which are the leafs of the circuit.
 
 .. code-block:: Python
 
@@ -64,22 +64,22 @@ We start by defining some literals.
     a = circuit.literal_node(1)
     b = circuit.literal_node(-2)
 
-Next, create and/or nodes as follows.
+Next, create `and`/`or` nodes as follows.
 
 .. code-block:: Python
 
     and_node = circuit.and_node([a, b])
+    or_node = circuit.or_node([a, and_node])
 
-To indicate that a node is a root (i.e. it will be part of the output), you need to mark it as root.
+You need to set a node as root to indicate that it will be part of the output.
+
+.. code-block:: Python
+
+    circuit.set_root(or_node)
+
+As we support multi-rooted circuits, you can later add other root nodes.
 
 .. code-block:: Python
 
     circuit.set_root(and_node)
-
-As we support multi-rooted circuits, you can later add more nodes and mark them as root.
-
-.. code-block:: Python
-
-    or_node = circuit.or_node([a, b])
-    circuit.set_root(or_node)
 

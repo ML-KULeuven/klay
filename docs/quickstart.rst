@@ -18,7 +18,7 @@ Usage
 *****
 
 First, we need to create a circuit. You can both manually define the circuit, or import it from a knowledge compiler.
-For more information, check out the :ref:`circuit_construction` guide.
+For more information, check out the :ref:`circuit_construction`.
 
 .. code-block:: Python
 
@@ -38,7 +38,7 @@ Now that we have the circuit, we can evaluate it. To do this, we first turn the 
 
 We can use our circuit as any other PyTorch module.
 The input should be a tensor with the weights for each literal, and the output is the result of evaluating circuit.
-For more details, see the :ref:`circuit_eval` guide.
+For more details, see the :ref:`circuit_eval`.
 
 .. code-block:: Python
 

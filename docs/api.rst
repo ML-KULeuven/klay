@@ -18,11 +18,11 @@ API Reference
 
     .. automethod:: or_node
 
-    .. automethod:: add_sdd
-
     .. automethod:: set_root
 
     .. automethod:: remove_unused_nodes
+
+    .. automethod:: add_sdd
 
     .. automethod:: add_sdd_from_file
 
