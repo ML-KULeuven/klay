@@ -4,16 +4,20 @@ from .nanobind_ext import Circuit
 from collections.abc import Sequence
 
 
-def to_torch_module(self: Circuit, semiring: str = "log"):
+def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = False):
     """
     Convert the circuit into a PyTorch module.
 
     :param semiring:
         The semiring in which the circuit should be evaluated. Supported options are ("log", "real", "mpe", "godel").
+    :param probabilistic:
+        If true, construct a probabilistic circuit instead of an arithmetic circuit.
+        This means the inputs to a sum node are multiplied by a probability, and
+        we can interpret sum nodes as latent Categorical variables.
     """
     from .backends import torch_backend
     indices = self._get_indices()
-    return torch_backend.KnowledgeModule(*indices, semiring=semiring)
+    return torch_backend.KnowledgeModule(*indices, semiring=semiring, probabilistic=probabilistic)
 
 
 def to_jax_function(self: Circuit, semiring: str = "log"):
