@@ -25,7 +25,7 @@ To replicate the exact results and figures of the paper, use [this code](https:/
 @inproceedings{
     maene2025klay,
     title={{KL}ay: Accelerating Arithmetic Circuits for Neurosymbolic {AI}},
-    author={Jaron Maene and Vincent Derkinderen and Pedro Zuidberg Dos Martires},
+    author = {Maene, Jaron and Derkinderen, Vincent and Zuidberg Dos Martires, Pedro},
     booktitle={The Thirteenth International Conference on Learning Representations},
     year={2025},
     url={https://openreview.net/forum?id=Zes7Wyif8G}
