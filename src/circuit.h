@@ -26,7 +26,7 @@ class NodePtr {
 public:
     NodePtr(Node* ptr) : ptr(ptr) { }
 
-    Node* get() {
+    Node* get() const {
         return ptr;
     }
 
