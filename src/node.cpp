@@ -43,15 +43,15 @@ void Node::add_child(Node* child) {
 std::string Node::get_label() const {
     std::string labelName;
     switch (type) {
-        case NodeType::True: labelName = "T "; break;
-        case NodeType::False: labelName = "F "; break;
-        case NodeType::Or: labelName = "O "; break;
-        case NodeType::And: labelName = "A "; break;
-        case NodeType::Leaf: labelName = "L "; break;
+        case NodeType::True: labelName = "T"; break;
+        case NodeType::False: labelName = "F"; break;
+        case NodeType::Or: labelName = "O"; break;
+        case NodeType::And: labelName = "A"; break;
+        case NodeType::Leaf: labelName = "L"; break;
         default: // should not happen. Indicates node was deleted?
-            assert(false);
+            throw std::runtime_error("Invalid node type");
     }
-    return labelName + std::to_string(ix);
+    return labelName + std::to_string(layer) + "/" + std::to_string(ix);
 }
 
 /**
