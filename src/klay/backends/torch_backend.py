@@ -127,7 +127,7 @@ class ProbabilisticSumLayer(ProbabilisticKnowledgeLayer):
         return self._scatter_reduce(x, "sum")
 
     def get_edge_weights(self):
-        exp_weights, _ = self.safe_exp(self.weights)
+        exp_weights, _ = self._safe_exp(self.weights)
         norm = self._scatter_reduce(exp_weights, "sum")
         return exp_weights / norm
 
