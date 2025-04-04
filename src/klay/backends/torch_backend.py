@@ -74,14 +74,15 @@ class KnowledgeLayer(nn.Module):
         output = torch.scatter_reduce(output, 0, index=self.csr, src=src, reduce=reduce, include_self=False)
         return output
 
-    def _logsumexp_scatter_reduce(self, x: torch.Tensor, epsilon: float):
+    def _safe_exp(self, x: torch.Tensor):
         with torch.no_grad():
-            max_output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-            max_output = torch.scatter_reduce(max_output, 0, index=self.csr, src=x, reduce="amax", include_self=False)
+            max_output = self._scatter_reduce(x, "amax")
         x = x - max_output[self.csr]
         x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
-        x = torch.exp(x)
+        return torch.exp(x), max_output
 
+    def _logsumexp_scatter_reduce(self, x: torch.Tensor, epsilon: float):
+        x, max_output = self._safe_exp(x)
         output = torch.full(self.out_shape, epsilon, dtype=x.dtype, device=x.device)
         output = torch.scatter_add(output, 0, index=self.csr, src=x)
         output = torch.log(output) + max_output
@@ -126,7 +127,7 @@ class ProbabilisticSumLayer(ProbabilisticKnowledgeLayer):
         return self._scatter_reduce(x, "sum")
 
     def get_edge_weights(self):
-        exp_weights = torch.exp(self.weights)
+        exp_weights, _ = self.safe_exp(self.weights)
         norm = self._scatter_reduce(exp_weights, "sum")
         return exp_weights / norm
 
