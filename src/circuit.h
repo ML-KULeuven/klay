@@ -12,6 +12,7 @@
 #include <sstream>
 #include <vector>
 #include <list>
+#include <cstdint>
 
 #include "node.h"
 #include "hash_set8.hpp"
@@ -31,14 +32,17 @@ public:
     }
 
     std::string to_string() const {
-        const void * address = static_cast<const void*>(ptr);
         std::stringstream ss;
-        ss << "NodePtr(" << address << ")";
+        ss << "NodePtr(" << this->as_int() << ")";
         return ss.str();
     }
 
     bool operator==(NodePtr other) const {
         return this->ptr == other.ptr;
+    }
+
+    std::uintptr_t as_int() const {
+        return reinterpret_cast<std::uintptr_t>(ptr);
     }
 
 private:
@@ -127,6 +131,11 @@ public:
      *
      */
     Node* add_node_level_compressed(Node* node);
+
+    /**
+     * De-duplicate the children of the node and add it to the circuit.
+     */
+    Node* add_node_merge(Node* node);
 
     /**
      * Get the corresponding node in the circuit.
@@ -225,4 +234,7 @@ public:
         }
         return NodePtr(add_node_level_compressed(node));
     }
+
+    NodePtr disjoin(std::vector<NodePtr> nodes);
+    NodePtr conjoin(std::vector<NodePtr> nodes);
 };
