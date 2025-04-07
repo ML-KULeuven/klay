@@ -129,7 +129,7 @@ class ProbabilisticSumLayer(ProbabilisticKnowledgeLayer):
     def get_edge_weights(self):
         exp_weights, _ = self._safe_exp(self.weights)
         norm = self._scatter_reduce(exp_weights, "sum")
-        return exp_weights / norm
+        return exp_weights / norm[self.csr]
 
 
 class ProbabilisticLogSumLayer(ProbabilisticKnowledgeLayer):
@@ -139,7 +139,7 @@ class ProbabilisticLogSumLayer(ProbabilisticKnowledgeLayer):
 
     def get_edge_weights(self, epsilon):
         norm = self._logsumexp_scatter_reduce(self.weights, epsilon)
-        return self.weights - norm
+        return self.weights - norm[self.csr]
 
 
 def get_semiring(name: str, probabilistic: bool):

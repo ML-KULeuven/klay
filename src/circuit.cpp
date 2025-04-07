@@ -504,7 +504,8 @@ m.doc() = "Layerize arithmetic circuits";
 nb::class_<NodePtr>(m, "NodePtr")
 .def("__repr__", &NodePtr::to_string)
 .def(nb::self == nb::self)
-.def("__hash__", &NodePtr::as_int);
+.def("__hash__", &NodePtr::as_int)
+.def("get_ix", [](NodePtr a) {return a.get()->ix;});
 
 nb::class_<Circuit>(m, "Circuit", "Circuits are the main class added by KLay, and require no arguments to construct.\n\n:code:`circuit = klay.Circuit()` ")
 .def(nb::init<>())
