@@ -166,9 +166,7 @@ public:
      */
     void remove_unused_nodes();
 
-    inline std::pair<Arrays, Arrays> get_indices() { return tensorize(); }
-
-    std::pair<Arrays, Arrays> tensorize();
+    std::pair<Arrays, Arrays> get_indices();
 
     /**
      * Number of nodes in the whole circuit.

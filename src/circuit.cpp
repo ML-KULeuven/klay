@@ -417,7 +417,7 @@ void cleanup(void* data) noexcept {
 }
 
 
-std::pair<Arrays, Arrays> Circuit::tensorize() {
+std::pair<Arrays, Arrays> Circuit::get_indices() {
     remove_unused_nodes();
 	add_root_layer();
     //print_circuit(); // Helpful for debugging small circuits
