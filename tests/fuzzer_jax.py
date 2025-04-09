@@ -26,7 +26,7 @@ def check_d4_torch(nnf_file, weights):
 
     klay_weights = jnp.log(jnp.array(weights))
     circuit = klay.Circuit()
-    circuit.add_D4_from_file(nnf_file)
+    circuit.add_d4_from_file(nnf_file)
     kl = circuit.to_jax_function()
     result = float(kl(klay_weights).item())
     assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"

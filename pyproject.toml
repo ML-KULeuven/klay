@@ -10,14 +10,16 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["numpy"]
 authors = [
-    { name = "Anonymized", email = "anonymized@example.com" },
+    { name = "Jaron Maene" },
+    { name = "Vincent Derkinderen" },
+    { name = "Pedro Zuidberg Dos Martires" }
 ]
 classifiers = [
-    "License :: OSI Approved :: BSD License",
+    "License :: OSI Approved :: Apache Software License",
 ]
 
 [project.urls]
-Homepage = "https://github.com/anonymized"
+Homepage = "https://github.com/ML-KULeuven/klay"
 
 
 [tool.scikit-build]

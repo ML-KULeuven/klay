@@ -1,60 +1,33 @@
 # KLay
 
-C++ implementation of the Knowledge Layers. Includes support for:
-- SDD and d-DNNF circuits compiled by PySDD and D4.
+_KLay is a Python library for evaluating sparse arithmetic circuits on the GPU._
+
+To get started, install KLay using pip and check out [the documentation](todo).
+
+```bash
+pip install klaycircuits
+```
+
+Features include:
 - Evaluation in Jax and PyTorch, on CPU and GPU.
+- Loading SDD and d-DNNF circuits compiled by PySDD or D4.
 - Evaluation in various semirings (e.g. real, log, tropical).
+- Propagating constants and merging duplicate nodes.
 
-## Installation
 
-KLay has been tested on Linux (x86) and Mac (x86/ARM), no guarantees are made for Windows. KLay requires a C++ compiler and Python 3.9 or higher.
-```bash
-pip install .
-```
+## 📃 Paper
 
-Most dependencies are optional. However, to replicate all the experiments, make sure to install the following:
-```bash
-pip install jax torch torchvision matplotlib numpy pysdd tqdm graphviz
-```
+If you use KLay in your research, consider citing [our paper](https://openreview.net/pdf?id=Zes7Wyif8G).
 
-## Experiments
+To replicate the exact results and figures of the paper, use [this code](https://github.com/ML-KULeuven/klay/tree/d3b81491c34603ba9271d25af7c789d3ba368ede).
 
-The experiments in the paper can be replicated as follows. 
-
-### Synthetic 
-The synthetic experiments take a couple of hours to run.
-
-To run all the synthetic experiments of Figure 6.
-```bash
-bash experiments/synthetic/run_sdd.sh
-```
-
-Similarly, to run all the same synthetic experiments with d4 (as in Figure 7).
-```bash
-bash experiments/synthetic/run_d4.sh
-```
-And for the synthetic experiments in the real semiring (as in Figure 8).
-```bash
-bash experiments/synthetic/run_real.sh
-```
-
-To run the juice baseline, install [Julia](https://julialang.org/) and the [LogicCircuits.jl](https://github.com/Tractables/LogicCircuits.jl) package.
-Then run:
-```bash
-julia experiments/synthetic/benchmark_juice.jl
-```
-
-You can reproduce the plots of the paper using:
-```bash
-python experiments/synthetic/plot_figure.py
-```
-
-### NeSy experiments
-```bash
-python experiments/nesy/run.py
-```
-
-### MNIST-addition experiments
-```bash
-python experiments/mnist_addition/run.py -d cuda -b 128 -n 2
+```bibtex
+@inproceedings{
+    maene2025klay,
+    title={{KL}ay: Accelerating Arithmetic Circuits for Neurosymbolic {AI}},
+    author = {Maene, Jaron and Derkinderen, Vincent and Zuidberg Dos Martires, Pedro},
+    booktitle={The Thirteenth International Conference on Learning Representations},
+    year={2025},
+    url={https://openreview.net/forum?id=Zes7Wyif8G}
+}
 ```

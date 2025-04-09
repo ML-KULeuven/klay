@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2024 Anonymized
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #pragma once
 
 #include <nanobind/nanobind.h>
@@ -36,6 +12,7 @@ SOFTWARE.
 #include <sstream>
 #include <vector>
 #include <list>
+#include <cstdint>
 
 #include "node.h"
 #include "hash_set8.hpp"
@@ -50,19 +27,22 @@ class NodePtr {
 public:
     NodePtr(Node* ptr) : ptr(ptr) { }
 
-    Node* get() {
+    Node* get() const {
         return ptr;
     }
 
     std::string to_string() const {
-        const void * address = static_cast<const void*>(ptr);
         std::stringstream ss;
-        ss << "NodePtr(" << address << ")";
+        ss << "NodePtr(" << this->as_int() << ")";
         return ss.str();
     }
 
     bool operator==(NodePtr other) const {
         return this->ptr == other.ptr;
+    }
+
+    std::uintptr_t as_int() const {
+        return reinterpret_cast<std::uintptr_t>(ptr);
     }
 
 private:
@@ -153,6 +133,11 @@ public:
     Node* add_node_level_compressed(Node* node);
 
     /**
+     * De-duplicate the children of the node and add it to the circuit.
+     */
+    Node* add_node_merge(Node* node);
+
+    /**
      * Get the corresponding node in the circuit.
      * This may be a different node instance with the same hash and
      * is equal according to the `NodeEqual` struct.
@@ -169,9 +154,9 @@ public:
      */
     std::size_t max_layer_width() const;
 
-    NodePtr add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
+    NodePtr add_sdd_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
 
-    NodePtr add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
+    NodePtr add_d4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits);
 
     /**
      * Remove all nodes from this circuit that are not used.
@@ -181,9 +166,7 @@ public:
      */
     void remove_unused_nodes();
 
-    inline std::pair<Arrays, Arrays> get_indices() { return tensorize(); }
-
-    std::pair<Arrays, Arrays> tensorize();
+    std::pair<Arrays, Arrays> get_indices();
 
     /**
      * Number of nodes in the whole circuit.
@@ -249,4 +232,7 @@ public:
         }
         return NodePtr(add_node_level_compressed(node));
     }
+
+    NodePtr disjoin(std::vector<NodePtr> nodes);
+    NodePtr conjoin(std::vector<NodePtr> nodes);
 };

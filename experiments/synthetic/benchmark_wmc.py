@@ -39,7 +39,7 @@ def run_d4_bench(nb_vars: int, target:str, semiring: str, seed: int, device: str
     generate_random_dimacs('tmp.cnf', nb_vars, 2*nb_vars, seed=seed)
     compile_d4('tmp.cnf', 'tmp.nnf')
     circuit = klay.Circuit()
-    circuit.add_D4_from_file('tmp.nnf')
+    circuit.add_d4_from_file('tmp.nnf')
     results = {"klay_nodes": circuit.nb_nodes(), 'd4_nodes': get_d4_node_count('tmp.nnf')}
     print(f"Nb of Nodes in KLay: {circuit.nb_nodes()//1000}k")
     if target == "jax":

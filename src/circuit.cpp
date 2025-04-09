@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2024 Anonymized
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #include "circuit.h"
 #include "cassert"
 
@@ -131,8 +107,33 @@ Node* Circuit::add_node_level_compressed(Node* node) {
     return add_node_level(node);
 }
 
+
+Node* Circuit::add_node_merge(Node *node) {
+    Node* new_node; // The hash of the first node might be spoiled
+    if (node->type == NodeType::Or) {
+        new_node = Node::createOrNode();
+    } else if (node->type == NodeType::And) {
+        new_node = Node::createAndNode();
+    } else {
+        return add_node_level_compressed(node);
+    }
+
+    emhash8::HashSet<Node*, NodeHash, NodeEqual> children_set = {};
+    for (auto child: node->children) {
+        while (child->layer < node->layer - 1)
+            child = add_node(child->dummy_parent());
+        children_set.insert(child);
+    }
+    delete node;
+
+    for (auto child: children_set)
+        new_node->add_child(child);
+
+    return add_node_level_compressed(new_node);
+}
+
 /**
- * Auxiliary method for Circuit::add_SDD_from_file
+ * Auxiliary method for Circuit::add_sdd_from_file
  */
 Node* parseSDDFile(const std::string& filename, Circuit& circuit, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     std::ifstream file(filename);
@@ -374,7 +375,7 @@ void to_dot_file(Circuit& circuit, const std::string& filename) {
     file << "}" << std::endl;
 }
 
-NodePtr Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
+NodePtr Circuit::add_sdd_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
@@ -383,7 +384,7 @@ NodePtr Circuit::add_SDD_from_file(const std::string &filename, std::vector<int>
     return NodePtr(new_root);
 }
 
-NodePtr Circuit::add_D4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
+NodePtr Circuit::add_d4_from_file(const std::string &filename, std::vector<int>& true_lits, std::vector<int>& false_lits) {
     Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
@@ -416,7 +417,7 @@ void cleanup(void* data) noexcept {
 }
 
 
-std::pair<Arrays, Arrays> Circuit::tensorize() {
+std::pair<Arrays, Arrays> Circuit::get_indices() {
     remove_unused_nodes();
 	add_root_layer();
     //print_circuit(); // Helpful for debugging small circuits
@@ -466,28 +467,62 @@ std::pair<Arrays, Arrays> Circuit::tensorize() {
 }
 
 
+NodePtr Circuit::disjoin(std::vector<NodePtr> nodes) {
+    Node* or_node = Node::createOrNode();
+    for (NodePtr node_ptr: nodes) {
+        Node* node = node_ptr.get();
+        if (node->type == NodeType::Or) {
+            for (Node* ch: node->children)
+                or_node->add_child(ch);
+        } else {
+            or_node->add_child(node);
+        }
+    }
+    return NodePtr(add_node_merge(or_node));
+}
+
+
+NodePtr Circuit::conjoin(std::vector<NodePtr> nodes) {
+    Node* and_node = Node::createAndNode();
+    for (NodePtr node_ptr: nodes) {
+        Node* node = node_ptr.get();
+        if (node->type == NodeType::And) {
+            for (Node* ch: node->children)
+                and_node->add_child(ch);
+        } else {
+            and_node->add_child(node);
+        }
+    }
+    return NodePtr(add_node_merge(and_node));
+}
+
+
 
 NB_MODULE(nanobind_ext, m) {
 m.doc() = "Layerize arithmetic circuits";
 
 nb::class_<NodePtr>(m, "NodePtr")
 .def("__repr__", &NodePtr::to_string)
-.def(nb::self == nb::self);
+.def(nb::self == nb::self)
+.def("__hash__", &NodePtr::as_int)
+.def("get_ix", [](NodePtr a) {return a.get()->ix;});
 
-nb::class_<Circuit>(m, "Circuit")
+nb::class_<Circuit>(m, "Circuit", "Circuits are the main class added by KLay, and require no arguments to construct.\n\n:code:`circuit = klay.Circuit()` ")
 .def(nb::init<>())
-.def("add_SDD_from_file", &Circuit::add_SDD_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
-.def("add_D4_from_file", &Circuit::add_D4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>())
-.def("get_indices", &Circuit::get_indices)
-.def("nb_nodes", &Circuit::nb_nodes, "number of nodes in the circuit")
-.def("nb_root_nodes", &Circuit::nb_root_nodes, "number of root nodes in the circuit")
-.def("true_node", &Circuit::true_node, "adds a true node to the circuit, and returns a pointer")
-.def("false_node", &Circuit::false_node, "adds a false node to the circuit, and returns a pointer")
-.def("literal_node", &Circuit::literal_node, "adds a literal node to the circuit, and returns a pointer")
-.def("or_node", &Circuit::or_node, "children"_a, "adds an or node to the circuit, and returns a pointer")
-.def("and_node", &Circuit::and_node, "children"_a, "adds an and node to the circuit, and returns a pointer")
-.def("set_root", &Circuit::set_root, "root"_a, "marks a node pointer as root")
-.def("remove_unused_nodes", &Circuit::remove_unused_nodes, "Removes unused non-root nodes from the circuit.\nCareful! This invalidates any NodePtr refering to an unused node (i.e., a node not conneected to a root node).");
+.def("add_sdd_from_file", &Circuit::add_sdd_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>(), "Add an SDD circuit from file.\n\n:param filename:\n\tPath to the :code:`.sdd` file on disk.\n:param true_lits:\n\tList of literals that are always true and should get propagated away.\n:param false_lits:\n\tList of literals that are always false and should get propagated away.")
+.def("add_d4_from_file", &Circuit::add_d4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>(), "Add an NNF circuit in the D4 format from file.\n\n:param filename:\n\tPath to the :code:`.nnf` file on disk.\n:param true_lits:\n\tList of literals that are always true and should get propagated away.\n:param false_lits:\n\tList of literals that are always false and should get propagated away.")
+.def("_get_indices", &Circuit::get_indices)
+.def("disjoin", &Circuit::disjoin)
+.def("conjoin", &Circuit::conjoin)
+.def("nb_nodes", &Circuit::nb_nodes, "Number of nodes in the circuit.")
+.def("nb_root_nodes", &Circuit::nb_root_nodes, "Number of root nodes in the circuit.")
+.def("true_node", &Circuit::true_node, "Adds a true node to the circuit, and returns a pointer to this node.")
+.def("false_node", &Circuit::false_node, "Adds a false node to the circuit, and returns a pointer to this node.")
+.def("literal_node", &Circuit::literal_node, "Adds a literal node to the circuit, and returns a pointer to this node.", "literal"_a)
+.def("or_node", &Circuit::or_node, "children"_a, "Adds an :code:`or` node to the circuit, and returns a pointer to this node.")
+.def("and_node", &Circuit::and_node, "children"_a, "Adds an :code:`and` node to the circuit, and returns a pointer to this node.")
+.def("set_root", &Circuit::set_root, "root"_a, "Marks a node pointer as root. The order in which nodes are set as root determines the order of the output tensor. Only use this when manually constructing a circuit, when loading in a NNF/SDD its root is automatically set as root.")
+.def("remove_unused_nodes", &Circuit::remove_unused_nodes, "Removes unused non-root nodes from the circuit.\nWarning: this invalidates any :code:`NodePtr` referring to an unused node (i.e., a node not connected to a root node).");
 
 m.def("to_dot_file", &to_dot_file, "circuit"_a, "filename"_a, "Write the given circuit as dot format to a file");
 }
