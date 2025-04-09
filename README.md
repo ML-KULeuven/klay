@@ -2,7 +2,7 @@
 
 _KLay is a Python library for evaluating sparse arithmetic circuits on the GPU._
 
-To get started, install KLay using pip and check out [the documentation](todo).
+To get started, install KLay using pip and check out [the documentation](https://klaycircuits.readthedocs.io/en/latest/).
 
 ```bash
 pip install git+https://github.com/ML-KULeuven/klay
