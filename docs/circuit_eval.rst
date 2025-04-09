@@ -79,7 +79,7 @@ Klay also supports `probabilistic circuits <https://starai.cs.ucla.edu/papers/Pr
 Inference
 *********
 
-The input to the circuit should be tensor with as size the number of of input literals.
+The input to the circuit should be a tensor with as size the number of input literals.
 Note that when using the :code:`log` semiring, the inputs are log-probabilities, while in the :code:`real` or :code:`mpe` semiring the inputs should be probabilities.
 In case you are using a probabilistic circuit, you should likely have some input distributions producing these (log-)probabilities prior to the circuit.
 
