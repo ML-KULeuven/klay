@@ -12,7 +12,7 @@ An SDD can be loaded from a file as follows.
 
 .. code-block:: Python
 
-   from klaycircuits import Circuit
+   from klay import Circuit
 
    circuit = Circuit()
    circuit.add_sdd_from_file("path/to/my.sdd")
