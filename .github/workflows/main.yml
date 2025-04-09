@@ -62,8 +62,5 @@ jobs:
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: dist/
           skip_existing: true
-          repository-url: https://gitlab.kuleuven.be/api/v4/projects/19071/packages/pypi

@@ -3,7 +3,7 @@ requires = ["scikit-build-core >=0.4.3", "nanobind >=1.3.2"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "klay"
+name = "klaycircuits"
 version = "0.0.2"
 description = "Arithmetic circuits on the GPU"
 readme = "README.md"
