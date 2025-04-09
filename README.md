@@ -5,11 +5,11 @@ _KLay is a Python library for evaluating sparse arithmetic circuits on the GPU._
 To get started, install KLay using pip and check out [the documentation](https://klaycircuits.readthedocs.io/en/latest/).
 
 ```bash
-pip install git+https://github.com/ML-KULeuven/klay
+pip install klaycircuits
 ```
 
 Features include:
-- Evaluation in Jax and PyTorch, on CPU and GPU.
+- Evaluation in Jax or PyTorch, on CPU or GPU.
 - Loading SDD and d-DNNF circuits compiled by PySDD or D4.
 - Evaluation in various semirings (e.g. real, log, tropical).
 - Propagating constants and merging duplicate nodes.
