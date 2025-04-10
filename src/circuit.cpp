@@ -209,22 +209,47 @@ size_t Circuit::max_layer_width() const {
 void Circuit::remove_unused_nodes() {
     // Should be run before adding a final root layer;
     // because it might change ix's.
-    std::vector<std::vector<bool>> used;
-    used.reserve(nb_layers());
-    for (const auto& layer : layers)
-        used.emplace_back(layer.size(), false);
+    if (nb_layers() == 1)
+        return;
+
+    // we determine useless nodes.
+    // first layer we skip because they
+    // are not removed and their ix is
+    // not consecutive [0..n] such that the
+    // first `used` vector would be more
+    // annoying to create the proper size of.
+
+	std::vector<std::vector<bool>> used(nb_layers());
+	for (std::size_t i = 1; i < nb_layers(); ++i)
+    	used[i].resize(layers[i].size(), false);
 
     // set roots as used
-    for (auto &root : roots)
-        used[root->layer][root->ix] = true;
+    for (auto &root : roots) {
+    	if (root->layer != 0) {
+//      	assert(root->layer < used.size());
+//        	assert(root->ix < used[root->layer].size());
+        	used[root->layer][root->ix] = true;
+        }
+    }
 
     // iterate backwards over layers
     // tag children of useful nodes
     for (auto it = layers.rbegin(); it != layers.rend(); ++it) {
         for (auto &node : *it) {
-            if (used[node->layer][node->ix])
-                for (auto child: node->children)
+        	if (node->layer == 0)
+        		continue; // skip input layer, idx error otherwise
+
+      		assert(node->layer < used.size());
+        	assert(node->ix < used[node->layer].size());
+            if (used[node->layer][node->ix]) {
+                for (auto child: node->children) {
+                    if (child->layer == 0)
+                        continue; // skip input layer, idx error otherwise
+//                	assert(child->layer < used.size());
+//                  assert(child->ix < used[child->layer].size());
                     used[child->layer][child->ix] = true;
+                }
+            }
         }
     }
 
