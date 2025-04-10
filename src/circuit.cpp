@@ -108,30 +108,6 @@ Node* Circuit::add_node_level_compressed(Node* node) {
 }
 
 
-Node* Circuit::add_node_merge(Node *node) {
-    Node* new_node; // The hash of the first node might be spoiled
-    if (node->type == NodeType::Or) {
-        new_node = Node::createOrNode();
-    } else if (node->type == NodeType::And) {
-        new_node = Node::createAndNode();
-    } else {
-        return add_node_level_compressed(node);
-    }
-
-    emhash8::HashSet<Node*, NodeHash, NodeEqual> children_set = {};
-    for (auto child: node->children) {
-        while (child->layer < node->layer - 1)
-            child = add_node(child->dummy_parent());
-        children_set.insert(child);
-    }
-    delete node;
-
-    for (auto child: children_set)
-        new_node->add_child(child);
-
-    return add_node_level_compressed(new_node);
-}
-
 /**
  * Auxiliary method for Circuit::add_sdd_from_file
  */
@@ -492,37 +468,6 @@ std::pair<Arrays, Arrays> Circuit::get_indices() {
 }
 
 
-NodePtr Circuit::disjoin(std::vector<NodePtr> nodes) {
-    Node* or_node = Node::createOrNode();
-    for (NodePtr node_ptr: nodes) {
-        Node* node = node_ptr.get();
-        if (node->type == NodeType::Or) {
-            for (Node* ch: node->children)
-                or_node->add_child(ch);
-        } else {
-            or_node->add_child(node);
-        }
-    }
-    return NodePtr(add_node_merge(or_node));
-}
-
-
-NodePtr Circuit::conjoin(std::vector<NodePtr> nodes) {
-    Node* and_node = Node::createAndNode();
-    for (NodePtr node_ptr: nodes) {
-        Node* node = node_ptr.get();
-        if (node->type == NodeType::And) {
-            for (Node* ch: node->children)
-                and_node->add_child(ch);
-        } else {
-            and_node->add_child(node);
-        }
-    }
-    return NodePtr(add_node_merge(and_node));
-}
-
-
-
 NB_MODULE(nanobind_ext, m) {
 m.doc() = "Layerize arithmetic circuits";
 
@@ -537,8 +482,6 @@ nb::class_<Circuit>(m, "Circuit", "Circuits are the main class added by KLay, an
 .def("add_sdd_from_file", &Circuit::add_sdd_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>(), "Add an SDD circuit from file.\n\n:param filename:\n\tPath to the :code:`.sdd` file on disk.\n:param true_lits:\n\tList of literals that are always true and should get propagated away.\n:param false_lits:\n\tList of literals that are always false and should get propagated away.")
 .def("add_d4_from_file", &Circuit::add_d4_from_file, "filename"_a, "true_lits"_a = std::vector<int>(), "false_lits"_a = std::vector<int>(), "Add an NNF circuit in the D4 format from file.\n\n:param filename:\n\tPath to the :code:`.nnf` file on disk.\n:param true_lits:\n\tList of literals that are always true and should get propagated away.\n:param false_lits:\n\tList of literals that are always false and should get propagated away.")
 .def("_get_indices", &Circuit::get_indices)
-.def("disjoin", &Circuit::disjoin)
-.def("conjoin", &Circuit::conjoin)
 .def("nb_nodes", &Circuit::nb_nodes, "Number of nodes in the circuit.")
 .def("nb_root_nodes", &Circuit::nb_root_nodes, "Number of root nodes in the circuit.")
 .def("true_node", &Circuit::true_node, "Adds a true node to the circuit, and returns a pointer to this node.")

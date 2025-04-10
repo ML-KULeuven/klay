@@ -133,11 +133,6 @@ public:
     Node* add_node_level_compressed(Node* node);
 
     /**
-     * De-duplicate the children of the node and add it to the circuit.
-     */
-    Node* add_node_merge(Node* node);
-
-    /**
      * Get the corresponding node in the circuit.
      * This may be a different node instance with the same hash and
      * is equal according to the `NodeEqual` struct.
@@ -232,7 +227,4 @@ public:
         }
         return NodePtr(add_node_level_compressed(node));
     }
-
-    NodePtr disjoin(std::vector<NodePtr> nodes);
-    NodePtr conjoin(std::vector<NodePtr> nodes);
 };

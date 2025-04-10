@@ -13,3 +13,4 @@ cmake-build-debug
 .venv
 tmp
 data
+_build

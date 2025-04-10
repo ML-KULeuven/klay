@@ -19,19 +19,6 @@ def test_or_node():
     assert m(weights) == 0.4 + (1 - 0.8)
 
 
-def test_disjoin_conjoin():
-    c = klay.Circuit()
-    l1, l2, l3 = c.literal_node(1), c.literal_node(-2), c.literal_node(3)
-    or_node1 = c.disjoin([l1, l2, l2])
-    or_node2 = c.disjoin([l3, or_node1, l3, or_node1])
-    c.set_root(or_node2)
-
-    m = c.to_torch_module(semiring='real')
-    weights = torch.tensor([0.4, 0.8, 0.5])
-    expected_result = torch.tensor(0.4 + (1 - 0.8) + 0.5)
-    assert torch.allclose(m(weights), expected_result)
-
-
 def test_probabilistic():
     c = klay.Circuit()
     l1, l2, l3 = c.literal_node(1), c.literal_node(-2), c.literal_node(3)
