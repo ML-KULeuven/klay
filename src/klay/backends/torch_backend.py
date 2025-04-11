@@ -1,4 +1,5 @@
 import math
+from functools import reduce
 
 import torch
 from torch import nn
@@ -38,6 +39,7 @@ class KnowledgeModule(nn.Module):
     def __init__(self, pointers, csrs, semiring='real', probabilistic=False):
         super(KnowledgeModule, self).__init__()
         layers = []
+        self.probabilistic = probabilistic
         sum_layer, prod_layer, self.zero, self.one, self.negate = get_semiring(semiring, probabilistic)
         for i, (ptrs, csr) in enumerate(zip(pointers, csrs)):
             ptrs = torch.as_tensor(ptrs)
@@ -61,6 +63,13 @@ class KnowledgeModule(nn.Module):
         dense_params  = sum(layer_widths[i] * layer_widths[i+1] for i in range(len(layer_widths) - 1))
         return sparse_params / dense_params
 
+    def sample_pc(self):
+        assert self.probabilistic
+        y = torch.tensor([1])
+        for layer in reversed(self.layers):
+            y = layer.sample_pc(y)
+        return y[2::2]
+
 
 class KnowledgeLayer(nn.Module):
     def __init__(self, ptrs, csr):
@@ -68,20 +77,27 @@ class KnowledgeLayer(nn.Module):
         self.register_buffer('ptrs', ptrs)
         self.register_buffer('csr', csr)
         self.out_shape = (self.csr[-1].item() + 1,)
+        self.in_shape = (self.ptrs.max() + 1,)
 
-    def _scatter_reduce(self, src: torch.Tensor, reduce: str):
-        output = torch.empty(self.out_shape, dtype=src.dtype, device=src.device)
-        output = torch.scatter_reduce(output, 0, index=self.csr, src=src, reduce=reduce, include_self=False)
+    def _scatter_forward(self, x: torch.Tensor, reduce: str):
+        output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
+        output = torch.scatter_reduce(output, 0, index=self.csr, src=x, reduce=reduce, include_self=False)
         return output
+
+    def _scatter_backward(self, x: torch.Tensor, reduce: str):
+        output = torch.empty(self.in_shape, dtype=x.dtype, device=x.device)
+        output = torch.scatter_reduce(output, 0, index=self.ptrs, src=x, reduce=reduce, include_self=False)
+        return output
+
 
     def _safe_exp(self, x: torch.Tensor):
         with torch.no_grad():
-            max_output = self._scatter_reduce(x, "amax")
+            max_output = self._scatter_forward(x, "amax")
         x = x - max_output[self.csr]
         x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
         return torch.exp(x), max_output
 
-    def _logsumexp_scatter_reduce(self, x: torch.Tensor, epsilon: float):
+    def _logsumexp_scatter(self, x: torch.Tensor, epsilon: float):
         x, max_output = self._safe_exp(x)
         output = torch.full(self.out_shape, epsilon, dtype=x.dtype, device=x.device)
         output = torch.scatter_add(output, 0, index=self.csr, src=x)
@@ -98,48 +114,59 @@ class ProbabilisticKnowledgeLayer(KnowledgeLayer):
 
 class SumLayer(KnowledgeLayer):
     def forward(self, x):
-        return self._scatter_reduce(x[self.ptrs], "sum")
+        return self._scatter_forward(x[self.ptrs], "sum")
+
+    def sample_pc(self, y):
+        return self._scatter_backward(y[self.csr], "sum") > 0
 
 
 class ProdLayer(KnowledgeLayer):
     def forward(self, x):
-        return self._scatter_reduce(x[self.ptrs], "prod")
+        return self._scatter_forward(x[self.ptrs], "prod")
 
 
 class MinLayer(KnowledgeLayer):
     def forward(self, x):
-        return self._scatter_reduce(x[self.ptrs], "amin")
+        return self._scatter_forward(x[self.ptrs], "amin")
 
 
 class MaxLayer(KnowledgeLayer):
     def forward(self, x):
-        return self._scatter_reduce(x[self.ptrs], "amax")
+        return self._scatter_forward(x[self.ptrs], "amax")
 
 
 class LogSumLayer(KnowledgeLayer):
     def forward(self, x, epsilon=10e-16):
-        return self._logsumexp_scatter_reduce(x[self.ptrs], epsilon)
+        return self._logsumexp_scatter(x[self.ptrs], epsilon)
 
 
 class ProbabilisticSumLayer(ProbabilisticKnowledgeLayer):
     def forward(self, x):
         x = self.get_edge_weights() * x[self.ptrs]
-        return self._scatter_reduce(x, "sum")
+        return self._scatter_forward(x, "sum")
 
     def get_edge_weights(self):
         exp_weights, _ = self._safe_exp(self.weights)
-        norm = self._scatter_reduce(exp_weights, "sum")
+        norm = self._scatter_forward(exp_weights, "sum")
         return exp_weights / norm[self.csr]
 
 
 class ProbabilisticLogSumLayer(ProbabilisticKnowledgeLayer):
     def forward(self, x, epsilon=10e-16):
         x = self.get_edge_weights(epsilon) + x[self.ptrs]
-        return self._logsumexp_scatter_reduce(x, epsilon)
+        return self._logsumexp_scatter(x, epsilon)
 
     def get_edge_weights(self, epsilon):
-        norm = self._logsumexp_scatter_reduce(self.weights, epsilon)
+        norm = self._logsumexp_scatter(self.weights, epsilon)
         return self.weights - norm[self.csr]
+
+    def sample_pc(self, y, epsilon=10e-16):
+        weights = self.get_edge_weights(epsilon)
+        gumbels = weights - (-torch.rand_like(weights).log()).log()
+        samples = self._scatter_forward(gumbels, "amax")
+        samples = samples[self.csr] == gumbels
+        samples &= y[self.csr].to(torch.bool)
+        return self._scatter_backward(samples, "sum") > 0
 
 
 def get_semiring(name: str, probabilistic: bool):
