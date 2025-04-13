@@ -108,3 +108,23 @@ Gradients are computed in the usual fashion.
 
         grad_func = jax.jit(jax.grad(func))
         grad_func(inputs)
+
+The :code:`inputs` tensor must contain a weight for each positive literal.
+The weights of the negative literals follow from those.
+For example for the :code:`reals` semiring: if :code:`x` is the weight of literal :code:`l`,
+then :code:`1 - x` is the weight of the negative literal :code:`-l`.
+To use other weights, you must provide a separate tensor containing a weight for each negative literal.
+
+.. tabs::
+
+    .. code-tab:: Python PyTorch
+
+        inputs = torch.tensor([...])
+        neg_inputs = torch.tensor([...])  # assumed 1-inputs otherwise
+        outputs = module(inputs, neg_inputs)
+
+    .. code-tab:: Python Jax
+
+        inputs = jnp.array([...])
+        neg_inputs = jnp.array([...])  # assumed 1-inputs otherwise
+        outputs = func(inputs, neg_inputs)
