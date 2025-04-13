@@ -111,7 +111,7 @@ Gradients are computed in the usual fashion.
 
 The :code:`inputs` tensor must contain a weight for each positive literal.
 The weights of the negative literals follow from those.
-For example for the :code:`reals` semiring: if :code:`x` is the weight of literal :code:`l`,
+For example for the :code:`real` semiring: if :code:`x` is the weight of literal :code:`l`,
 then :code:`1 - x` is the weight of the negative literal :code:`-l`.
 To use other weights, you must provide a separate tensor containing a weight for each negative literal.
 
