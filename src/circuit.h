@@ -206,6 +206,9 @@ public:
     }
 
     NodePtr literal_node(int lit) {
+      	if (lit == 0) {
+        	throw domain_error("literal_node(lit) does not allow lit == 0, because negation -0 does not make sense.");
+        }
         Node* node = Node::createLiteralNode(Lit::fromInt(lit));
         return NodePtr(add_node_level_compressed(node));
     }
