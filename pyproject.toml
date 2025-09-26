@@ -18,6 +18,14 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 
+[project.optional-dependencies]
+torch = [
+    "torch",
+    "torch-scatter",
+    "torch_geometric",
+]
+
+
 [project.urls]
 Homepage = "https://github.com/ML-KULeuven/klay"
 
