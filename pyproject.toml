@@ -21,8 +21,6 @@ classifiers = [
 [project.optional-dependencies]
 torch = [
     "torch",
-    "torch-scatter",
-    "torch_geometric",
 ]
 
 
