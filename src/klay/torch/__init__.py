@@ -2,7 +2,13 @@ import torch
 from torch import nn
 
 from .layers import ProbabilisticCircuitLayer, get_semiring
-from .utils import unroll_ixs
+from .utils import (
+    unroll_ixs,
+    set_eps,
+    EPS,
+    DEFAULT_EPS_VALUES_PROB,
+    DEFAULT_EPS_VALUES_LOGPROB,
+)
 
 
 def _create_layers(sum_layer, prod_layer, ixs_in, ixs_out):
@@ -24,13 +30,13 @@ class CircuitModule(nn.Module):
             get_semiring(semiring, self.is_probabilistic())
         self.layers = _create_layers(self.sum_layer, self.prod_layer, ixs_in, ixs_out)
 
-    def forward(self, x_pos, x_neg=None, eps=0):
-        x = self.encode_input(x_pos, x_neg, eps)
+    def forward(self, x_pos, x_neg=None):
+        x = self.encode_input(x_pos, x_neg)
         return self.layers(x)
 
-    def encode_input(self, pos, neg, eps):
+    def encode_input(self, pos, neg):
         if neg is None:
-            neg = self.negate(pos, eps)
+            neg = self.negate(pos)
         x = torch.stack([pos, neg], dim=1).flatten()
         units = torch.tensor([self.zero, self.one], dtype=torch.float32, device=pos.device)
         return torch.cat([units, x])
@@ -41,14 +47,14 @@ class CircuitModule(nn.Module):
         dense_params = sum(layer_widths[i] * layer_widths[i + 1] for i in range(len(layer_widths) - 1))
         return sparse_params / dense_params
 
-    def to_pc(self, x_pos, x_neg=None, eps=0):
+    def to_pc(self, x_pos, x_neg=None):
         """ Converts the circuit into a probabilistic circuit."""
         assert self.semiring == "log" or self.semiring == "real"
         pc = ProbabilisticCircuitModule([], [], self.semiring)
         print("Making PC", pc.sum_layer, pc.sum_layer)
         layers = []
 
-        x = self.encode_input(x_pos, x_neg, eps)
+        x = self.encode_input(x_pos, x_neg)
         for i, layer in enumerate(self.layers):
             if isinstance(layer, self.sum_layer):
                 new_layer = pc.sum_layer(layer.ix_in, layer.ix_out)
@@ -76,7 +82,7 @@ class ProbabilisticCircuitModule(CircuitModule):
         return y[2::2]
 
     def condition(self, x_pos, x_neg):
-        x = self.encode_input(x_pos, x_neg, None)
+        x = self.encode_input(x_pos, x_neg)
         for layer in self.layers:
             x = layer.condition(x) \
                 if isinstance(layer, ProbabilisticCircuitLayer) \
