@@ -5,7 +5,7 @@ import torch
 CUTOFF = -math.log(2)
 
 
-def log1mexp(x, eps):
+def log1mexp(x, eps=1e-12):
     """
     Numerically accurate evaluation of log(1 - exp(x)) for x < 0.
     See [Maechler2012accurate]_ for details.
@@ -14,10 +14,9 @@ def log1mexp(x, eps):
     mask = CUTOFF < x  # x < 0
     return torch.where(
         mask,
-        (-x.expm1() + eps).log(),
-        (-x.exp() + eps).log1p(),
+        (torch.clamp(-x.expm1(), min=eps)).log(),
+        (torch.clamp(-x.exp(), min=eps)).log1p(),
     )
-
 
 def negate_real(x, eps):
     return 1 - x
