@@ -1,0 +1,46 @@
+
+### Running sudoku_4 (batch size=128, device=cpu) ###
+Loaded SDD with 2408 nodes.
+Layerized in 2862 nodes and 31 layers
+  in 0.00126533s.
+Benchmarking Jax
+Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: dlopen(libtpu.so, 0x0001): tried: 'libtpu.so' (no such file), '/System/Volumes/Preboot/Cryptexes/OSlibtpu.so' (no such file), '/usr/lib/libtpu.so' (no such file, not in dyld cache), 'libtpu.so' (no such file)
+Platform 'mps' is experimental and not all JAX functionality may be correctly supported!
+  to_jax             0.000964
+  forward (cold)     1.02
+  forward (warm)     0.000589 ± 5.08e-05
+   +backward (cold)  1.42
+   +backward (warm)  0.00185 ± 0.000156
+
+### Running 4-grid (batch size=128, device=cpu) ###
+Loaded SDD with 6610 nodes.
+Layerized in 5813 nodes and 25 layers
+  in 0.00310163s.
+Benchmarking Jax
+  to_jax             0.000331
+  forward (cold)     0.869
+  forward (warm)     0.00103 ± 2.56e-05
+   +backward (cold)  1.14
+   +backward (warm)  0.00288 ± 4.1e-05
+
+### Running seq_fun (batch size=128, device=cpu) ###
+Loaded SDD with 9730 nodes.
+Layerized in 20548 nodes and 85 layers
+  in 0.00676442s.
+Benchmarking Jax
+  to_jax             0.000706
+  forward (cold)     2.34
+  forward (warm)     0.00192 ± 6.32e-05
+   +backward (cold)  3.67
+   +backward (warm)  0.00754 ± 0.000282
+
+### Running warcraft_12 (batch size=128, device=cpu) ###
+Loaded SDD with 1110234 nodes.
+Layerized in 975417 nodes and 85 layers
+  in 1.32148s.
+Benchmarking Jax
+  to_jax             0.0601
+  forward (cold)     3.36
+  forward (warm)     0.184 ± 0.0012
+   +backward (cold)  5.99
+   +backward (warm)  1.42 ± 0.028
