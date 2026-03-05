@@ -24,12 +24,13 @@ def print_results(results):
 
 
 def main(batch_size, device):
+    file_name = f"experiments/nesy/results_{device.split(':')[0]}_b{batch_size}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(message)s",
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler(f"experiments/nesy/results_{device}_b{batch_size}.log", mode="w"),
+            logging.FileHandler(file_name, mode="w"),
         ],
     )
 
