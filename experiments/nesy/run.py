@@ -1,4 +1,5 @@
 import argparse
+import logging
 import time
 
 import klay
@@ -9,46 +10,58 @@ from pysdd.sdd import SddManager, Vtree
 
 CIRCUITS = ["sudoku_4", "4-grid", "seq_fun", "warcraft_12"]
 
+log = logging.getLogger(__name__)
+
 
 def print_results(results):
+    width = max(len(k) for k in results)
     for k, v in results.items():
         v = np.array(v)
         if v.size > 1:
-            print(f"  {k}:\t {v.mean():.3g} ± {v.std():.3g}")
+            log.info(f"  {k:{width}}  {v.mean():.3g} ± {v.std():.3g}")
         else:
-            print(f"  {k}:\t {v:.3g}")
+            log.info(f"  {k:{width}}  {v:.3g}")
 
 
 def main(batch_size, device):
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(f"experiments/nesy/results_{device}_b{batch_size}.log", mode="w"),
+        ],
+    )
+
     for name in CIRCUITS:
-        print(f"\n### Running {name} (batch size={batch_size}, device={device}) ###")
+        log.info(f"\n### Running {name} (batch size={batch_size}, device={device}) ###")
         sdd_file = f"experiments/nesy/circuits/{name}.sdd"
         vtree_file = f"experiments/nesy/circuits/{name}.vtree"
 
         vtree = Vtree.from_file(vtree_file.encode())
         manager = SddManager.from_vtree(vtree)
         sdd = manager.read_sdd_file(sdd_file.encode())
-        print(f"Loaded SDD with {sdd.count() + sdd.size()} nodes.")
+        log.info(f"Loaded SDD with {sdd.count() + sdd.size()} nodes.")
 
         t1 = time.perf_counter()
         circuit = klay.Circuit()
         circuit.add_sdd_from_file(sdd_file)
         delta = time.perf_counter() - t1
-        print(f"Layerized in {circuit.nb_nodes()} nodes and {len(circuit.to_torch_module().layers)} layers")
-        print(f"  in {delta:2g}s.")
+        log.info(f"Layerized in {circuit.nb_nodes()} nodes and {len(circuit.to_torch_module().layers)} layers")
+        log.info(f"  in {delta:2g}s.")
 
-        print(f"Benchmarking Torch")
+        log.info(f"Benchmarking Torch")
         result = benchmark_klay_torch(circuit, 1000, 'log', device=device, batch_size=batch_size)
         print_results(result)
 
-        print(f"Benchmarking Jax")
+        log.info(f"Benchmarking Jax")
         results = benchmark_klay_jax(circuit, 1000, 'log', device=device, batch_size=batch_size)
         print_results(results)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--batch_size', type=int, default="64")
+    parser.add_argument('-b', '--batch_size', type=int, default="128")
     parser.add_argument('-d', '--device', type=str, default="cpu")
     args = parser.parse_args()
 
