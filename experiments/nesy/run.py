@@ -19,9 +19,9 @@ def print_results(results):
             print(f"  {k}:\t {v:.2g}")
 
 
-def main(batch_size):
+def main(batch_size, device):
     for name in CIRCUITS:
-        print(f"### Running {name} (bs={batch_size}) ###")
+        print(f"### Running {name} (batch size={batch_size}, device={device}) ###")
         sdd_file = f"experiments/nesy/circuits/{name}.sdd"
         vtree_file = f"experiments/nesy/circuits/{name}.vtree"
 
@@ -37,20 +37,19 @@ def main(batch_size):
         print(f"Layerized in {circuit.nb_nodes()} nodes and {len(circuit.to_torch_module().layers)} layers")
         print(f"  in {delta:2g}s.")
 
-        for device in ['cpu']:
-            print(f"Benchmarking Torch {device}")
-            result = benchmark_klay_torch(circuit, 1000, 'log', device=device, batch_size=batch_size)
-            print_results(result)
+        print(f"Benchmarking Torch")
+        result = benchmark_klay_torch(circuit, 1000, 'log', device=device, batch_size=batch_size)
+        print_results(result)
 
-            print(f"Benchmarking Jax  {device}")
-            results = benchmark_klay_jax(circuit, 1000, 'log', device=device, batch_size=batch_size)
-            print_results(results)
-        print()
+        print(f"Benchmarking Jax")
+        results = benchmark_klay_jax(circuit, 1000, 'log', device=device, batch_size=batch_size)
+        print_results(results)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--batch_size', type=int, default=None)
+    parser.add_argument('-b', '--batch_size', type=int, default="64")
+    parser.add_argument('-d', '--device', type=str, default="cpu")
     args = parser.parse_args()
 
-    main(args.batch_size)
+    main(args.batch_size, args.device)
