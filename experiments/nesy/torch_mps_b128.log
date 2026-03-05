@@ -1,0 +1,52 @@
+
+### Running sudoku_4 (batch size=128, device=mps) ###
+Loaded SDD with 2408 nodes.
+Layerized in 2862 nodes and 31 layers
+  in 0.00124896s.
+Benchmarking Torch
+  to_torch           0.0226
+  sparsity           0.00988
+  jit compile        1.05
+  forward (cold)     0.486
+  forward (warm)     0.00392 ± 0.000224
+   +backward (cold)  0.307
+   +backward (warm)  0.016 ± 0.0136
+
+### Running 4-grid (batch size=128, device=mps) ###
+Loaded SDD with 6610 nodes.
+Layerized in 5813 nodes and 25 layers
+  in 0.00327683s.
+Benchmarking Torch
+  to_torch           0.0104
+  sparsity           0.00379
+  jit compile        0.00142
+  forward (cold)     0.139
+  forward (warm)     0.00418 ± 0.000488
+   +backward (cold)  0.0709
+   +backward (warm)  0.00638 ± 0.000249
+
+### Running seq_fun (batch size=128, device=mps) ###
+Loaded SDD with 9730 nodes.
+Layerized in 20548 nodes and 85 layers
+  in 0.00686613s.
+Benchmarking Torch
+  to_torch           0.0295
+  sparsity           0.00329
+  jit compile        0.00134
+  forward (cold)     0.715
+  forward (warm)     0.0114 ± 0.000809
+   +backward (cold)  0.292
+   +backward (warm)  0.0205 ± 0.0007
+
+### Running warcraft_12 (batch size=128, device=mps) ###
+Loaded SDD with 1110234 nodes.
+Layerized in 975417 nodes and 85 layers
+  in 1.41125s.
+Benchmarking Torch
+  to_torch           0.11
+  sparsity           0.000132
+  jit compile        0.00158
+  forward (cold)     1.2
+  forward (warm)     0.0155 ± 0.000705
+   +backward (cold)  0.748
+   +backward (warm)  0.433 ± 0.0236

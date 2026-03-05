@@ -23,8 +23,8 @@ def print_results(results):
             log.info(f"  {k:{width}}  {v:.3g}")
 
 
-def main(batch_size, device):
-    file_name = f"experiments/nesy/results_{device.split(':')[0]}_b{batch_size}.log"
+def main(backend, batch_size, device):
+    file_name = f"experiments/nesy/{backend}_{device.split(':')[0]}_b{batch_size}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(message)s",
@@ -51,19 +51,22 @@ def main(batch_size, device):
         log.info(f"Layerized in {circuit.nb_nodes()} nodes and {len(circuit.to_torch_module().layers)} layers")
         log.info(f"  in {delta:2g}s.")
 
-        log.info(f"Benchmarking Torch")
-        result = benchmark_klay_torch(circuit, 1000, 'log', device=device, batch_size=batch_size)
-        print_results(result)
+        if backend == "torch":
+            log.info(f"Benchmarking Torch")
+            result = benchmark_klay_torch(circuit, 1000, 'log', device=device, batch_size=batch_size)
+            print_results(result)
 
-        log.info(f"Benchmarking Jax")
-        results = benchmark_klay_jax(circuit, 1000, 'log', device=device, batch_size=batch_size)
-        print_results(results)
+        elif backend == "jax":
+            log.info(f"Benchmarking Jax")
+            results = benchmark_klay_jax(circuit, 1000, 'log', device=device, batch_size=batch_size)
+            print_results(results)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--batch_size', type=int, default="128")
     parser.add_argument('-d', '--device', type=str, default="cpu")
+    parser.add_argument('-e', '--backend', type=str, default='torch', choices=["jax", "torch"])
     args = parser.parse_args()
 
-    main(args.batch_size, args.device)
+    main(args.backend, args.batch_size, args.device)
