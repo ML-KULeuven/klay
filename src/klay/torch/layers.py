@@ -43,8 +43,25 @@ class CircuitLayer(nn.Module):
 
 
 class SumLayer(CircuitLayer):
+    def __init__(self, ix_in, ix_out, eps):
+        super().__init__(ix_in, ix_out, eps)
+        values = torch.ones(len(ix_in), dtype=torch.float32)
+        self._weight = torch.sparse_coo_tensor(
+            torch.stack([ix_out, ix_in]), values, size=(self.out_shape[0], self.in_shape[0])
+        ).to_sparse_csr()
+
+    def _apply(self, fn, *args, **kwargs):
+        result = super()._apply(fn, *args, **kwargs)
+        try:
+            self._weight = fn(self._weight)
+        except (NotImplementedError, RuntimeError):
+            pass  # keep on CPU if device doesn't support sparse CSR (e.g. MPS)
+        return result
+
     def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "sum")
+        if x.device.type == 'mps':
+            return self._scatter_forward(x[self.ix_in], "sum")
+        return self._weight @ x[:self.in_shape[0]]
 
 
 class ProdLayer(CircuitLayer):
