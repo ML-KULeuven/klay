@@ -1,0 +1,76 @@
+
+### Running sudoku_4 (batch size=128, device=cuda) ###
+Loaded SDD with 2408 nodes.
+Layerized in 2862 nodes and 31 layers
+  in 0.00310236s.
+Benchmarking Torch
+  to_torch           0.22
+  sparsity           0.00988
+  jit compile        2.84
+  forward (cold)     0.775
+  forward (warm)     0.0031 ± 0.000394
+   +backward (cold)  0.731
+   +backward (warm)  0.0128 ± 0.00265
+Benchmarking Jax
+  to_jax             0.0499
+  forward (cold)     2.48
+  forward (warm)     0.000255 ± 2.63e-05
+   +backward (cold)  1.53
+   +backward (warm)  0.000358 ± 1.78e-05
+
+### Running 4-grid (batch size=128, device=cuda) ###
+Loaded SDD with 6610 nodes.
+Layerized in 5813 nodes and 25 layers
+  in 0.00651059s.
+Benchmarking Torch
+  to_torch           0.00466
+  sparsity           0.00379
+  jit compile        0.00485
+  forward (cold)     0.00802
+  forward (warm)     0.00456 ± 0.00254
+   +backward (cold)  0.0098
+   +backward (warm)  0.0106 ± 0.000945
+Benchmarking Jax
+  to_jax             0.00168
+  forward (cold)     0.983
+  forward (warm)     0.000247 ± 8.72e-06
+   +backward (cold)  1.41
+   +backward (warm)  0.000332 ± 1.93e-05
+
+### Running seq_fun (batch size=128, device=cuda) ###
+Loaded SDD with 9730 nodes.
+Layerized in 20548 nodes and 85 layers
+  in 0.0152474s.
+Benchmarking Torch
+  to_torch           0.0161
+  sparsity           0.00329
+  jit compile        0.00517
+  forward (cold)     0.0137
+  forward (warm)     0.00731 ± 2.9e-05
+   +backward (cold)  0.0277
+   +backward (warm)  0.032 ± 0.00329
+Benchmarking Jax
+  to_jax             0.00232
+  forward (cold)     2.68
+  forward (warm)     0.000532 ± 4.55e-06
+   +backward (cold)  4.1
+   +backward (warm)  0.000805 ± 4.17e-05
+
+### Running warcraft_12 (batch size=128, device=cuda) ###
+Loaded SDD with 1110234 nodes.
+Layerized in 975417 nodes and 85 layers
+  in 1.26916s.
+Benchmarking Torch
+  to_torch           0.128
+  sparsity           0.000132
+  jit compile        0.00253
+  forward (cold)     0.0128
+  forward (warm)     0.011 ± 1.17e-05
+   +backward (cold)  0.0821
+   +backward (warm)  0.0687 ± 0.000214
+Benchmarking Jax
+  to_jax             0.0888
+  forward (cold)     7.78
+  forward (warm)     0.00276 ± 1.5e-05
+   +backward (cold)  9.56
+   +backward (warm)  0.00772 ± 0.000113
