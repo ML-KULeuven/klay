@@ -26,8 +26,7 @@ class CircuitLayer(nn.Module):
         return output
 
     def _safe_exp(self, x: torch.Tensor):
-        with torch.no_grad():
-            max_output = self._scatter_forward(x, "amax")
+        max_output = self._scatter_forward(x.detach(), "amax")
         x = x - max_output[self.ix_out]
         x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
         return torch.exp(x), max_output

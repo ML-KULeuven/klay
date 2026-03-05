@@ -2,51 +2,51 @@
 ### Running sudoku_4 (batch size=128, device=mps) ###
 Loaded SDD with 2408 nodes.
 Layerized in 2862 nodes and 31 layers
-  in 0.00124896s.
+  in 0.00129362s.
 Benchmarking Torch
-  to_torch           0.0226
+  to_torch           0.0236
   sparsity           0.00988
   jit compile        1.05
-  forward (cold)     0.486
-  forward (warm)     0.00392 ± 0.000224
+  forward (cold)     0.474
+  forward (warm)     0.0039 ± 0.000225
    +backward (cold)  0.307
-   +backward (warm)  0.016 ± 0.0136
+   +backward (warm)  0.00693 ± 0.00037
 
 ### Running 4-grid (batch size=128, device=mps) ###
 Loaded SDD with 6610 nodes.
 Layerized in 5813 nodes and 25 layers
-  in 0.00327683s.
+  in 0.00319075s.
 Benchmarking Torch
-  to_torch           0.0104
+  to_torch           0.0103
   sparsity           0.00379
-  jit compile        0.00142
-  forward (cold)     0.139
-  forward (warm)     0.00418 ± 0.000488
-   +backward (cold)  0.0709
-   +backward (warm)  0.00638 ± 0.000249
+  jit compile        0.00127
+  forward (cold)     0.143
+  forward (warm)     0.00364 ± 0.00049
+   +backward (cold)  0.0708
+   +backward (warm)  0.00609 ± 0.000175
 
 ### Running seq_fun (batch size=128, device=mps) ###
 Loaded SDD with 9730 nodes.
 Layerized in 20548 nodes and 85 layers
-  in 0.00686613s.
+  in 0.00698604s.
 Benchmarking Torch
-  to_torch           0.0295
+  to_torch           0.0334
   sparsity           0.00329
-  jit compile        0.00134
-  forward (cold)     0.715
-  forward (warm)     0.0114 ± 0.000809
-   +backward (cold)  0.292
-   +backward (warm)  0.0205 ± 0.0007
+  jit compile        0.00126
+  forward (cold)     0.666
+  forward (warm)     0.011 ± 0.000206
+   +backward (cold)  0.285
+   +backward (warm)  0.0201 ± 0.000312
 
 ### Running warcraft_12 (batch size=128, device=mps) ###
 Loaded SDD with 1110234 nodes.
 Layerized in 975417 nodes and 85 layers
-  in 1.41125s.
+  in 1.32286s.
 Benchmarking Torch
-  to_torch           0.11
+  to_torch           0.105
   sparsity           0.000132
-  jit compile        0.00158
-  forward (cold)     1.2
-  forward (warm)     0.0155 ± 0.000705
-   +backward (cold)  0.748
-   +backward (warm)  0.433 ± 0.0236
+  jit compile        0.00129
+  forward (cold)     1.12
+  forward (warm)     0.0154 ± 0.00127
+   +backward (cold)  0.844
+   +backward (warm)  0.422 ± 0.0152
