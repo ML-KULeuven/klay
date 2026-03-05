@@ -1,5 +1,4 @@
 import math
-import time
 from time import perf_counter
 import random
 from array import array
@@ -167,7 +166,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
             weights, neg_weights = jax_weights(nb_vars, semiring, batch_size=batch_size)
             t1 = perf_counter()
             v, grad = circuit_backward(weights, neg_weights)
-            grad[0].block_until_ready()
+            jax.block_until_ready((v, grad))
             timings.append(perf_counter() - t1)
         results[' +backward'] = timings[2:]
     return results
@@ -223,7 +222,7 @@ def benchmark_sdd_torch_naive(manager, sdd, nb_vars, nb_repeats=10, device='cpu'
 
     t_backward = []
     for _ in range(nb_repeats + 2):
-        weights, neg_weights = torch_weights(manager.var_count(), 'log',  device, batch_size=batch_size)
+        weights, neg_weights = torch_weights(nb_vars, 'log', device, batch_size=batch_size)
         t1 = perf_counter()
         eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device).mean().backward()
         if device == 'cuda':
@@ -255,7 +254,7 @@ def eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
 
 
 def numpy_weights(nb_vars: int, semiring: str, batch_size: int):
-    weights = np.random.uniform(size=(batch_size, nb_vars))
+    weights = np.random.uniform(size=(batch_size, nb_vars)).astype(np.float32)
     neg_weights = 1 - weights
     if semiring == "log":
         weights = np.log(weights)
@@ -266,7 +265,7 @@ def numpy_weights(nb_vars: int, semiring: str, batch_size: int):
 def torch_weights(nb_vars: int, semiring: str, device: str, batch_size: int):
     weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
     weights = torch.as_tensor(weights).to(device)
-    neg_weights = torch.as_tensor(weights).to(device)
+    neg_weights = torch.as_tensor(neg_weights).to(device)
     weights.requires_grad = True
     neg_weights.requires_grad = True
     return weights, neg_weights
@@ -274,7 +273,7 @@ def torch_weights(nb_vars: int, semiring: str, device: str, batch_size: int):
 
 def python_weights(nb_vars: int, semiring: str):
     weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size=1)
-    return weights.tolist(), neg_weights.tolist()
+    return weights[0].tolist(), neg_weights[0].tolist()
 
 
 def jax_weights(nb_vars: int, semiring: str, batch_size: int):
