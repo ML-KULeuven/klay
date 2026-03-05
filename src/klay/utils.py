@@ -1,7 +1,11 @@
 import math
+import time
 from time import perf_counter
 import random
 from array import array
+
+import numpy as np
+
 # noinspection PyUnresolvedReferences
 from .klay_ext import to_dot_file
 
@@ -131,54 +135,79 @@ def _to_dot_graphs(func, *args):
         f.write(x.as_text())
 
 
-def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'):
+def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', batch_size=None):
+    results = {}
     with jax.default_device(jax.devices(device)[0]):
+        t1 = perf_counter()
         _circuit_forward = circuit.to_jax_function(semiring)
-        circuit_forward = lambda x, y: _circuit_forward(x, y)[0]
-        t_forward = []
-        for _ in range(nb_repeats+2): # 2 warmup runs
-            weights, neg_weights = jax_weights(nb_vars, semiring)
+        results["to_jax"] = perf_counter() - t1
+
+        circuit_forward2 = lambda x, y: _circuit_forward(x, y)[0]
+        if batch_size is not None:
+            circuit_forward_vmap = jax.vmap(circuit_forward2)
+            circuit_forward = lambda x, y: jax.numpy.mean(circuit_forward_vmap(x, y))
+        else:
+            circuit_forward = circuit_forward2
+
+        t1 = perf_counter()
+        circuit_forward = jax.jit(circuit_forward)
+        results['jit compile'] = perf_counter() - t1
+
+        timings = []
+        for _ in range(nb_repeats+2):  # 2 warmup runs
+            weights, neg_weights = jax_weights(nb_vars, semiring, batch_size=batch_size)
             t1 = perf_counter()
             circuit_forward(weights, neg_weights).block_until_ready()
-            t_forward.append(perf_counter() - t1)
+            timings.append(perf_counter() - t1)
+        results['forward'] = timings[2:]
 
-        circuit_backward = jax.jit(jax.value_and_grad(circuit_forward))
-        t_backward = []
+        circuit_backward = jax.jit(jax.value_and_grad(circuit_forward, argnums=(0, 1)))
+        timings = []
         for _ in range(nb_repeats+2):
-            weights, neg_weights = jax_weights(nb_vars, semiring)
+            weights, neg_weights = jax_weights(nb_vars, semiring, batch_size=batch_size)
             t1 = perf_counter()
             v, grad = circuit_backward(weights, neg_weights)
-            grad.block_until_ready()
-            t_backward.append(perf_counter() - t1)
-    return {'forward': t_forward[2:], 'backward': t_backward[2:]}
+            grad[0].block_until_ready()
+            timings.append(perf_counter() - t1)
+        results[' +backward'] = timings[2:]
+    return results
 
 
 def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', batch_size=None):
+    results = {}
+    t1 = perf_counter()
     circuit_forward = circuit.to_torch_module(semiring).to(device)
-    sparsity = circuit_forward.sparsity(nb_vars)
+    results['to_torch'] = perf_counter() - t1
+
+    results['sparsity'] = circuit_forward.sparsity(nb_vars)
     if batch_size is not None:
         circuit_forward = torch.vmap(circuit_forward)
-    circuit_forward = torch.compile(circuit_forward, mode="reduce-overhead")
 
-    t_forward = []
+    t1 = perf_counter()
+    circuit_forward = torch.compile(circuit_forward, mode="reduce-overhead")
+    results['jit compile'] = perf_counter() - t1
+
+    timings = []
     with torch.no_grad():
-        for _ in range(nb_repeats+2):
+        for _ in range(nb_repeats + 2):  # 2 warmup runs
             weights, neg_weights = torch_weights(nb_vars, semiring, device, batch_size=batch_size)
             t1 = perf_counter()
             circuit_forward(weights, neg_weights)
             if device == 'cuda':
                 torch.cuda.synchronize()
-            t_forward.append(perf_counter() - t1)
+            timings.append(perf_counter() - t1)
+    results['forward'] = timings[2:]
 
-    t_backward = []
+    timings = []
     for _ in range(nb_repeats + 2):
         weights, neg_weights = torch_weights(nb_vars, semiring, device, batch_size=batch_size)
         t1 = perf_counter()
         circuit_forward(weights, neg_weights).mean().backward()
         if device == 'cuda':
             torch.cuda.synchronize()
-        t_backward.append(perf_counter() - t1)
-    return {'forward': t_forward[2:], 'backward': t_backward[2:], "sparsity": sparsity}
+        timings.append(perf_counter() - t1)
+    results[' +backward'] = timings[2:]
+    return results
 
 
 def benchmark_sdd_torch_naive(manager, sdd, nb_vars, nb_repeats=10, device='cpu', batch_size=None):
@@ -225,36 +254,33 @@ def eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
     return result
 
 
-def torch_weights(nb_vars, semiring = 'log', device='cpu', batch_size=None):
-    weights, neg_weights = python_weights(nb_vars, semiring)
-    weights = torch.tensor(weights, dtype=torch.float32, device=device)
-    neg_weights = torch.tensor(neg_weights, dtype=torch.float32, device=device)
-    if batch_size is not None:
-        weights = weights.repeat(batch_size, 1)
-        weights.uniform_(0, 1)
-        neg_weights = 1 - weights
-        if semiring == 'log':
-            weights = weights.log()
-            neg_weights = neg_weights.log()
+def numpy_weights(nb_vars: int, semiring: str, batch_size: int):
+    weights = np.random.uniform(size=(batch_size, nb_vars))
+    neg_weights = 1 - weights
+    if semiring == "log":
+        weights = np.log(weights)
+        neg_weights = np.log(neg_weights)
+    return weights, neg_weights
+
+
+def torch_weights(nb_vars: int, semiring: str, device: str, batch_size: int):
+    weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
+    weights = torch.as_tensor(weights).to(device)
+    neg_weights = torch.as_tensor(weights).to(device)
     weights.requires_grad = True
     neg_weights.requires_grad = True
     return weights, neg_weights
 
 
-def python_weights(nb_vars, semiring = "log"):
-    weights = [random.random() for _ in range(nb_vars)]
-    neg_weights = [1-x for x in weights]
-    if semiring == "log":
-        weights = [math.log(x) for x in weights]
-        neg_weights = [math.log(x) for x in neg_weights]
-    return weights, neg_weights
+def python_weights(nb_vars: int, semiring: str):
+    weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size=1)
+    return weights.tolist(), neg_weights.tolist()
 
 
-def jax_weights(nb_vars, semiring = "log"):
-    weights, neg_weights = python_weights(nb_vars, semiring)
-    weights = jax.numpy.array(weights)
-    neg_weights = jax.numpy.array(neg_weights)
-    return weights, neg_weights
+def jax_weights(nb_vars: int, semiring: str, batch_size: int):
+    weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
+    return jax.numpy.array(weights), jax.numpy.array(neg_weights)
+
 
 def circuit_to_dot(circuit, filename):
     """
