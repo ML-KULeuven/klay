@@ -21,7 +21,7 @@ def print_results(results):
 
 def main(batch_size, device):
     for name in CIRCUITS:
-        print(f"### Running {name} (batch size={batch_size}, device={device}) ###")
+        print(f"\n### Running {name} (batch size={batch_size}, device={device}) ###")
         sdd_file = f"experiments/nesy/circuits/{name}.sdd"
         vtree_file = f"experiments/nesy/circuits/{name}.vtree"
 

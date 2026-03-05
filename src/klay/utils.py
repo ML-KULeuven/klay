@@ -147,10 +147,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
             circuit_forward = lambda x, y: jax.numpy.mean(circuit_forward_vmap(x, y))
         else:
             circuit_forward = circuit_forward2
-
-        t1 = perf_counter()
         circuit_forward = jax.jit(circuit_forward)
-        results['jit compile'] = perf_counter() - t1
 
         timings = []
         for _ in range(nb_repeats+2):  # 2 warmup runs
@@ -158,7 +155,8 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
             t1 = perf_counter()
             circuit_forward(weights, neg_weights).block_until_ready()
             timings.append(perf_counter() - t1)
-        results['forward'] = timings[2:]
+        results['forward (cold)'] = timings[0]
+        results['forward (warm)'] = timings[2:]
 
         circuit_backward = jax.jit(jax.value_and_grad(circuit_forward, argnums=(0, 1)))
         timings = []
@@ -168,7 +166,8 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
             v, grad = circuit_backward(weights, neg_weights)
             jax.block_until_ready((v, grad))
             timings.append(perf_counter() - t1)
-        results[' +backward'] = timings[2:]
+        results[' +backward (cold)'] = timings[0]
+        results[' +backward (warm)'] = timings[2:]
     return results
 
 
@@ -195,7 +194,8 @@ def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'
             if device == 'cuda':
                 torch.cuda.synchronize()
             timings.append(perf_counter() - t1)
-    results['forward'] = timings[2:]
+    results['forward (cold)'] = timings[0]
+    results['forward (warm)'] = timings[2:]
 
     timings = []
     for _ in range(nb_repeats + 2):
@@ -205,7 +205,8 @@ def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'
         if device == 'cuda':
             torch.cuda.synchronize()
         timings.append(perf_counter() - t1)
-    results[' +backward'] = timings[2:]
+    results[' +backward (cold)'] = timings[0]
+    results[' +backward (warm)'] = timings[2:]
     return results
 
 
