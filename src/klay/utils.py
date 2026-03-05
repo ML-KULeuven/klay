@@ -136,7 +136,11 @@ def _to_dot_graphs(func, *args):
 
 def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', batch_size=None):
     results = {}
-    with jax.default_device(jax.devices(device)[0]):
+    device_id = int(device.split(":")[1]) if ":" in device else 0
+    device_name = device.split(":")[0]
+    device = jax.devices(device_name)[device_id]
+
+    with jax.default_device(device):
         t1 = perf_counter()
         _circuit_forward = circuit.to_jax_function(semiring)
         results["to_jax"] = perf_counter() - t1
