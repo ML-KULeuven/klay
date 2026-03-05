@@ -14,9 +14,9 @@ def print_results(results):
     for k, v in results.items():
         v = np.array(v)
         if v.size > 1:
-            print(f"  {k}:\t {v.mean():.2g} ± {v.std():.2g}")
+            print(f"  {k}:\t {v.mean():.3g} ± {v.std():.3g}")
         else:
-            print(f"  {k}:\t {v:.2g}")
+            print(f"  {k}:\t {v:.3g}")
 
 
 def main(batch_size, device):
