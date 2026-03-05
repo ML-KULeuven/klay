@@ -14,6 +14,7 @@ def sample_or_node(circuit, max_depth, max_nb_children: int = 6):
     children = [sample_node(circuit, max_depth) for _ in range(nb_children)]
     return circuit.or_node(children)
 
+
 def sample_and_node(circuit, max_depth, max_nb_children: int = 6):
     nb_children = randint(0, max_nb_children)
     children = [sample_node(circuit, max_depth) for _ in range(nb_children)]
@@ -25,7 +26,7 @@ def sample_node(circuit, max_depth):
         sample = sample_literal
     else:
         sample = choice([sample_literal, sample_or_node, sample_and_node])
-    return sample(circuit, max_depth-1)
+    return sample(circuit, max_depth - 1)
 
 
 def sample_circuit():
@@ -40,6 +41,7 @@ def sample_circuit():
 def fuzzer(nb_attempts=1000):
     for _ in tqdm(range(nb_attempts)):
         sample_circuit()
+
 
 if __name__ == "__main__":
     seed(4)

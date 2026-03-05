@@ -7,8 +7,8 @@ import torch
 from tqdm import tqdm
 
 import klay
-from klay.utils import generate_random_dimacs, eval_pysdd #, torch_wmc_d4
-from klay.compile import compile_sdd#, compile_d4
+from klay.utils import generate_random_dimacs, eval_pysdd  #, torch_wmc_d4
+from klay.compile import compile_sdd  #, compile_d4
 
 
 def check_sdd(sdds, weights):
@@ -26,7 +26,6 @@ def check_sdd(sdds, weights):
     kl = torch.vmap(kl)
     result_vmap = kl(weights.unsqueeze(0))
     assert np.allclose(result, result_vmap), f"Expected {result}, got {result_vmap}"
-
 
 
 def check_d4(nnf_files, weights):
@@ -58,7 +57,7 @@ def fuzzer_multi_rooted(nb_trials, nb_vars, nb_roots, seed_offset=None):
         print("Random seed offset: ", seed_offset)
     for i in tqdm(range(nb_trials)):
         for j in range(nb_roots):
-            generate_random_dimacs(f'tmp{j}.cnf', nb_vars, nb_vars//2, seed=i + (j+1)*seed_offset)
+            generate_random_dimacs(f'tmp{j}.cnf', nb_vars, nb_vars // 2, seed=i + (j + 1) * seed_offset)
         weights = [random.random() for _ in range(nb_vars)]
         sdds = [compile_sdd(f'tmp{j}.cnf') for j in range(nb_roots)]
         check_sdd(sdds, weights)
