@@ -165,6 +165,36 @@ def test_sdd_literal():
     assert torch.allclose(m(weights), expected)
 
 
+def test_custom_semiring_tropical():
+    """Test CircuitModule with a manually defined tropical (min-plus) semiring.
+
+    Tropical semiring: ⊕ = min, ⊗ = +, zero = +∞, one = 0.
+    For circuit AND(OR(l1, l2), OR(l2, l3)) with costs [1, 2, 3]:
+      OR(l1, l2) = min(1, 2) = 1
+      OR(l2, l3) = min(2, 3) = 2
+      AND(...)   = 1 + 2     = 3
+    """
+    from klay.torch.layers import MinLayer, SumLayer
+
+    def tropical_negate(x, eps):
+        return -x
+
+    tropical_semiring = (MinLayer, SumLayer, float('inf'), 0.0, tropical_negate)
+
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    or1 = c.or_node([l1, l2])
+    or2 = c.or_node([l2, l3])
+    c.set_root(c.and_node([or1, or2]))
+
+    m = c.to_torch_module(semiring=tropical_semiring)
+    costs = torch.tensor([1.0, 2.0, 3.0])
+    result = m(costs)
+
+    expected = torch.tensor([3.0])
+    assert torch.allclose(result, expected), f"Expected {expected}, got {result}"
+
+
 def test_sdd_multiroot():
     sdd_mgr = SddManager(var_count=2)
     a, b = sdd_mgr.vars

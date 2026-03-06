@@ -13,12 +13,14 @@ class CircuitModule(nn.Module):
         "godel": (MaxLayer, MinLayer, 0, 1, negate_real),
     }
 
-    def __init__(self, ixs_in, ixs_out, semiring: str = 'real', eps: float = 0):
+    def __init__(self, ixs_in, ixs_out, semiring: str | tuple = 'real', eps: float = 0):
         super().__init__()
         self.semiring = semiring
         self._eps = 0
-
-        self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = self.default_semirings[semiring]
+        if isinstance(semiring, str):
+            self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = self.default_semirings[semiring]
+        else:
+            self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = semiring
 
         layers = []
         for i, (ix_in, ix_out) in enumerate(zip(ixs_in, ixs_out)):
