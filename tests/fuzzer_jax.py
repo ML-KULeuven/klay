@@ -6,7 +6,9 @@ from tqdm import tqdm
 import jax.numpy as jnp
 
 import klay
-from klay.utils import generate_random_dimacs, eval_pysdd, eval_d4_torch_naive
+from klay.utils import generate_random_dimacs
+from klay.sdd import eval_pysdd
+from klay.torch.utils import eval_d4_torch_naive
 from klay.compile import compile_sdd #, compile_d4
 
 

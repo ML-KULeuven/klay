@@ -5,7 +5,10 @@ import argparse
 import numpy as np
 
 import klay
-from klay.utils import generate_random_dimacs, benchmark_klay_jax, benchmark_klay_torch, benchmark_pysdd
+from klay.utils import generate_random_dimacs
+from klay.sdd import benchmark_pysdd
+from klay.jax.utils import benchmark_klay_jax
+from klay.torch.utils import benchmark_klay_torch
 from klay.compile import compile_sdd, compile_d4
 
 
