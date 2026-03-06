@@ -10,12 +10,13 @@ from pysdd.sdd import SddManager
 
 def run_sdd_bench(nb_vars: int, target: str, semiring: str, seed: int, device: str = 'cpu'):
     generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=seed)
-    sdd = SddManager.from_cnf_file(b'tmp.cnf')[1]
+    manager, sdd = SddManager.from_cnf_file(b'tmp.cnf')
     nb_nodes = sdd.count() + sdd.size()
     print(f"Nb of Nodes in SDD: {nb_nodes//1000}k")
     results = {'sdd_nodes': nb_nodes}
 
     # save sdd and vtree for juice
+    Path('results/sdd').mkdir(parents=True, exist_ok=True)
     sdd.save(bytes(Path(f'results/sdd/v{nb_vars}_{seed}.sdd')))
     sdd.vtree().save(bytes(Path(f'results/sdd/v{nb_vars}_{seed}.vtree')))
 
