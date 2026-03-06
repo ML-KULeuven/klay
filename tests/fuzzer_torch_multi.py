@@ -5,11 +5,11 @@ import pytest
 
 import torch
 from tqdm import tqdm
+from pysdd.sdd import SddManager
 
 import klay
 from klay.utils import generate_random_dimacs  #, torch_wmc_d4
 from klay.sdd import eval_pysdd
-from klay.compile import compile_sdd  #, compile_d4
 
 
 def check_sdd(sdds, weights):
@@ -60,7 +60,7 @@ def fuzzer_multi_rooted(nb_trials, nb_vars, nb_roots, seed_offset=None):
         for j in range(nb_roots):
             generate_random_dimacs(f'tmp{j}.cnf', nb_vars, nb_vars // 2, seed=i + (j + 1) * seed_offset)
         weights = [random.random() for _ in range(nb_vars)]
-        sdds = [compile_sdd(f'tmp{j}.cnf') for j in range(nb_roots)]
+        sdds = [SddManager.from_cnf_file(f'tmp{j}.cnf'.encode())[1] for j in range(nb_roots)]
         check_sdd(sdds, weights)
 
         # for j in range(nb_roots):
