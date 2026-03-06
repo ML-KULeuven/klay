@@ -5,12 +5,12 @@ import pytest
 
 import torch
 from tqdm import tqdm
+from pysdd.sdd import SddManager
 
 import klay
 from klay.utils import generate_random_dimacs
 from klay.sdd import eval_pysdd
 from klay.torch.utils import eval_d4_torch_naive
-from klay.compile import compile_sdd# , compile_d4
 
 
 def check_sdd(sdd, weights):
@@ -55,7 +55,7 @@ def fuzzer(nb_trials, nb_vars):
         generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=i + seed_offset)
         weights = [random.random() for _ in range(nb_vars)]
 
-        sdd = compile_sdd('tmp.cnf')
+        sdd = SddManager.from_cnf_file(b'tmp.cnf')[1]
         check_sdd(sdd, weights)
 
         # compile_d4('tmp.cnf', 'tmp.nnf')

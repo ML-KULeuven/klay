@@ -2,19 +2,17 @@ import json
 from pathlib import Path
 import argparse
 
-import numpy as np
-
 import klay
 from klay.utils import generate_random_dimacs
 from klay.sdd import benchmark_pysdd
 from klay.jax.utils import benchmark_klay_jax
 from klay.torch.utils import benchmark_klay_torch
-from klay.compile import compile_sdd, compile_d4
 
+from pysdd.sdd import SddManager
 
 def run_sdd_bench(nb_vars: int, target: str, semiring: str, seed: int, device: str = 'cpu'):
     generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=seed)
-    sdd = compile_sdd('tmp.cnf')
+    sdd = SddManager.from_cnf_file(b'tmp.cnf')[1]
     nb_nodes = sdd.count() + sdd.size()
     print(f"Nb of Nodes in SDD: {nb_nodes//1000}k")
     results = {'sdd_nodes': nb_nodes}
