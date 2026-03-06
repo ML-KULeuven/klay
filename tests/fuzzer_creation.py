@@ -1,4 +1,7 @@
+import pytest
 from random import randint, choice, seed
+
+pytest.importorskip("torch")
 
 import klay
 from tqdm import tqdm
@@ -41,6 +44,10 @@ def sample_circuit():
 def fuzzer(nb_attempts=1000):
     for _ in tqdm(range(nb_attempts)):
         sample_circuit()
+
+
+def test_circuit_creation():
+    fuzzer(20)
 
 
 if __name__ == "__main__":

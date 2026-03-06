@@ -5,6 +5,10 @@ This test identifies cases where forward pass produces finite values but
 backward pass introduces NaNs, particularly when inputs are close to -inf
 or when log probabilities approach 0 (probability = 1).
 """
+import pytest
+
+pytest.importorskip("torch")
+
 import torch
 
 from klay.torch.utils import log1mexp

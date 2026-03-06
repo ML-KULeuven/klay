@@ -1,35 +1,23 @@
 import random
 import pytest
-import torch
 
-from tqdm import tqdm
+pytest.importorskip("jax")
+pytest.importorskip("pysdd")
+
 import jax.numpy as jnp
+from tqdm import tqdm
 from pysdd.sdd import SddManager
 
 import klay
-from klay.utils import generate_random_dimacs
-from klay.sdd import eval_pysdd
-from klay.torch.utils import eval_d4_torch_naive
+from .utils import generate_random_dimacs, eval_pysdd
 
 
-
-def check_sdd_torch(sdd, weights):
+def check_sdd_jax(sdd, weights):
     wmc_gt = eval_pysdd(sdd, weights)
 
     klay_weights = jnp.log(jnp.array(weights))
     circuit = klay.Circuit()
     circuit.add_sdd(sdd)
-    kl = circuit.to_jax_function()
-    result = float(kl(klay_weights).item())
-    assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"
-
-
-def check_d4_torch(nnf_file, weights):
-    wmc_gt = eval_d4_torch_naive(nnf_file, torch.tensor(weights).log())
-
-    klay_weights = jnp.log(jnp.array(weights))
-    circuit = klay.Circuit()
-    circuit.add_d4_from_file(nnf_file)
     kl = circuit.to_jax_function()
     result = float(kl(klay_weights).item())
     assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"
@@ -41,10 +29,11 @@ def fuzzer(nb_trials, nb_vars):
         weights = [random.random() for _ in range(nb_vars)]
 
         sdd = SddManager.from_cnf_file(b'tmp.cnf'.encode())[1]
-        check_sdd_torch(sdd, weights)
+        check_sdd_jax(sdd, weights)
 
-        # compile_d4('tmp.cnf', 'tmp.nnf')
-        # check_d4_torch("tmp.nnf", weights)
+
+def test_sdd():
+    fuzzer(10, 20)
 
 
 if __name__ == "__main__":

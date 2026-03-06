@@ -1,16 +1,7 @@
-import math
 from array import array
 from time import perf_counter
 
 from .utils import python_weights
-
-
-def eval_pysdd(sdd: "SddNode", weights: list[float]):
-    neg_weights = [1.0 - x for x in weights[::-1]]
-    pysdd_weights = array('d', [math.log(x) for x in neg_weights + weights])
-    wmc_manager = sdd.wmc(log_mode=True)
-    wmc_manager.set_literal_weights_from_array(pysdd_weights)
-    return wmc_manager.propagate()
 
 
 def benchmark_pysdd(sdd, nb_vars, semiring, nb_repeats=10, device='cpu'):

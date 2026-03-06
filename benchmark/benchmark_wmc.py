@@ -3,10 +3,8 @@ from pathlib import Path
 import argparse
 
 import klay
-from klay.utils import generate_random_dimacs
-from klay.sdd import benchmark_pysdd
-from klay.jax.utils import benchmark_klay_jax
-from klay.torch.utils import benchmark_klay_torch
+from .utils import generate_random_dimacs
+from .sdd import benchmark_pysdd
 
 from pysdd.sdd import SddManager
 
@@ -28,8 +26,10 @@ def run_sdd_bench(nb_vars: int, target: str, semiring: str, seed: int, device: s
         circuit.add_sdd(sdd)
         results['klay_nodes'] = circuit.nb_nodes()
         if target == "jax":
+            from .jax import benchmark_klay_jax
             results.update(benchmark_klay_jax(circuit, nb_vars, semiring, device=device))
         elif target == "torch":
+            from .torch import benchmark_klay_torch
             results.update(benchmark_klay_torch(circuit, nb_vars, semiring, device=device))
         else:
             raise ValueError(f"Unknown target {target}")
@@ -44,8 +44,10 @@ def run_d4_bench(nb_vars: int, target:str, semiring: str, seed: int, device: str
     results = {"klay_nodes": circuit.nb_nodes(), 'd4_nodes': get_d4_node_count('tmp.nnf')}
     print(f"Nb of Nodes in KLay: {circuit.nb_nodes()//1000}k")
     if target == "jax":
+        from .jax import benchmark_klay_jax
         results.update(benchmark_klay_jax(circuit, nb_vars, semiring, device=device))
     elif target == "torch":
+        from .torch import benchmark_klay_torch
         results.update(benchmark_klay_torch(circuit, nb_vars, semiring, device=device))
     else:
         raise ValueError(f"Unknown target {target}")

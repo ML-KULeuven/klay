@@ -2,9 +2,6 @@ import random
 
 import numpy as np
 
-# noinspection PyUnresolvedReferences
-from .klay_ext import to_dot_file
-
 
 def generate_random_dimacs(file_name: str, var_count: int, clause_count: int, seed: int = 1, clause_length: int = 3):
     """
