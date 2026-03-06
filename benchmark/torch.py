@@ -6,7 +6,7 @@ from pysdd.iterator import SddIterator
 from .utils import numpy_weights
 
 
-def torch_weights(nb_vars: int, semiring: str, device: str, batch_size: int):
+def _torch_weights(nb_vars: int, semiring: str, device: str, batch_size: int):
     weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
     weights = torch.as_tensor(weights).to(device)
     neg_weights = torch.as_tensor(neg_weights).to(device)
@@ -32,7 +32,7 @@ def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'
     timings = []
     with torch.no_grad():
         for _ in range(nb_repeats + 2):  # 2 warmup runs
-            weights, neg_weights = torch_weights(nb_vars, semiring, device, batch_size=batch_size)
+            weights, neg_weights = _torch_weights(nb_vars, semiring, device, batch_size=batch_size)
             t1 = perf_counter()
             circuit_forward(weights, neg_weights)
             if device == 'cuda':
@@ -43,7 +43,7 @@ def benchmark_klay_torch(circuit, nb_vars, semiring, nb_repeats=10, device='cpu'
 
     timings = []
     for _ in range(nb_repeats + 2):
-        weights, neg_weights = torch_weights(nb_vars, semiring, device, batch_size=batch_size)
+        weights, neg_weights = _torch_weights(nb_vars, semiring, device, batch_size=batch_size)
         t1 = perf_counter()
         circuit_forward(weights, neg_weights).mean().backward()
         if device == 'cuda':
@@ -58,25 +58,25 @@ def benchmark_sdd_torch_naive(manager, sdd, nb_vars, nb_repeats=10, device='cpu'
     t_forward = []
     with torch.inference_mode():
         for _ in range(nb_repeats+2):
-            weights, neg_weights = torch_weights(nb_vars, 'log',  device, batch_size=batch_size)
+            weights, neg_weights = _torch_weights(nb_vars, 'log',  device, batch_size=batch_size)
             t1 = perf_counter()
-            eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device)
+            _eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device)
             if device == 'cuda':
                 torch.cuda.synchronize()
             t_forward.append(perf_counter() - t1)
 
     t_backward = []
     for _ in range(nb_repeats + 2):
-        weights, neg_weights = torch_weights(nb_vars, 'log', device, batch_size=batch_size)
+        weights, neg_weights = _torch_weights(nb_vars, 'log', device, batch_size=batch_size)
         t1 = perf_counter()
-        eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device).mean().backward()
+        _eval_sdd_torch_naive(manager, sdd, weights, neg_weights, device).mean().backward()
         if device == 'cuda':
             torch.cuda.synchronize()
         t_backward.append(perf_counter() - t1)
     return {'forward': t_forward[2:], 'backward': t_backward[2:]}
 
 
-def eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
+def _eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
     iterator = SddIterator(manager, smooth=False)
 
     def _formula_evaluator(node, r_values, *_):

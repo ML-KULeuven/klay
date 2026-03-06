@@ -5,7 +5,7 @@ import jax
 from .utils import numpy_weights
 
 
-def jax_weights(nb_vars: int, semiring: str, batch_size: int):
+def _jax_weights(nb_vars: int, semiring: str, batch_size: int):
     weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
     return jax.numpy.array(weights), jax.numpy.array(neg_weights)
 
@@ -43,7 +43,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
 
         timings = []
         for _ in range(nb_repeats+2):  # 2 warmup runs
-            weights, neg_weights = jax_weights(nb_vars, semiring, batch_size=batch_size)
+            weights, neg_weights = _jax_weights(nb_vars, semiring, batch_size=batch_size)
             t1 = perf_counter()
             circuit_forward(weights, neg_weights).block_until_ready()
             timings.append(perf_counter() - t1)
@@ -53,7 +53,7 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
         circuit_backward = jax.jit(jax.value_and_grad(circuit_forward, argnums=(0, 1)))
         timings = []
         for _ in range(nb_repeats+2):
-            weights, neg_weights = jax_weights(nb_vars, semiring, batch_size=batch_size)
+            weights, neg_weights = _jax_weights(nb_vars, semiring, batch_size=batch_size)
             t1 = perf_counter()
             v, grad = circuit_backward(weights, neg_weights)
             jax.block_until_ready((v, grad))
