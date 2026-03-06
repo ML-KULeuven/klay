@@ -4,7 +4,8 @@ import time
 
 import klay
 import numpy as np
-from klay.utils import benchmark_klay_torch, benchmark_klay_jax
+from klay.jax.utils import benchmark_klay_jax
+from klay.torch.utils import benchmark_klay_torch
 from pysdd.sdd import SddManager, Vtree
 
 

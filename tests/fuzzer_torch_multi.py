@@ -7,7 +7,8 @@ import torch
 from tqdm import tqdm
 
 import klay
-from klay.utils import generate_random_dimacs, eval_pysdd  #, torch_wmc_d4
+from klay.utils import generate_random_dimacs  #, torch_wmc_d4
+from klay.sdd import eval_pysdd
 from klay.compile import compile_sdd  #, compile_d4
 
 
