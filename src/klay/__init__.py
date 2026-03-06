@@ -21,7 +21,8 @@ def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = 
     :param eps:
         Epsilon used by log semiring for numerical stability.
     """
-    from .torch import CircuitModule, ProbabilisticCircuitModule
+    from .torch.circuit_modules import ProbabilisticCircuitModule
+    from .torch.circuit_modules import CircuitModule
     indices = self._get_indices()
     if probabilistic:
         return ProbabilisticCircuitModule(*indices, semiring=semiring, eps=eps)
