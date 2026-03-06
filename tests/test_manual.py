@@ -1,5 +1,7 @@
 import pytest
 
+from klay.torch import ProbabilisticCircuitModule
+
 pytest.importorskip("torch")
 pytest.importorskip("pysdd")
 
@@ -48,7 +50,7 @@ def test_create_pc():
     c.set_root(and_node)
 
     m = c.to_torch_module(semiring='real')
-    m = m.to_pc(torch.tensor([0.4, 0.8, 0.5]))
+    m = ProbabilisticCircuitModule.from_circuit(m, torch.tensor([0.4, 0.8, 0.5]))
     edge_weights = m.layers[1].get_edge_weights()
     expected_weights = torch.tensor([2/3, 1/3, 2/7, 5/7])
     assert torch.allclose(edge_weights, expected_weights)

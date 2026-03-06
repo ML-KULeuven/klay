@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 
-from .layers import SumLayer, ProdLayer, LogSumLayer, MaxLayer, MinLayer, negate_real, log1mexp
-from .utils import unroll_ixs
+from .layers import SumLayer, ProdLayer, LogSumLayer, MaxLayer, MinLayer
+from .utils import unroll_ixs, negate_real, log1mexp
 
 
 class CircuitModule(nn.Module):
@@ -46,22 +46,3 @@ class CircuitModule(nn.Module):
         dense_params = sum(layer_widths[i] * layer_widths[i + 1] for i in range(len(layer_widths) - 1))
         return sparse_params / dense_params
 
-    def to_pc(self, x_pos, x_neg=None):
-        """ Converts the circuit into a probabilistic circuit."""
-        assert self.semiring == "log" or self.semiring == "real"
-        pc = ProbabilisticCircuitModule([], [], self.semiring)
-        layers = []
-
-        x = self.encode_input(x_pos, x_neg)
-        for i, layer in enumerate(self.layers):
-            if isinstance(layer, self.sum_layer):
-                new_layer = pc.sum_layer(layer.ix_in, layer.ix_out, layer._eps)
-                weights = x.log() if self.semiring == "real" else x
-                new_layer.weights.data = weights[new_layer.ix_in]
-            else:
-                new_layer = layer
-            x = layer(x)
-            layers.append(new_layer)
-
-        pc.layers = nn.Sequential(*layers)
-        return pc

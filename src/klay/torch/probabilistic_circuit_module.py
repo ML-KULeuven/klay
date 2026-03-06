@@ -1,9 +1,8 @@
 import torch
 
 from .circuit_module import CircuitModule
-from .layers import ProbabilisticCircuitLayer, ProbabilisticSumLayer, ProbabilisticLogSumLayer
-from .layers import ProdLayer, SumLayer, negate_real, log1mexp
-
+from .layers import ProbabilisticCircuitLayer, ProbabilisticSumLayer, ProbabilisticLogSumLayer,  ProdLayer, SumLayer
+from .utils import negate_real, log1mexp
 
 class ProbabilisticCircuitModule(CircuitModule):
     default_semirings = {
@@ -25,3 +24,24 @@ class ProbabilisticCircuitModule(CircuitModule):
                 if isinstance(layer, ProbabilisticCircuitLayer) \
                 else layer(x)
         return x
+
+    @staticmethod
+    def from_circuit(circuit: CircuitModule, x_pos, x_neg=None):
+        """ Converts the circuit into a probabilistic circuit."""
+        assert circuit.semiring == "log" or circuit.semiring == "real"
+        pc = ProbabilisticCircuitModule([], [], circuit.semiring)
+        layers = []
+
+        x = circuit.encode_input(x_pos, x_neg)
+        for i, layer in enumerate(circuit.layers):
+            if isinstance(layer, circuit.sum_layer):
+                new_layer = pc.sum_layer(layer.ix_in, layer.ix_out, layer._eps)
+                weights = x.log() if circuit.semiring == "real" else x
+                new_layer.weights.data = weights[new_layer.ix_in]
+            else:
+                new_layer = layer
+            x = layer(x)
+            layers.append(new_layer)
+
+        pc.layers = torch.nn.Sequential(*layers)
+        return pc
