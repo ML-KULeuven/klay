@@ -20,6 +20,42 @@ KLay features:
 - Propagating constants and merging duplicate nodes.
 
 
+## 🧪 Tests
+
+Run the test suite from the project root:
+
+```bash
+pytest tests/
+```
+
+Tests are split by backend. They are automatically skipped if the required backend is not installed:
+- `tests/test_manual.py`, `tests/fuzzer_torch.py`, `tests/fuzzer_torch_multi.py`, `tests/fuzzer_creation.py` — require PyTorch
+- `tests/fuzzer_jax.py` — requires JAX
+- `tests/test_compression.py` — no backend required
+
+## 📊 Benchmarks
+
+Benchmarks live in the `benchmark/` directory. Run from the project root with:
+
+```bash
+python -m benchmark.benchmark_wmc --benchmark sdd --target torch -v 100 200 500
+python -m benchmark.benchmark_wmc --benchmark sdd --target jax   -v 100 200 500
+python -m benchmark.benchmark_wmc --benchmark sdd --target pysdd -v 100 200 500
+```
+
+Key options:
+
+| Flag | Description |
+|------|-------------|
+| `-b` / `--benchmark` | Circuit type: `sdd` or `d4` |
+| `-t` / `--target` | Backend: `torch`, `jax`, or `pysdd` |
+| `-v` / `--nb_vars` | Number of variables (one or more) |
+| `-d` / `--device` | Device: `cpu`, `cuda`, `cuda:0`, etc. |
+| `-s` / `--semiring` | Semiring: `log` (default) or `real` |
+| `-r` / `--nb_repeats` | Number of seeds to average over (default: 1) |
+
+Results are saved as JSON files under `results/`.
+
 ## 📃 Paper
 
 If you use KLay in your research, consider citing [our paper](https://openreview.net/pdf?id=Zes7Wyif8G).

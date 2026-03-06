@@ -1,7 +1,13 @@
 from time import perf_counter
 
 import jax
-from ..utils import numpy_weights
+
+from .utils import numpy_weights
+
+
+def jax_weights(nb_vars: int, semiring: str, batch_size: int):
+    weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
+    return jax.numpy.array(weights), jax.numpy.array(neg_weights)
 
 
 def _to_dot_graphs(func, *args):
@@ -55,8 +61,3 @@ def benchmark_klay_jax(circuit, nb_vars, semiring, nb_repeats=10, device='cpu', 
         results[' +backward (cold)'] = timings[0]
         results[' +backward (warm)'] = timings[2:]
     return results
-
-
-def jax_weights(nb_vars: int, semiring: str, batch_size: int):
-    weights, neg_weights = numpy_weights(nb_vars, semiring, batch_size)
-    return jax.numpy.array(weights), jax.numpy.array(neg_weights)

@@ -3,14 +3,15 @@ import random
 import numpy as np
 import pytest
 
+pytest.importorskip("torch")
+pytest.importorskip("pysdd")
+
 import torch
 from tqdm import tqdm
 from pysdd.sdd import SddManager
 
 import klay
-from klay.utils import generate_random_dimacs
-from klay.sdd import eval_pysdd
-from klay.torch.utils import eval_d4_torch_naive
+from .utils import generate_random_dimacs, eval_pysdd, eval_d4_torch_naive
 
 
 def check_sdd(sdd, weights):
@@ -60,6 +61,10 @@ def fuzzer(nb_trials, nb_vars):
 
         # compile_d4('tmp.cnf', 'tmp.nnf')
         # check_d4("tmp.nnf", weights)
+
+
+def test_sdd():
+    fuzzer(10, 20)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,8 @@
+import pytest
+
+pytest.importorskip("torch")
+pytest.importorskip("pysdd")
+
 import klay
 import torch
 from pysdd.sdd import SddManager

@@ -3,13 +3,15 @@ import random
 import numpy as np
 import pytest
 
+pytest.importorskip("torch")
+pytest.importorskip("pysdd")
+
 import torch
 from tqdm import tqdm
 from pysdd.sdd import SddManager
 
 import klay
-from klay.utils import generate_random_dimacs  #, torch_wmc_d4
-from klay.sdd import eval_pysdd
+from .utils import generate_random_dimacs, eval_pysdd
 
 
 def check_sdd(sdds, weights):
@@ -67,6 +69,10 @@ def fuzzer_multi_rooted(nb_trials, nb_vars, nb_roots, seed_offset=None):
         #     compile_d4(f'tmp{j}.cnf', f'tmp{j}.nnf')
         # nnf_files = [f"tmp{j}.nnf" for j in range(nb_roots)]
         # check_d4(nnf_files, weights)
+
+
+def test_sdd_multi_rooted():
+    fuzzer_multi_rooted(10, 20, 5, seed_offset=0)
 
 
 if __name__ == "__main__":

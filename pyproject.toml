@@ -54,3 +54,6 @@ sdist.include = ["CMakeLists.txt"]
 # Needed for full C++17 support
 [tool.cibuildwheel.macos.environment]
 MACOSX_DEPLOYMENT_TARGET = "11.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
