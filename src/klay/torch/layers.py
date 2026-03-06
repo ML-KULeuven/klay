@@ -1,8 +1,6 @@
 import torch
 from torch import nn
 
-from .utils import negate_real, log1mexp
-
 
 class CircuitLayer(nn.Module):
     def __init__(self, ix_in, ix_out, eps):
@@ -115,26 +113,3 @@ class ProbabilisticLogSumLayer(ProbabilisticCircuitLayer):
         y = self.forward(x)
         self.renorm_weights(x[self.ix_in])
         return y
-
-
-def get_semiring(name: str, probabilistic: bool):
-    """
-    For a given semiring, returns the sum and product layer,
-    the zero and one elements, and a negation function.
-    """
-    if probabilistic:
-        if name == "real":
-            return ProbabilisticSumLayer, ProdLayer, 0, 1, negate_real
-        if name == "log":
-            return ProbabilisticLogSumLayer, SumLayer, float('-inf'), 0, log1mexp
-        raise ValueError(f"Unknown probabilistic semiring {name}")
-    else:
-        if name == "real":
-            return SumLayer, ProdLayer, 0, 1, negate_real
-        elif name == "log":
-            return LogSumLayer, SumLayer, float('-inf'), 0, log1mexp
-        elif name == "mpe":
-            return MaxLayer, ProdLayer, 0, 1, negate_real
-        elif name == "godel":
-            return MaxLayer, MinLayer, 0, 1, negate_real
-        raise ValueError(f"Unknown semiring {name}")

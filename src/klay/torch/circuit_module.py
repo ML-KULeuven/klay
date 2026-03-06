@@ -1,18 +1,24 @@
 import torch
 from torch import nn
 
-from .layers import get_semiring, ProbabilisticCircuitLayer
+from .layers import SumLayer, ProdLayer, LogSumLayer, MaxLayer, MinLayer, negate_real, log1mexp
 from .utils import unroll_ixs
 
 
 class CircuitModule(nn.Module):
+    default_semirings = {
+        "real": (SumLayer, ProdLayer, 0, 1, negate_real),
+        "log": (LogSumLayer, SumLayer, float('-inf'), 0, log1mexp),
+        "mpe": (MaxLayer, ProdLayer, 0, 1, negate_real),
+        "godel": (MaxLayer, MinLayer, 0, 1, negate_real),
+    }
+
     def __init__(self, ixs_in, ixs_out, semiring: str = 'real', eps: float = 0):
-        super(CircuitModule, self).__init__()
+        super().__init__()
         self.semiring = semiring
         self._eps = 0
 
-        self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = \
-            get_semiring(semiring, self.is_probabilistic())
+        self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = self.default_semirings[semiring]
 
         layers = []
         for i, (ix_in, ix_out) in enumerate(zip(ixs_in, ixs_out)):
@@ -22,7 +28,6 @@ class CircuitModule(nn.Module):
             layer = self.prod_layer if i % 2 == 0 else self.sum_layer
             layers.append(layer(ix_in, ix_out, eps))
         self.layers = nn.Sequential(*layers)
-
 
     def forward(self, x_pos, x_neg=None):
         x = self.encode_input(x_pos, x_neg)
@@ -60,28 +65,3 @@ class CircuitModule(nn.Module):
 
         pc.layers = nn.Sequential(*layers)
         return pc
-
-    def is_probabilistic(self) -> bool:
-        """ Checks whether this circuit is probabilistic. """
-        return False
-
-
-class ProbabilisticCircuitModule(CircuitModule):
-    def sample(self):
-        """ Samples from the probabilistic circuit distribution. """
-        y = torch.tensor([1])
-        for layer in reversed(self.layers):
-            y = layer.sample(y)
-        return y[2::2]
-
-    def condition(self, x_pos, x_neg):
-        x = self.encode_input(x_pos, x_neg)
-        for layer in self.layers:
-            x = layer.condition(x) \
-                if isinstance(layer, ProbabilisticCircuitLayer) \
-                else layer(x)
-        return x
-
-    def is_probabilistic(self) -> bool:
-        """ Checks whether this circuit is probabilistic. """
-        return True
