@@ -56,6 +56,22 @@ Key options:
 
 Results are saved as JSON files under `results/`.
 
+### Regression benchmarks
+
+Per-commit regression benchmarks use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/). Run from the project root:
+
+```bash
+uv run pytest tests/test_benchmarks.py --benchmark-only --benchmark-save=<name>
+```
+
+Compare two saved runs:
+
+```bash
+uv run pytest-benchmark compare <old> <new> --columns=mean,stddev
+```
+
+Results are saved as JSON files under `.benchmarks/`.
+
 ## 📃 Paper
 
 If you use KLay in your research, consider citing [our paper](https://openreview.net/pdf?id=Zes7Wyif8G).

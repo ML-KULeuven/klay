@@ -1,5 +1,7 @@
 import pytest
 
+from klay.torch import ProbabilisticCircuitModule
+
 pytest.importorskip("torch")
 pytest.importorskip("pysdd")
 
@@ -48,7 +50,7 @@ def test_create_pc():
     c.set_root(and_node)
 
     m = c.to_torch_module(semiring='real')
-    m = m.to_pc(torch.tensor([0.4, 0.8, 0.5]))
+    m = ProbabilisticCircuitModule.from_circuit(m, torch.tensor([0.4, 0.8, 0.5]))
     edge_weights = m.layers[1].get_edge_weights()
     expected_weights = torch.tensor([2/3, 1/3, 2/7, 5/7])
     assert torch.allclose(edge_weights, expected_weights)
@@ -161,6 +163,102 @@ def test_sdd_literal():
     weights = torch.tensor([0.4])
     expected = torch.tensor([0.4])
     assert torch.allclose(m(weights), expected)
+
+
+def test_custom_semiring_tropical():
+    """Test CircuitModule with a manually defined tropical (min-plus) semiring.
+
+    Tropical semiring: ⊕ = min, ⊗ = +, zero = +∞, one = 0.
+    For circuit AND(OR(l1, l2), OR(l2, l3)) with costs [1, 2, 3]:
+      OR(l1, l2) = min(1, 2) = 1
+      OR(l2, l3) = min(2, 3) = 2
+      AND(...)   = 1 + 2     = 3
+    """
+    def tropical_negate(x):
+        return -x
+
+    tropical_semiring = ("amin", "sum", float('inf'), 0.0, tropical_negate)
+
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    or1 = c.or_node([l1, l2])
+    or2 = c.or_node([l2, l3])
+    c.set_root(c.and_node([or1, or2]))
+
+    m = c.to_torch_module(semiring=tropical_semiring)
+    costs = torch.tensor([1.0, 2.0, 3.0])
+    result = m(costs)
+
+    expected = torch.tensor([3.0])
+    assert torch.allclose(result, expected), f"Expected {expected}, got {result}"
+
+
+def test_custom_callable_layer():
+    """GatherCircuitLayer accepts a standard reduction + fill_value."""
+    from klay.torch.layers import GatherCircuitLayer
+
+    # Three groups of unequal size: [0,1,2] -> 0, [3,4] -> 1, [5] -> 2
+    ix_in  = torch.tensor([0, 1, 2, 3, 4, 5])
+    ix_out = torch.tensor([0, 0, 0, 1, 1, 2])
+    layer = GatherCircuitLayer(ix_in, ix_out, reduce_fn=torch.nanmean, fill_value=float('nan'))
+
+    x = torch.tensor([1.0, 3.0, 8.0, 2.0, 6.0, 5.0])
+    result = layer(x)
+    expected = torch.tensor([4.0, 4.0, 5.0])  # mean([1,3,8])=4, mean([2,6])=4, mean([5])=5
+    assert torch.allclose(result, expected)
+
+
+def test_custom_callable_semiring():
+    """CircuitModule accepts a semiring with a custom callable reduction."""
+    from klay.torch.utils import log1mexp
+
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(-2), c.literal_node(3)
+    or1 = c.or_node([l1, l2])
+    or2 = c.or_node([l2, l3])
+    c.set_root(c.and_node([or1, or2]))
+
+    # Custom callable (torch.logsumexp) for sum, string for prod
+    semiring = (torch.logsumexp, "sum", float('-inf'), 0.0, log1mexp)
+    m = c.to_torch_module(semiring=semiring)
+
+    weights = torch.tensor([0.4, 0.8, 0.5])
+    expected = c.to_torch_module(semiring='log')(weights.log()).exp()
+    assert torch.allclose(m(weights.log()).exp(), expected)
+
+
+def test_probabilistic_rejects_custom_semiring():
+    c = klay.Circuit()
+    l1, l2 = c.literal_node(1), c.literal_node(-2)
+    c.set_root(c.or_node([l1, l2]))
+    with pytest.raises(ValueError, match="only supports named semirings"):
+        c.to_torch_module(semiring=("sum", "prod", 0, 1, lambda x: 1 - x), probabilistic=True)
+
+
+def test_sparsity():
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    or1 = c.or_node([l1, l2])
+    or2 = c.or_node([l2, l3])
+    c.set_root(c.and_node([or1, or2]))
+
+    m = c.to_torch_module(semiring='real')
+    assert 0 < m.sparsity(3) <= 1
+
+
+def test_log_pc_conditioning():
+    c = klay.Circuit()
+    p1, p2 = c.literal_node(1), c.literal_node(2)
+    n1, n2 = c.literal_node(-1), c.literal_node(-2)
+    and_node1 = c.and_node([p1, p2])
+    and_node2 = c.and_node([n1, n2])
+    or_node = c.or_node([and_node1, and_node2])
+    c.set_root(or_node)
+
+    m = c.to_torch_module(semiring='log', probabilistic=True)
+    m.condition(torch.tensor([0.0, 0.0]), torch.tensor([0.0, float('-inf')]))
+    for _ in range(20):
+        assert torch.allclose(m.sample(), torch.tensor([True, True]))
 
 
 def test_sdd_multiroot():
