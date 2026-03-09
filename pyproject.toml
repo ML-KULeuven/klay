@@ -62,3 +62,8 @@ MACOSX_DEPLOYMENT_TARGET = "11.0"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest-benchmark>=5.2.3",
+]
