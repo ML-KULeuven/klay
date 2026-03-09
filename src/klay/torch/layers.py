@@ -1,27 +1,47 @@
+from abc import ABC
+from functools import partial
+
 import torch
 from torch import nn
 
 
-class CircuitLayer(nn.Module):
-    def __init__(self, ix_in, ix_out, eps):
+class AbstractCircuitLayer(nn.Module, ABC):
+    def __init__(self, ix_in: torch.Tensor, ix_out: torch.Tensor):
         super().__init__()
         self.register_buffer('ix_in', ix_in)
         self.register_buffer('ix_out', ix_out)
         self.out_shape = (self.ix_out[-1].item() + 1,)
         self.in_shape = (self.ix_in.max().item() + 1,)
-        self._eps = eps
 
-    def _scatter_forward(self, x: torch.Tensor, reduce: str):
-        if reduce == "logsumexp":
-            return self._scatter_logsumexp_forward(x)
+    def sample(self, y: torch.Tensor):
+        y = y[self.ix_out]
+        output = torch.zeros(self.in_shape, dtype=y.dtype, device=y.device)
+        output = torch.scatter_reduce(output, 0, index=self.ix_in, src=y, reduce="amax", include_self=False)
+        return output
+
+
+class ScatterCircuitLayer(AbstractCircuitLayer):
+
+    def __init__(self, ix_in: torch.Tensor, ix_out: torch.Tensor, reduce: str):
+        super().__init__(ix_in, ix_out)
+        self._reduce = reduce
+
+    def forward(self, x: torch.Tensor):
+        x = x[self.ix_in]
         output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-        output = torch.scatter_reduce(output, 0, index=self.ix_out, src=x, reduce=reduce, include_self=False)
+        output = torch.scatter_reduce(output, 0, index=self.ix_out, src=x, reduce=self._reduce, include_self=False)
         return output
 
-    def _scatter_backward(self, x: torch.Tensor, reduce: str):
-        output = torch.zeros(self.in_shape, dtype=x.dtype, device=x.device)
-        output = torch.scatter_reduce(output, 0, index=self.ix_in, src=x, reduce=reduce, include_self=False)
-        return output
+
+
+
+SumLayer = partial(ScatterCircuitLayer, reduce="sum")
+ProdLayer = partial(ScatterCircuitLayer, reduce="prod")
+MinLayer = partial(ScatterCircuitLayer, reduce="amin")
+MaxLayer = partial(ScatterCircuitLayer, reduce="amax")
+
+
+class LogSumScatterLayer(ScatterCircuitLayer):
 
     def _safe_exp(self, x: torch.Tensor):
         max_output = self._scatter_forward(x.detach(), "amax")
@@ -29,87 +49,10 @@ class CircuitLayer(nn.Module):
         x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
         return torch.exp(x), max_output
 
-    def _scatter_logsumexp_forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor):
+        x = x[self.ix_in]
         x, max_output = self._safe_exp(x)
-        output = torch.full(self.out_shape, self._eps, dtype=x.dtype, device=x.device)
+        output = torch.full(self.out_shape, torch.finfo(x.dtype).eps, dtype=x.dtype, device=x.device)
         output = torch.scatter_add(output, 0, index=self.ix_out, src=x)
         output = torch.log(output) + max_output
         return output
-
-    def sample(self, y):
-        return self._scatter_backward(y[self.ix_out], "amax")
-
-
-class SumLayer(CircuitLayer):
-    def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "sum")
-
-
-class ProdLayer(CircuitLayer):
-    def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "prod")
-
-
-class MinLayer(CircuitLayer):
-    def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "amin")
-
-
-class MaxLayer(CircuitLayer):
-    def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "amax")
-
-
-class LogSumLayer(CircuitLayer):
-    def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "logsumexp")
-
-
-class ProbabilisticCircuitLayer(CircuitLayer):
-    def __init__(self, ix_in, ix_out, eps):
-        super().__init__(ix_in, ix_out, eps)
-        self.weights = nn.Parameter(torch.randn_like(ix_in, dtype=torch.float32))
-
-    def get_edge_weights(self):
-        exp_weights, _ = self._safe_exp(self.weights)
-        norm = self._scatter_forward(exp_weights, "sum")
-        return exp_weights / norm[self.ix_out]
-
-    def renorm_weights(self, x):
-        with torch.no_grad():
-            self.weights.data = self.get_log_edge_weights() + x
-
-    def get_log_edge_weights(self):
-        norm = self._scatter_logsumexp_forward(self.weights)
-        return self.weights - norm[self.ix_out]
-
-    def sample(self, y):
-        weights = self.get_log_edge_weights()
-        noise = -(-torch.log(torch.rand_like(weights) + self._eps) + self._eps).log()
-        gumbels = weights + noise
-        samples = self._scatter_forward(gumbels, "amax")
-        samples = samples[self.ix_out] == gumbels
-        samples &= y[self.ix_out].to(torch.bool)
-        return self._scatter_backward(samples, "sum") > 0
-
-
-class ProbabilisticSumLayer(ProbabilisticCircuitLayer):
-    def forward(self, x):
-        x = self.get_edge_weights() * x[self.ix_in]
-        return self._scatter_forward(x, "sum")
-
-    def condition(self, x):
-        x2 = self.forward(x)
-        self.renorm_weights(x[self.ix_in].log())
-        return x2
-
-
-class ProbabilisticLogSumLayer(ProbabilisticCircuitLayer):
-    def forward(self, x):
-        x = self.get_log_edge_weights() + x[self.ix_in]
-        return self._scatter_logsumexp_forward(x)
-
-    def condition(self, x):
-        y = self.forward(x)
-        self.renorm_weights(x[self.ix_in])
-        return y

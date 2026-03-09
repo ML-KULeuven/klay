@@ -1,7 +1,8 @@
 import torch
 
 from .circuit_module import CircuitModule
-from .layers import ProbabilisticCircuitLayer, ProbabilisticSumLayer, ProbabilisticLogSumLayer,  ProdLayer, SumLayer
+from .layers import ProdLayer, SumLayer
+from .probabilistic_layers import ProbabilisticCircuitLayer, ProbabilisticSumLayer, ProbabilisticLogSumLayer
 from .utils import negate_real, log1mexp
 
 class ProbabilisticCircuitModule(CircuitModule):

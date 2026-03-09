@@ -176,7 +176,7 @@ def test_custom_semiring_tropical():
     """
     from klay.torch.layers import MinLayer, SumLayer
 
-    def tropical_negate(x, eps):
+    def tropical_negate(x):
         return -x
 
     tropical_semiring = (MinLayer, SumLayer, float('inf'), 0.0, tropical_negate)
