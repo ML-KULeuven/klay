@@ -227,6 +227,40 @@ def test_custom_callable_semiring():
     assert torch.allclose(m(weights.log()).exp(), expected)
 
 
+def test_probabilistic_rejects_custom_semiring():
+    c = klay.Circuit()
+    l1, l2 = c.literal_node(1), c.literal_node(-2)
+    c.set_root(c.or_node([l1, l2]))
+    with pytest.raises(ValueError, match="only supports named semirings"):
+        c.to_torch_module(semiring=("sum", "prod", 0, 1, lambda x: 1 - x), probabilistic=True)
+
+
+def test_sparsity():
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
+    or1 = c.or_node([l1, l2])
+    or2 = c.or_node([l2, l3])
+    c.set_root(c.and_node([or1, or2]))
+
+    m = c.to_torch_module(semiring='real')
+    assert 0 < m.sparsity(3) <= 1
+
+
+def test_log_pc_conditioning():
+    c = klay.Circuit()
+    p1, p2 = c.literal_node(1), c.literal_node(2)
+    n1, n2 = c.literal_node(-1), c.literal_node(-2)
+    and_node1 = c.and_node([p1, p2])
+    and_node2 = c.and_node([n1, n2])
+    or_node = c.or_node([and_node1, and_node2])
+    c.set_root(or_node)
+
+    m = c.to_torch_module(semiring='log', probabilistic=True)
+    m.condition(torch.tensor([0.0, 0.0]), torch.tensor([0.0, float('-inf')]))
+    for _ in range(20):
+        assert torch.allclose(m.sample(), torch.tensor([True, True]))
+
+
 def test_sdd_multiroot():
     sdd_mgr = SddManager(var_count=2)
     a, b = sdd_mgr.vars

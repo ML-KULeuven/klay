@@ -11,12 +11,11 @@ _PROB_LAYER_CLASSES = {
 
 class ProbabilisticCircuitModule(CircuitModule):
 
-    def __init__(self, ixs_in, ixs_out, semiring: str | tuple = 'real'):
+    def __init__(self, ixs_in, ixs_out, semiring: str = 'real'):
+        if not isinstance(semiring, str):
+            raise ValueError(f"ProbabilisticCircuitModule only supports named semirings {list(_PROB_LAYER_CLASSES)}, got {semiring!r}")
         super().__init__(ixs_in, ixs_out, semiring)
-        if isinstance(semiring, str):
-            sum_reduce = self.default_semirings[semiring][0]
-        else:
-            sum_reduce = semiring[0]
+        sum_reduce = self.default_semirings[semiring][0]
         self.sum_layer = _PROB_LAYER_CLASSES[sum_reduce]
         # Rebuild sum layers as probabilistic
         layers = []
