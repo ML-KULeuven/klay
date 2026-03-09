@@ -1,25 +1,47 @@
+from functools import partial
+
 import torch
 from torch import nn
 
-from .layers import SumLayer, ProdLayer, LogSumScatterLayer, MaxLayer, MinLayer
+from .layers import CircuitLayer, LogSumExpLayer, GatherCircuitLayer
 from .utils import unroll_ixs, negate_real, log1mexp
+
+_LAYER_CLASSES = {
+    "logsumexp": LogSumExpLayer,
+}
 
 
 class CircuitModule(nn.Module):
     default_semirings = {
-        "real": (SumLayer, ProdLayer, 0, 1, negate_real),
-        "log": (LogSumScatterLayer, SumLayer, float('-inf'), 0, log1mexp),
-        "mpe": (MaxLayer, ProdLayer, 0, 1, negate_real),
-        "godel": (MaxLayer, MinLayer, 0, 1, negate_real),
+        "real": ("sum", "prod", 0, 1, negate_real),
+        "log": ("logsumexp", "sum", float('-inf'), 0, log1mexp),
+        "mpe": ("amax", "prod", 0, 1, negate_real),
+        "godel": ("amax", "amin", 0, 1, negate_real),
     }
+
+    @staticmethod
+    def _make_layer(reduce, fill_value):
+        """Create a layer factory from a reduce spec.
+
+        Strings use CircuitLayer (scatter_reduce) or a known layer class.
+        Callables use GatherCircuitLayer with fill_value.
+        """
+        if isinstance(reduce, str):
+            if reduce in _LAYER_CLASSES:
+                return _LAYER_CLASSES[reduce]
+            return partial(CircuitLayer, reduce=reduce)
+        return partial(GatherCircuitLayer, reduce_fn=reduce, fill_value=fill_value)
 
     def __init__(self, ixs_in, ixs_out, semiring: str | tuple = 'real'):
         super().__init__()
         self.semiring = semiring
         if isinstance(semiring, str):
-            self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = self.default_semirings[semiring]
+            sum_reduce, prod_reduce, self.zero, self.one, self.negate = self.default_semirings[semiring]
         else:
-            self.sum_layer, self.prod_layer, self.zero, self.one, self.negate = semiring
+            sum_reduce, prod_reduce, self.zero, self.one, self.negate = semiring
+
+        self.sum_layer = self._make_layer(sum_reduce, self.zero)
+        self.prod_layer = self._make_layer(prod_reduce, self.one)
 
         layers = []
         for i, (ix_in, ix_out) in enumerate(zip(ixs_in, ixs_out)):
@@ -46,4 +68,3 @@ class CircuitModule(nn.Module):
         layer_widths = [nb_vars] + [layer.out_shape[0] for layer in self.layers]
         dense_params = sum(layer_widths[i] * layer_widths[i + 1] for i in range(len(layer_widths) - 1))
         return sparse_params / dense_params
-

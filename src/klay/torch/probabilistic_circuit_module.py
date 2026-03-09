@@ -1,15 +1,31 @@
 import torch
 
 from .circuit_module import CircuitModule
-from .layers import ProdLayer, SumLayer
 from .probabilistic_layers import ProbabilisticCircuitLayer, ProbabilisticSumLayer, ProbabilisticLogSumLayer
-from .utils import negate_real, log1mexp
+
+_PROB_LAYER_CLASSES = {
+    "sum": ProbabilisticSumLayer,
+    "logsumexp": ProbabilisticLogSumLayer,
+}
+
 
 class ProbabilisticCircuitModule(CircuitModule):
-    default_semirings = {
-        "real": (ProbabilisticSumLayer, ProdLayer, 0, 1, negate_real),
-        "log": (ProbabilisticLogSumLayer, SumLayer, float('-inf'), 0, log1mexp),
-    }
+
+    def __init__(self, ixs_in, ixs_out, semiring: str | tuple = 'real'):
+        super().__init__(ixs_in, ixs_out, semiring)
+        if isinstance(semiring, str):
+            sum_reduce = self.default_semirings[semiring][0]
+        else:
+            sum_reduce = semiring[0]
+        self.sum_layer = _PROB_LAYER_CLASSES[sum_reduce]
+        # Rebuild sum layers as probabilistic
+        layers = []
+        for i, layer in enumerate(self.layers):
+            if i % 2 == 1:
+                layers.append(self.sum_layer(layer.ix_in, layer.ix_out))
+            else:
+                layers.append(layer)
+        self.layers = torch.nn.Sequential(*layers)
 
     def sample(self):
         """ Samples from the probabilistic circuit distribution. """
@@ -35,8 +51,8 @@ class ProbabilisticCircuitModule(CircuitModule):
 
         x = circuit.encode_input(x_pos, x_neg)
         for i, layer in enumerate(circuit.layers):
-            if isinstance(layer, circuit.sum_layer):
-                new_layer = pc.sum_layer(layer.ix_in, layer.ix_out, layer._eps)
+            if i % 2 == 1:  # sum layers are at odd indices
+                new_layer = pc.sum_layer(layer.ix_in, layer.ix_out)
                 weights = x.log() if circuit.semiring == "real" else x
                 new_layer.weights.data = weights[new_layer.ix_in]
             else:

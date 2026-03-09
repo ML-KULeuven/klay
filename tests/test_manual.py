@@ -174,12 +174,10 @@ def test_custom_semiring_tropical():
       OR(l2, l3) = min(2, 3) = 2
       AND(...)   = 1 + 2     = 3
     """
-    from klay.torch.layers import MinLayer, SumLayer
-
     def tropical_negate(x):
         return -x
 
-    tropical_semiring = (MinLayer, SumLayer, float('inf'), 0.0, tropical_negate)
+    tropical_semiring = ("amin", "sum", float('inf'), 0.0, tropical_negate)
 
     c = klay.Circuit()
     l1, l2, l3 = c.literal_node(1), c.literal_node(2), c.literal_node(3)
@@ -193,6 +191,40 @@ def test_custom_semiring_tropical():
 
     expected = torch.tensor([3.0])
     assert torch.allclose(result, expected), f"Expected {expected}, got {result}"
+
+
+def test_custom_callable_layer():
+    """GatherCircuitLayer accepts a standard reduction + fill_value."""
+    from klay.torch.layers import GatherCircuitLayer
+
+    # Three groups of unequal size: [0,1,2] -> 0, [3,4] -> 1, [5] -> 2
+    ix_in  = torch.tensor([0, 1, 2, 3, 4, 5])
+    ix_out = torch.tensor([0, 0, 0, 1, 1, 2])
+    layer = GatherCircuitLayer(ix_in, ix_out, reduce_fn=torch.nanmean, fill_value=float('nan'))
+
+    x = torch.tensor([1.0, 3.0, 8.0, 2.0, 6.0, 5.0])
+    result = layer(x)
+    expected = torch.tensor([4.0, 4.0, 5.0])  # mean([1,3,8])=4, mean([2,6])=4, mean([5])=5
+    assert torch.allclose(result, expected)
+
+
+def test_custom_callable_semiring():
+    """CircuitModule accepts a semiring with a custom callable reduction."""
+    from klay.torch.utils import log1mexp
+
+    c = klay.Circuit()
+    l1, l2, l3 = c.literal_node(1), c.literal_node(-2), c.literal_node(3)
+    or1 = c.or_node([l1, l2])
+    or2 = c.or_node([l2, l3])
+    c.set_root(c.and_node([or1, or2]))
+
+    # Custom callable (torch.logsumexp) for sum, string for prod
+    semiring = (torch.logsumexp, "sum", float('-inf'), 0.0, log1mexp)
+    m = c.to_torch_module(semiring=semiring)
+
+    weights = torch.tensor([0.4, 0.8, 0.5])
+    expected = c.to_torch_module(semiring='log')(weights.log()).exp()
+    assert torch.allclose(m(weights.log()).exp(), expected)
 
 
 def test_sdd_multiroot():
