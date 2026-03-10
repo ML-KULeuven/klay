@@ -1,4 +1,4 @@
-#include "node.h"
+#include "klay/node.h"
 
 /**
  * Improve bit dispersion of a given hash value h.
