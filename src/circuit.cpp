@@ -1,4 +1,4 @@
-#include "circuit.h"
+#include "klay/circuit.h"
 #include "cassert"
 
 Node* Circuit::add_node(Node* node) {
