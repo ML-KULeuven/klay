@@ -418,16 +418,16 @@ void cleanup(void* data) noexcept {
 }
 
 
-std::pair<Arrays, Arrays> Circuit::get_indices() {
+std::pair<RawArrays, RawArrays> Circuit::get_indices() {
     remove_unused_nodes();
-	add_root_layer();
+    add_root_layer();
     //print_circuit(); // Helpful for debugging small circuits
 
     // per layer, a vector of size the number of children (but children can count twice
     // so this might be larger than simply the previous layer.
-    Arrays indices_ndarrays;
+    RawArrays indices_arrays;
     // per layer, a vector representing the layer
-    Arrays csr_ndarrays;
+    RawArrays csr_arrays;
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
         std::vector<long int> child_counts(layers[i].size(), 0);
@@ -455,16 +455,11 @@ std::pair<Arrays, Arrays> Circuit::get_indices() {
 
         std::size_t indices_size[1] = {layer_size};
         std::size_t csr_size[1] = {layer_len};
-        nb::capsule indices_capsule(indices_data, cleanup);
-        nb::capsule csr_capsule(csr_data, cleanup);
-
-        nb::ndarray<nb::numpy, long int, nb::shape<-1>> indices_ndarray(indices_data, 1, indices_size, indices_capsule);
-        nb::ndarray<nb::numpy, long int, nb::shape<-1>> csr_ndarray(csr_data, 1, csr_size, csr_capsule);
-        indices_ndarrays.push_back(indices_ndarray);
-        csr_ndarrays.push_back(csr_ndarray);
+        indices_arrays.push_back(std::vector<long int>(indices_data, indices_data + layer_size));
+        csr_arrays.push_back(std::vector<long int>(csr_data, csr_data + layer_len));
     }
 
-    return std::make_pair(indices_ndarrays, csr_ndarrays);
+    return {indices_arrays, csr_arrays};
 }
 
 
