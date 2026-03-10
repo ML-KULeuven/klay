@@ -1,8 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include <fstream>
-#include <sstream>
 #include <vector>
 #include <list>
 
@@ -50,14 +48,6 @@ public:
     std::string get_label() const;
 
     /**
-     * Create a dummy parent who is one layer above this node.
-     * This is needed to create a chain of dummy nodes such
-     * that each node only has children in the previous adjacent layer.
-     * @return The dummy parent.
-     */
-    Node* dummy_parent();
-
-    /**
      * Whether this is a True Node.
      */
     inline bool is_true() const { return this->type == NodeType::True; }
@@ -97,33 +87,8 @@ struct NodeHash {
 
 struct NodeEqual {
     bool operator()(const Node* lhs, const Node* rhs) const {
-#ifndef NDEBUG
-        // We currently assume the hash is collision-free,
-        // which is a relatively safe assumption since it
-        // must only be unique per layer, and the hash function
-        // is relatively good.
-        // This assertion checks whether we were wrong.
-//        bool r = (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer);
-//        if (r) {
-//            lhs->children.sort(compareNode); // canonical order
-//            rhs->children.sort(compareNode); // canonical order
-//            assert (lhs->children == rhs->children);
-//        }
-
-        // If we decide to be 100% correct; we can
-        // sort the children during construction (or before adding the node).
-        // and then perform the list equality check during this equality check.
-        // An inductive correctness proof then follows easily.
-        // If we can assume each literal and constant node have a unique hash (base-case).
-        // then the invariant that the nodes in the previous layer are all unique holds,
-        // and since we use equal children check, the nodes in the current layer are
-        // therefore then also unique.
-#endif
-
         // We must not compare `ix`, because that is not set yet when we compare.
         // We do not compare `type`, as that check is subsumed by comparing `layer`
         return (lhs->hash == rhs->hash) && (lhs->layer == rhs->layer);
     }
 };
-
-

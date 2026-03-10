@@ -18,6 +18,11 @@ std::size_t mix_hash(std::size_t h) {
  * - Updates this.children;
  * - Updates this.hash;
  * - Increases the layer of this node to be at least above the child's layer.
+ *
+ * Layer parity enforcement (e.g. And=odd, Or=even) is NOT done here.
+ * It is the responsibility of the caller (e.g. LogicalCircuit factory methods)
+ * to call enforce_parity() after all children have been added.
+ *
  * @param child The new child of this node.
  */
 void Node::add_child(Node* child) {
@@ -27,13 +32,7 @@ void Node::add_child(Node* child) {
 
     children.push_back(child);
     hash ^= mix_hash(child->hash);
-    std::size_t layer_bound = child->layer + 1;
-    if (layer_bound%2 == 0 && type == NodeType::And) {
-        layer_bound++; // And nodes must be in odd layers
-    } else if (layer_bound%2 == 1 && type == NodeType::Or) {
-        layer_bound++; // Or nodes must be in even layers
-    }
-    layer = std::max(layer, layer_bound);
+    layer = std::max(layer, child->layer + 1);
 }
 
 /**
@@ -52,18 +51,6 @@ std::string Node::get_label() const {
             throw std::runtime_error("Invalid node type");
     }
     return labelName + std::to_string(layer) + "/" + std::to_string(ix);
-}
-
-/**
- * Create a dummy parent who is one layer above this node.
- * This is needed to create a chain of dummy nodes such
- * that each node only has children in the previous adjacent layer.
- * @return The dummy parent.
- */
-Node* Node::dummy_parent() {
-    Node* dummy = (layer % 2 == 0) ? Node::createAndNode() : Node::createOrNode();
-    dummy->add_child(this);
-    return dummy;
 }
 
 
