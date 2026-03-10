@@ -1,12 +1,5 @@
 #pragma once
 
-#include <nanobind/nanobind.h>
-#include <nanobind/stl/string.h>
-#include <nanobind/stl/pair.h>
-#include <nanobind/stl/vector.h>
-#include <nanobind/ndarray.h>
-#include <nanobind/operators.h>
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -17,10 +10,7 @@
 #include "node.h"
 #include "hash_set8.hpp"
 
-namespace nb = nanobind;
-using namespace nb::literals;
-
-typedef std::vector<nb::ndarray<nb::numpy, long int, nb::shape<-1>>> Arrays;
+using RawArrays = std::vector<std::vector<long int>>;
 
 
 class NodePtr {
@@ -161,7 +151,7 @@ public:
      */
     void remove_unused_nodes();
 
-    std::pair<Arrays, Arrays> get_indices();
+    std::pair<RawArrays, RawArrays> get_indices();
 
     /**
      * Number of nodes in the whole circuit.
