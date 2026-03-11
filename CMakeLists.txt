@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.18...3.27)
 project(klaycircuits LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_EXPORT_PACKAGE_REGISTRY ON)
 
 if (NOT SKBUILD)
     message(WARNING "\
@@ -51,60 +50,22 @@ add_library(klay SHARED
 target_include_directories(klay
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:klay/include>
 )
 
-# -----------------------------------------------
-# INSTALL LIBRARY KLAY (build tree)
-# -----------------------------------------------
-# FIXME(Ibrahim):
-# https://stackoverflow.com/a/66412641/14633299
-
-set(KLAY_CONFIG_FILENAME "klayConfig.cmake")
-set(KLAY_TARGETS_FILENAME "klayTargets.cmake")
-configure_file(klayConfig.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/${KLAY_CONFIG_FILENAME}" @ONLY)
-
-export(
-    TARGETS klay
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/${KLAY_TARGETS_FILENAME}"
+install(TARGETS klay
+    EXPORT klayTargets
+    LIBRARY DESTINATION klay
 )
-export(PACKAGE klay)
 
-# -----------------------------------------------
-# INSTALL LIBRARY KLAY (install)
-# -----------------------------------------------
-# NOTE(Ibrahim):
-# to install lbikay system wide
+install(DIRECTORY include/
+    DESTINATION klay/include
+)
 
-# set(KLAY_EXPORT_NAME "klayTargets")
-# set(DEF_INSTALL_CMAKE_DIR lib/cmake/klay)
-# set(KLAY_INSTALL_CMAKE_DIR
-#   ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
-#   "Installation directory for klay CMake files")
-
-# install(
-#     TARGETS klay
-#     EXPORT ${KLAY_EXPORT_NAME}
-#     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-# )
-
-# install(DIRECTORY include/klay DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-# # Install-tree export
-# set(CONF_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/klay")
-# configure_file(klayConfig.cmake.in
-#     "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${KLAY_CONFIG_FILENAME}" @ONLY)
-# install(FILES
-#     "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${KLAY_CONFIG_FILENAME}"
-#     DESTINATION "${KLAY_INSTALL_CMAKE_DIR}"
-# )
-# install(
-#     EXPORT ${KLAY_EXPORT_NAME}
-#     DESTINATION "${KLAY_INSTALL_CMAKE_DIR}"
-# )
+install(EXPORT  klayTargets
+    FILE        klayConfig.cmake
+    DESTINATION klay/cmake/klay
+)
 
 # -----------------------------------------------
 # PYTHON KLAY EXTENSION
@@ -123,27 +84,19 @@ set_target_properties(klay_ext PROPERTIES
     INSTALL_RPATH "$ORIGIN"
 )
 
-# NOTE(Ibrahim):
-# puts klay_ext.abi3.so into the klay/ Python package directory
-# (inside the wheel)
-# also install (lib)klay in Python pakcage directory 
-# to avoid installing libklay system wide
-install(TARGETS klay klay_ext LIBRARY DESTINATION klay)
+install(TARGETS klay_ext LIBRARY DESTINATION klay)
 
 # -----------------------------------------------
 # PYTHON KLAY EXTENSION STUBS
 # -----------------------------------------------
 
-# https://nanobind.readthedocs.io/en/latest/typing.html#cmake-interface
-nanobind_add_stub(
-  klay_ext_stub
-  MODULE klay_ext
-  OUTPUT klay_ext.pyi
-  PYTHON_PATH $<TARGET_FILE_DIR:klay_ext>
-  DEPENDS klay_ext
-)
-
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/klay_ext.pyi"
-  DESTINATION klay
-)
+# nanobind_add_stub(
+#   klay_ext_stub
+#   INSTALL_TIME
+#   MODULE klay_ext
+#   OUTPUT klay/klay_ext.pyi
+#   PYTHON_PATH "klay"
+#   MARKER_FILE klay/py.typed
+#   DEPENDS klay_ext
+# )
+# install(FILES "${CMAKE_BINARY_DIR}/klay_ext.pyi" DESTINATION klay)
