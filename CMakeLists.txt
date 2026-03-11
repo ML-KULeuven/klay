@@ -89,7 +89,6 @@ install(TARGETS klay_ext LIBRARY DESTINATION klay)
 # -----------------------------------------------
 # PYTHON KLAY EXTENSION STUBS
 # -----------------------------------------------
-
 # nanobind_add_stub(
 #   klay_ext_stub
 #   INSTALL_TIME
