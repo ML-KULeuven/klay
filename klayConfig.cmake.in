@@ -1,2 +1,0 @@
-get_filename_component(KLAY_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-include("${KLAY_CMAKE_DIR}/@KLAY_TARGETS_FILENAME@")
