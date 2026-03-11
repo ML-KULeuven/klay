@@ -11,16 +11,16 @@ _PROB_LAYER_CLASSES = {
 
 class ProbabilisticCircuitModule(CircuitModule):
 
-    def __init__(self, ixs_in, ixs_out, semiring: str = 'real'):
+    def __init__(self, ixs_in, ixs_out, layer_types, semiring: str = 'real'):
         if not isinstance(semiring, str):
             raise ValueError(f"ProbabilisticCircuitModule only supports named semirings {list(_PROB_LAYER_CLASSES)}, got {semiring!r}")
-        super().__init__(ixs_in, ixs_out, semiring)
+        super().__init__(ixs_in, ixs_out, layer_types, semiring)
         sum_reduce = self.default_semirings[semiring][0]
         self.sum_layer = _PROB_LAYER_CLASSES[sum_reduce]
         # Rebuild sum layers as probabilistic
         layers = []
         for i, layer in enumerate(self.layers):
-            if i % 2 == 1:
+            if self.layer_types[i] == 0:
                 layers.append(self.sum_layer(layer.ix_in, layer.ix_out))
             else:
                 layers.append(layer)
@@ -45,12 +45,13 @@ class ProbabilisticCircuitModule(CircuitModule):
     def from_circuit(circuit: CircuitModule, x_pos, x_neg=None):
         """ Converts the circuit into a probabilistic circuit."""
         assert circuit.semiring == "log" or circuit.semiring == "real"
-        pc = ProbabilisticCircuitModule([], [], circuit.semiring)
+        pc = ProbabilisticCircuitModule([], [], [], circuit.semiring)
+        pc.layer_types = circuit.layer_types
         layers = []
 
         x = circuit.encode_input(x_pos, x_neg)
         for i, layer in enumerate(circuit.layers):
-            if i % 2 == 1:  # sum layers are at odd indices
+            if circuit.layer_types[i] == 0:
                 new_layer = pc.sum_layer(layer.ix_in, layer.ix_out)
                 weights = x.log() if circuit.semiring == "real" else x
                 new_layer.weights.data = weights[new_layer.ix_in]

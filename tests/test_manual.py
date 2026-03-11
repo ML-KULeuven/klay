@@ -35,7 +35,8 @@ def test_probabilistic():
     c.set_root(and_node)
 
     m = c.to_torch_module(semiring='real', probabilistic=True)
-    m.layers[1].weights.data.zero_()
+    sum_idx = next(i for i, t in enumerate(m.layer_types) if t == 0)
+    m.layers[sum_idx].weights.data.zero_()
     weights = torch.tensor([0.4, 0.8, 0.5])
     expected_result = torch.tensor((0.4 / 2 + 0.2 / 2) * (0.2 / 2 + 0.5 / 2))
     assert torch.allclose(m(weights), expected_result)
@@ -51,7 +52,8 @@ def test_create_pc():
 
     m = c.to_torch_module(semiring='real')
     m = ProbabilisticCircuitModule.from_circuit(m, torch.tensor([0.4, 0.8, 0.5]))
-    edge_weights = m.layers[1].get_edge_weights()
+    sum_idx = next(i for i, t in enumerate(m.layer_types) if t == 0)
+    edge_weights = m.layers[sum_idx].get_edge_weights()
     expected_weights = torch.tensor([2/3, 1/3, 2/7, 5/7])
     assert torch.allclose(edge_weights, expected_weights)
 
@@ -80,7 +82,8 @@ def test_log_probabilistic():
     c.set_root(and_node)
 
     m = c.to_torch_module(semiring='log', probabilistic=True)
-    m.layers[1].weights.data.zero_()
+    sum_idx = next(i for i, t in enumerate(m.layer_types) if t == 0)
+    m.layers[sum_idx].weights.data.zero_()
     weights = torch.tensor([0.4, 0.8, 0.5])
     expected_result = torch.tensor((0.4 / 2 + 0.2 / 2) * (0.2 / 2 + 0.5 / 2))
     assert torch.allclose(m(weights.log()).exp(), expected_result)

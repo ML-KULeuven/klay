@@ -32,9 +32,10 @@ class CircuitModule(nn.Module):
             return partial(CircuitLayer, reduce=reduce)
         return partial(GatherCircuitLayer, reduce_fn=reduce, fill_value=fill_value)
 
-    def __init__(self, ixs_in, ixs_out, semiring: str | tuple = 'real'):
+    def __init__(self, ixs_in, ixs_out, layer_types, semiring: str | tuple = 'real'):
         super().__init__()
         self.semiring = semiring
+        self.layer_types = layer_types
         if isinstance(semiring, str):
             sum_reduce, prod_reduce, self.zero, self.one, self.negate = self.default_semirings[semiring]
         else:
@@ -48,7 +49,7 @@ class CircuitModule(nn.Module):
             ix_in = torch.as_tensor(ix_in, dtype=torch.long)
             ix_out = torch.as_tensor(ix_out, dtype=torch.long)
             ix_out = unroll_ixs(ix_out)
-            layer = self.prod_layer if i % 2 == 0 else self.sum_layer
+            layer = self.sum_layer if layer_types[i] == 0 else self.prod_layer
             layers.append(layer(ix_in, ix_out))
         self.layers = nn.Sequential(*layers)
 

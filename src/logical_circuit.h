@@ -2,7 +2,7 @@
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
-#include <nanobind/stl/pair.h>
+#include <nanobind/stl/tuple.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "stratified_dag.h"
-#include "layer_policy.h"
 #include "literal.h"
 
 namespace nb = nanobind;
@@ -43,34 +42,54 @@ private:
 
 
 /**
- * An AND/OR logical circuit built on top of StratifiedDag<AndOrPolicy>.
+ * An AND/OR logical circuit built on top of StratifiedDag.
  *
- * Adds Boolean semantics: And/Or/Literal/True/False node types, layer-parity
- * enforcement (And=odd, Or=even), constant propagation, and SDD/D4 file parsers.
+ * Adds Boolean semantics: dynamic layer assignment via resolve_layer,
+ * constant propagation, and SDD/D4 file parsers.
  */
-class LogicalCircuit : public StratifiedDag<AndOrPolicy> {
+class LogicalCircuit : public StratifiedDag {
 public:
-
-    void set_root(NodePtr root) {
-        StratifiedDag<AndOrPolicy>::set_root(root.get());
-    }
-
-    using StratifiedDag<AndOrPolicy>::remove_unused_nodes;
+    // Gate types — inherent semantic meaning
+    static constexpr int Sum = 0;
+    static constexpr int Product = 1;
 
     /**
-     * Like `add_node_level`, but first applies Boolean simplification:
-     *   - OR with a True child  -> True
-     *   - OR with False children -> those children are dropped
-     *   - AND with a False child -> False
-     *   - AND with True children -> those children are dropped
-     *   - Single remaining child  -> the child itself (no new node)
-     *   - No remaining children   -> neutral element (True for AND, False for OR)
+     * Constant value that acts as the neutral element for the given gate type.
+     *   Sum:     neutral = 0 (false)  — x OR false = x
+     *   Product: neutral = 1 (true)   — x AND true = x
+     */
+    static int neutral_value(int gate_type) {
+        return (gate_type == Sum) ? 0 : 1;
+    }
+
+    /**
+     * Constant value that acts as the annihilator for the given gate type.
+     *   Sum:     annihilator = 1 (true)  — x OR true = true
+     *   Product: annihilator = 0 (false) — x AND false = false
+     */
+    static int annihilator_value(int gate_type) {
+        return (gate_type == Sum) ? 1 : 0;
+    }
+
+    void set_root(NodePtr root) {
+        StratifiedDag::set_root(root.get());
+    }
+
+    using StratifiedDag::remove_unused_nodes;
+
+    /**
+     * Like `add_node_level`, but first applies constant propagation:
+     *   - Gate with an annihilator child  -> annihilator constant
+     *   - Gate with neutral children      -> those children are dropped
+     *   - Single remaining child          -> the child itself (no new node)
+     *   - No remaining children           -> neutral constant
      *
-     * Also enforces layer parity (And=odd, Or=even) before insertion.
+     * For Gate nodes, reads gate_type from the node and enforces layer
+     * placement via the policy before insertion.
      */
     Node* add_node_level_compressed(Node* node);
 
-    std::pair<Arrays, Arrays> get_indices();
+    std::tuple<Arrays, Arrays, std::vector<int>> get_indices();
 
     NodePtr true_node();
     NodePtr false_node();
@@ -85,6 +104,7 @@ public:
     NodePtr add_d4_from_file(const std::string& filename,
                              std::vector<int>& true_lits,
                              std::vector<int>& false_lits);
+
 };
 
 // Python-facing alias; preserved for backward compatibility

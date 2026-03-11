@@ -16,21 +16,16 @@
  * layer are considered equal, and only one instance is kept.
  *
  * Children of a node must reside in the immediately adjacent lower layer. If they do
- * not, `add_node_level` inserts passthrough ("dummy") nodes to bridge the gap, using
- * `Policy::make_dummy`.
- *
- * @tparam Policy  A type providing:
- *   `static Node* make_dummy(Node* child)`
- *     Creates a passthrough node one layer above `child` with `child` as its only child.
- *     The returned node must not yet be part of the circuit.
+ * not, `add_node_level` inserts passthrough ("dummy") Gate nodes to bridge the gap.
  */
-template<typename Policy>
 class StratifiedDag {
 public:
     // Circuit representation as a Merkle DAG
     std::vector<emhash8::HashSet<Node*, NodeHash, NodeEqual>> layers;
     // Root nodes in order they were added
     std::vector<Node*> roots;
+    // Assigned gate type per layer (-1 = unassigned, e.g. leaf layer or not yet claimed)
+    std::vector<int> layer_gate_types;
 
     ~StratifiedDag() {
         for (auto& layer : layers) {
@@ -87,8 +82,8 @@ public:
     /**
      * Add node to this circuit and ensure each child is in the previous adjacent layer.
      *
-     * If a child does not exist in the previous layer, a chain of dummy nodes is inserted
-     * using `Policy::make_dummy`. Children must already be part of the circuit.
+     * If a child is not in the previous layer, a chain of passthrough Gate nodes is
+     * inserted to bridge the gap.
      *
      * `node->layer` must already reflect the correct target layer before calling this.
      * May change `node->children` (replacing skipped children with their dummy parents)
@@ -104,7 +99,7 @@ public:
             assert(child_stored == child);
 #endif
             while (child->layer < node->layer - 1)
-                child = add_node(Policy::make_dummy(child));
+                child = add_node(make_dummy(child));
         }
         return add_node(node);
     }
@@ -157,10 +152,12 @@ public:
 
         // Pop empty trailing layers (intermediate layers can't be empty due to dummy nodes)
         for (std::size_t i = nb_layers() - 1; i > 0; --i) {
-            if (layers[i].empty())
+            if (layers[i].empty()) {
                 layers.pop_back();
-            else
+                layer_gate_types.pop_back();
+            } else {
                 break;
+            }
         }
 
         // Update ix to be contiguous [0..n-1] within each layer
@@ -185,6 +182,20 @@ public:
     }
 
     /**
+     * Resolve the layer for a gate of the given type, starting from min_layer.
+     * Scans existing layers for a match; if none found, appends a new layer.
+     */
+    std::size_t resolve_layer(int gate_type, std::size_t min_layer) {
+        for (std::size_t l = min_layer; l < layer_gate_types.size(); ++l) {
+            if (layer_gate_types[l] == gate_type)
+                return l;
+        }
+        std::size_t new_layer = layer_gate_types.size();
+        layer_gate_types.push_back(gate_type);
+        return new_layer;
+    }
+
+    /**
      * Move all roots into a new top layer, inserting dummy chains as needed.
      * The final layer uses root order as the hash (so CSR output matches root order).
      */
@@ -196,16 +207,25 @@ public:
         for (std::size_t i = 0; i < roots.size(); i++) {
             Node* root = roots[i];
             while (root->layer < root_layer_index) {
-                root = Policy::make_dummy(root);
-                if (root->layer == root_layer_index)
-                    root->hash = i; // order final-layer nodes by root insertion order
-                root = add_node(root);
+                Node* dummy = make_dummy(root);
+                if (dummy->layer == root_layer_index)
+                    dummy->hash = i; // order final-layer nodes by root insertion order
+                root = add_node(dummy);
             }
             roots[i] = root;
         }
     }
 
 protected:
+    /**
+     * Create a passthrough (dummy) Gate node one layer above `child`.
+     */
+    static Node* make_dummy(Node* child) {
+        Node* dummy = Node::createGate(-1);
+        dummy->add_child(child);
+        return dummy;
+    }
+
     /**
      * Insert `node` into its layer's hash set; deduplicates automatically.
      *
@@ -214,8 +234,10 @@ protected:
      * is returned (and `node->ix` is assigned).
      */
     Node* add_node(Node* node) {
-        if (layers.size() <= node->layer)
+        if (layers.size() <= node->layer) {
             layers.resize(node->layer + 1);
+            layer_gate_types.resize(layers.size(), -1);
+        }
         auto& layer = layers[node->layer];
         auto [it, inserted] = layer.insert(node);
         if (inserted && node->ix == -1)

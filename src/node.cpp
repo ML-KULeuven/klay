@@ -13,21 +13,9 @@ std::size_t mix_hash(std::size_t h) {
  * ----------
  */
 
-/**
- * Add child to this node.
- * - Updates this.children;
- * - Updates this.hash;
- * - Increases the layer of this node to be at least above the child's layer.
- *
- * Layer parity enforcement (e.g. And=odd, Or=even) is NOT done here.
- * It is the responsibility of the caller (e.g. LogicalCircuit factory methods)
- * to call enforce_parity() after all children have been added.
- *
- * @param child The new child of this node.
- */
 void Node::add_child(Node* child) {
-    if (type != NodeType::Or && type != NodeType::And) {
-        throw std::runtime_error("Can only add children to AND/OR nodes");
+    if (type != NodeType::Gate) {
+        throw std::runtime_error("Can only add children to Gate nodes");
     }
 
     children.push_back(child);
@@ -35,39 +23,23 @@ void Node::add_child(Node* child) {
     layer = std::max(layer, child->layer + 1);
 }
 
-/**
- * Useful for printing.
- * @return The label of this node.
- */
 std::string Node::get_label() const {
     std::string labelName;
     switch (type) {
-        case NodeType::True: labelName = "T"; break;
-        case NodeType::False: labelName = "F"; break;
-        case NodeType::Or: labelName = "O"; break;
-        case NodeType::And: labelName = "A"; break;
-        case NodeType::Leaf: labelName = "L"; break;
-        default: // should not happen. Indicates node was deleted?
+        case NodeType::Gate:     labelName = "G" + std::to_string(gate_type); break;
+        case NodeType::Leaf:     labelName = "L"; break;
+        case NodeType::Constant: labelName = "C"; break;
+        default:
             throw std::runtime_error("Invalid node type");
     }
     return labelName + std::to_string(layer) + "/" + std::to_string(ix);
 }
 
 
-Node* Node::createLiteralNode(Lit lit) {
-    int ix = lit.internal_val();
+Node* Node::createGate(int gate_type) {
     return new Node{
-            NodeType::Leaf,
-            ix,
-            {},
-            0,
-            mix_hash(ix)
-    };
-}
-
-Node* Node::createAndNode() {
-    return new Node{
-            NodeType::And,
+            NodeType::Gate,
+            gate_type,
             -1,
             {},
             0,
@@ -75,33 +47,27 @@ Node* Node::createAndNode() {
     };
 }
 
-Node* Node::createOrNode() {
+Node* Node::createLeaf(int ix, std::size_t hash) {
     return new Node{
-            NodeType::Or,
+            NodeType::Leaf,
             -1,
+            ix,
             {},
             0,
-            10911628454825363117UL
+            hash
     };
 }
 
-Node* Node::createTrueNode() {
+Node* Node::createConstant(int value) {
+    // value 0 = false-like, value 1 = true-like
+    std::size_t h = (value == 1) ? 10398838469117805359UL : 2055047638380880996UL;
     return new Node{
-            NodeType::True,
-            1,
+            NodeType::Constant,
+            -1,
+            value,
             {},
             0,
-            10398838469117805359UL
-    };
-}
-
-Node* Node::createFalseNode() {
-    return new Node{
-            NodeType::False,
-            0,
-            {},
-            0,
-            2055047638380880996UL
+            h
     };
 }
 
