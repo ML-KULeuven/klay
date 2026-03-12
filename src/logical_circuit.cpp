@@ -10,21 +10,22 @@
 // ---------------------------------------------------------------------------
 
 Node* LogicalCircuit::add_node_level_compressed(Node* node) {
-    if (node->type != NodeType::Gate) {
+    // Non-gate nodes (constants, leaves) have no children to propagate through.
+    if (node->type != NodeType::Gate)
         return add_node_level(node);
-    }
 
+    // Pin the node to the correct layer for its gate type before inspecting children.
     node->layer = resolve_layer(node->gate_type, node->layer);
 
-    int neutral = neutral_value(node->gate_type);
+    int neutral     = neutral_value(node->gate_type);
     int annihilator = annihilator_value(node->gate_type);
 
     std::list<Node*> new_children;
     for (auto& child : node->children) {
         if (child->is_constant(neutral)) {
-            continue;
+            continue;                            // neutral element: drop (e.g. AND drops True children)
         } else if (child->is_constant(annihilator)) {
-            delete node;
+            delete node;                         // annihilator absorbs: whole gate collapses
             return add_node_level(Node::createConstant(annihilator));
         } else {
             new_children.push_back(child);
@@ -32,16 +33,19 @@ Node* LogicalCircuit::add_node_level_compressed(Node* node) {
     }
 
     if (new_children.empty()) {
+        // All children were neutral — gate reduces to neutral constant.
         delete node;
         return add_node_level(Node::createConstant(neutral));
     }
     if (new_children.size() == 1) {
+        // Single child remaining — gate is redundant, bypass it.
         Node* child = new_children.front();
         delete node;
         return child;
     }
     if (new_children.size() != node->children.size()) {
-        // Recreate node because the hash was computed from the original children
+        // Some children were dropped; the hash was computed from the original
+        // child set, so we must recreate the node to get the correct hash.
         int gt = node->gate_type;
         delete node;
         node = Node::createGate(gt);
@@ -58,27 +62,30 @@ std::tuple<std::vector<std::vector<long>>, std::vector<std::vector<long>>, std::
     remove_unused_nodes();
     add_root_layer();
 
-    std::vector<std::vector<long>> indices_vecs;
-    std::vector<std::vector<long>> csr_vecs;
+    std::vector<std::vector<long>> indices_vecs; // child index arrays, one per layer transition
+    std::vector<std::vector<long>> csr_vecs;     // CSR row-pointer arrays, one per layer transition
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
+        // Count children per node, indexed by node->ix within this layer.
         std::vector<long> child_counts(layers[i].size(), 0);
-        std::size_t layer_size = 0;
+        std::size_t layer_size = 0;             // total edges in this layer
         for (const auto* node : layers[i]) {
             layer_size += node->children.size();
             child_counts[node->ix] = node->children.size();
         }
 
+        // Build CSR row pointers: csr[k] = start index of node k's children in `indices`.
         std::vector<long> csr(layers[i].size() + 1);
         csr[0] = 0;
         for (std::size_t j = 1; j < csr.size(); ++j)
             csr[j] = csr[j-1] + child_counts[j-1];
 
+        // Fill flat child-index array using the CSR offsets.
         std::vector<long> indices(layer_size);
         for (const auto* node : layers[i]) {
             std::size_t offset = 0;
             for (Node* child : node->children) {
-                assert(child->layer == i - 1);
+                assert(child->layer == i - 1);  // children must be in the adjacent lower layer
                 indices[csr[node->ix] + offset++] = child->ix;
             }
         }
@@ -87,6 +94,7 @@ std::tuple<std::vector<std::vector<long>>, std::vector<std::vector<long>>, std::
         csr_vecs.push_back(std::move(csr));
     }
 
+    // Collect gate type per layer (skip layer 0, the leaf/constant layer).
     std::vector<int> comp_layer_types;
     for (std::size_t i = 1; i < nb_layers(); ++i)
         comp_layer_types.push_back(layer_gate_types[i]);
@@ -109,6 +117,7 @@ Node* LogicalCircuit::literal_node(int lit) {
             "literal_node(lit) does not allow lit == 0, "
             "because negation -0 does not make sense.");
     Lit l = Lit::fromInt(lit);
+    // Positive and negative literals share a layer; mix_hash distinguishes them.
     return add_node_level(Node::createLeaf(l.internal_val(), mix_hash(l.internal_val())));
 }
 
@@ -137,12 +146,12 @@ static Node* parseSDDFile(const std::string& filename, LogicalCircuit& circuit,
     if (!file.is_open())
         throw std::runtime_error("Could not open file: " + filename);
 
-    std::vector<Node*> nodeIds;
+    std::vector<Node*> nodeIds; // maps SDD node id -> circuit Node*
     Node* node = nullptr;
 
     std::string line;
     while (std::getline(file, line)) {
-        if (line[0] == 'c') continue;
+        if (line[0] == 'c') continue; // comment line
 
         std::istringstream iss(line);
         std::string type;
@@ -164,6 +173,7 @@ static Node* parseSDDFile(const std::string& filename, LogicalCircuit& circuit,
         } else if (type == "L") {
             int vtree, literal;
             iss >> vtree >> literal;
+            // Propagate known true/false literals before adding to circuit.
             if (std::find(true_lits.begin(), true_lits.end(), literal) != true_lits.end())
                 node = Node::createConstant(1);
             else if (std::find(false_lits.begin(), false_lits.end(), literal) != false_lits.end())
@@ -173,6 +183,7 @@ static Node* parseSDDFile(const std::string& filename, LogicalCircuit& circuit,
                 node = Node::createLeaf(l.internal_val(), mix_hash(l.internal_val()));
             }
         } else if (type == "D") {
+            // Decision node: an OR over (prime AND sub) pairs.
             int vtree, numElements;
             iss >> vtree >> numElements;
             node = Node::createGate(LogicalCircuit::Sum);
@@ -206,11 +217,13 @@ static Node* parseD4File(const std::string& filename, LogicalCircuit& circuit,
     if (!file.is_open())
         throw std::runtime_error("Could not open file: " + filename);
 
+    // nodes[0] is a sentinel; real node ids start at 1.
     std::vector<Node*> nodes = {nullptr};
     Node* node = nullptr;
 
     std::string line;
     while (std::getline(file, line)) {
+        // Lines starting with a node-type character declare a new node.
         switch (line[0]) {
             case 'o': node = Node::createGate(LogicalCircuit::Sum);     break;
             case 'a': node = Node::createGate(LogicalCircuit::Product); break;
@@ -221,29 +234,33 @@ static Node* parseD4File(const std::string& filename, LogicalCircuit& circuit,
         if (node != nullptr) {
             nodes.push_back(node);
         } else {
-            // Parse edge: parent child lit [lit ...] 0
+            // Edge line: "parent child lit [lit ...] 0"
             std::size_t parent, child;
             int lit;
             std::istringstream iss(line);
             iss >> parent >> child >> lit;
 
-            // Finalize child before connecting
+            // Finalize child before connecting it to its parent.
             nodes[child] = circuit.add_node_level_compressed(nodes[child]);
 
             if (lit == 0) {
+                // Plain edge with no associated literals.
                 nodes[parent]->add_child(nodes[child]);
                 continue;
             }
 
-            // Edge with associated literals: fold into a Product (And) node
+            // Edge carries literals: wrap child + literals in a Product node.
+            // If the parent is already a Product, fold directly into it to
+            // avoid creating an unnecessary intermediate node.
             Node* edge;
             if (nodes[parent]->gate_type == LogicalCircuit::Product) {
-                edge = nodes[parent]; // fold directly into the Product parent
+                edge = nodes[parent];
             } else {
                 edge = Node::createGate(LogicalCircuit::Product);
             }
             edge->add_child(nodes[child]);
             while (lit != 0) {
+                // Propagate known true/false literals.
                 if (std::find(true_lits.begin(), true_lits.end(), lit) != true_lits.end())
                     node = Node::createConstant(1);
                 else if (std::find(false_lits.begin(), false_lits.end(), lit) != false_lits.end())
@@ -256,13 +273,14 @@ static Node* parseD4File(const std::string& filename, LogicalCircuit& circuit,
                 iss >> lit;
             }
             if (edge != nodes[parent]) {
+                // Edge was a new intermediate node; attach it to the parent.
                 edge = circuit.add_node_level_compressed(edge);
                 nodes[parent]->add_child(edge);
             }
         }
     }
 
-    // Root node (index 1) is never seen as a child, so finalize it manually
+    // Root node (index 1) is never seen as a child, so finalize it manually.
     nodes[1] = circuit.add_node_level_compressed(nodes[1]);
     return nodes[1];
 }
@@ -324,11 +342,13 @@ void to_dot_file(LogicalCircuit& circuit, const std::string& filename) {
         for (const auto* node : layer) {
             for (Node* child : node->children)
                 file << "  " << child->hash << " -> " << node->hash << std::endl;
+            // Label: type + layer/index for easy identification.
             file << "  " << node->hash
                  << " [label=\"" << semantic_label(node)
                  << node->layer << "/" << node->ix << "\"]" << std::endl;
         }
     }
+    // Group nodes at the same layer on the same rank for a cleaner layout.
     for (const auto& layer : circuit.layers) {
         file << "  { rank=same; ";
         for (const auto* node : layer)
