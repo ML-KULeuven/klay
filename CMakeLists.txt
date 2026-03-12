@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15...3.27)
 project(klaycircuits LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (NOT SKBUILD)
@@ -47,6 +49,10 @@ add_library(klay SHARED
   src/node.cpp
 )
 
+set_target_properties(klay PROPERTIES
+  WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
+
 target_include_directories(klay
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -56,6 +62,7 @@ target_include_directories(klay
 install(TARGETS klay
     EXPORT klayTargets
     LIBRARY DESTINATION klay
+  RUNTIME DESTINATION klay
 )
 
 install(DIRECTORY include/
@@ -81,8 +88,14 @@ nanobind_add_module(klay_ext
 
 target_link_libraries(klay_ext PRIVATE klay)
 
+set(RPATH_ORIGIN "$ORIGIN")
+if(APPLE)
+  set(RPATH_ORIGIN "@loader_path")
+endif()
+
 set_target_properties(klay_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN"
+  INSTALL_RPATH "${RPATH_ORIGIN}"
+  BUILD_WITH_INSTALL_RPATH TRUE
 )
 
 install(TARGETS klay_ext LIBRARY DESTINATION klay)
