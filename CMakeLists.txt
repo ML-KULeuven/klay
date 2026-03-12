@@ -58,7 +58,7 @@ nanobind_add_module(
         # Source code goes here
         src/node.cpp
         src/logical_circuit.cpp
-        src/circuit.cpp
+        src/bindings.cpp
 )
 
 # Install directive for scikit-build-core

@@ -6,15 +6,6 @@
 
 
 // ---------------------------------------------------------------------------
-// Internal helpers (file-local)
-// ---------------------------------------------------------------------------
-
-void cleanup(void* data) noexcept {
-    delete[] static_cast<long int*>(data);
-}
-
-
-// ---------------------------------------------------------------------------
 // LogicalCircuit
 // ---------------------------------------------------------------------------
 
@@ -63,86 +54,76 @@ Node* LogicalCircuit::add_node_level_compressed(Node* node) {
 }
 
 
-std::tuple<Arrays, Arrays, std::vector<int>> LogicalCircuit::get_indices() {
+std::tuple<std::vector<std::vector<long>>, std::vector<std::vector<long>>, std::vector<int>> LogicalCircuit::get_indices() {
     remove_unused_nodes();
     add_root_layer();
 
-    Arrays indices_ndarrays;
-    Arrays csr_ndarrays;
+    std::vector<std::vector<long>> indices_vecs;
+    std::vector<std::vector<long>> csr_vecs;
 
     for (std::size_t i = 1; i < nb_layers(); ++i) {
-        std::vector<long int> child_counts(layers[i].size(), 0);
+        std::vector<long> child_counts(layers[i].size(), 0);
         std::size_t layer_size = 0;
-        std::size_t layer_len = layers[i].size() + 1;
         for (const auto* node : layers[i]) {
             layer_size += node->children.size();
             child_counts[node->ix] = node->children.size();
         }
 
-        long int* csr_data = new long int[layer_len];
-        csr_data[0] = 0;
-        for (std::size_t j = 1; j < layer_len; ++j)
-            csr_data[j] = csr_data[j-1] + child_counts[j-1];
+        std::vector<long> csr(layers[i].size() + 1);
+        csr[0] = 0;
+        for (std::size_t j = 1; j < csr.size(); ++j)
+            csr[j] = csr[j-1] + child_counts[j-1];
 
-        long int* indices_data = new long int[layer_size];
+        std::vector<long> indices(layer_size);
         for (const auto* node : layers[i]) {
             std::size_t offset = 0;
             for (Node* child : node->children) {
                 assert(child->layer == i - 1);
-                indices_data[csr_data[node->ix] + offset++] = child->ix;
+                indices[csr[node->ix] + offset++] = child->ix;
             }
         }
 
-        std::size_t indices_size[1] = {layer_size};
-        std::size_t csr_size[1]     = {layer_len};
-        nb::capsule indices_capsule(indices_data, cleanup);
-        nb::capsule csr_capsule(csr_data, cleanup);
-
-        nb::ndarray<nb::numpy, long int, nb::shape<-1>> indices_ndarray(
-                indices_data, 1, indices_size, indices_capsule);
-        nb::ndarray<nb::numpy, long int, nb::shape<-1>> csr_ndarray(
-                csr_data, 1, csr_size, csr_capsule);
-        indices_ndarrays.push_back(indices_ndarray);
-        csr_ndarrays.push_back(csr_ndarray);
+        indices_vecs.push_back(std::move(indices));
+        csr_vecs.push_back(std::move(csr));
     }
 
     std::vector<int> comp_layer_types;
     for (std::size_t i = 1; i < nb_layers(); ++i)
         comp_layer_types.push_back(layer_gate_types[i]);
 
-    return std::make_tuple(indices_ndarrays, csr_ndarrays, comp_layer_types);
+    return {std::move(indices_vecs), std::move(csr_vecs), comp_layer_types};
 }
 
 
-NodePtr LogicalCircuit::true_node() {
-    return NodePtr(add_node_level(Node::createConstant(1)));
+Node* LogicalCircuit::true_node() {
+    return add_node_level(Node::createConstant(1));
 }
 
-NodePtr LogicalCircuit::false_node() {
-    return NodePtr(add_node_level(Node::createConstant(0)));
+Node* LogicalCircuit::false_node() {
+    return add_node_level(Node::createConstant(0));
 }
 
-NodePtr LogicalCircuit::literal_node(int lit) {
+Node* LogicalCircuit::literal_node(int lit) {
     if (lit == 0)
         throw std::domain_error(
             "literal_node(lit) does not allow lit == 0, "
             "because negation -0 does not make sense.");
     Lit l = Lit::fromInt(lit);
-    return NodePtr(add_node_level(Node::createLeaf(l.internal_val(), mix_hash(l.internal_val()))));
+    return add_node_level(Node::createLeaf(l.internal_val(), mix_hash(l.internal_val())));
 }
 
-NodePtr LogicalCircuit::and_node(std::vector<NodePtr> children) {
+Node* LogicalCircuit::and_node(std::vector<Node*> children) {
     Node* node = Node::createGate(Product);
     for (auto child : children)
-        node->add_child(child.get());
-    return NodePtr(add_node_level_compressed(node));
+        node->add_child(child);
+    return add_node_level_compressed(node);
 }
 
-NodePtr LogicalCircuit::or_node(std::vector<NodePtr> children) {
+Node* LogicalCircuit::or_node(std::vector<Node*> children) {
     Node* node = Node::createGate(Sum);
     for (auto child : children)
-        node->add_child(child.get());
-    return NodePtr(add_node_level_compressed(node));
+        node->add_child(child);
+    return add_node_level_compressed(node);
 }
 
 
@@ -291,26 +272,26 @@ static Node* parseD4File(const std::string& filename, LogicalCircuit& circuit,
 // Public file-loading methods
 // ---------------------------------------------------------------------------
 
-NodePtr LogicalCircuit::add_sdd_from_file(const std::string& filename,
-                                           std::vector<int>& true_lits,
-                                           std::vector<int>& false_lits) {
+Node* LogicalCircuit::add_sdd_from_file(const std::string& filename,
+                                         std::vector<int>& true_lits,
+                                         std::vector<int>& false_lits) {
     Node* new_root = parseSDDFile(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_sdd.dot");
 #endif
-    return NodePtr(new_root);
+    return new_root;
 }
 
-NodePtr LogicalCircuit::add_d4_from_file(const std::string& filename,
-                                          std::vector<int>& true_lits,
-                                          std::vector<int>& false_lits) {
+Node* LogicalCircuit::add_d4_from_file(const std::string& filename,
+                                        std::vector<int>& true_lits,
+                                        std::vector<int>& false_lits) {
     Node* new_root = parseD4File(filename, *this, true_lits, false_lits);
     roots.push_back(new_root);
 #ifndef NDEBUG
     to_dot_file(*this, "circuit_d4.dot");
 #endif
-    return NodePtr(new_root);
+    return new_root;
 }
 
 
