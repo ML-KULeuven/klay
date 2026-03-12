@@ -54,24 +54,24 @@ set_target_properties(klay PROPERTIES
 )
 
 target_include_directories(klay
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:klay/include>
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:klay/include>
 )
 
 install(TARGETS klay
-    EXPORT klayTargets
-    LIBRARY DESTINATION klay
+  EXPORT klayTargets
+  LIBRARY DESTINATION klay
   RUNTIME DESTINATION klay
 )
 
 install(DIRECTORY include/
-    DESTINATION klay/include
+  DESTINATION klay/include
 )
 
 install(EXPORT  klayTargets
-    FILE        klayConfig.cmake
-    DESTINATION klay/cmake/klay
+  FILE        klayConfig.cmake
+  DESTINATION klay/cmake/klay
 )
 
 # -----------------------------------------------
