@@ -221,7 +221,7 @@ protected:
      * Create a passthrough (dummy) Gate node one layer above `child`.
      */
     static Node* make_dummy(Node* child) {
-        Node* dummy = Node::createGate(-1);
+        Node* dummy = Node::createInternal(-1);
         dummy->add_child(child);
         return dummy;
     }

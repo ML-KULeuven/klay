@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "stratified_dag.h"
-#include "literal.h"
 
 
 /**

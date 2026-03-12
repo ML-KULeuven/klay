@@ -1,4 +1,5 @@
 #include "logical_circuit.h"
+#include "literal.h"
 #include <cassert>
 #include <fstream>
 #include <sstream>
@@ -11,7 +12,7 @@
 
 Node* LogicalCircuit::add_node_level_compressed(Node* node) {
     // Non-gate nodes (constants, leaves) have no children to propagate through.
-    if (node->type != NodeType::Gate)
+    if (node->type != NodeType::Internal)
         return add_node_level(node);
 
     // Pin the node to the correct layer for its gate type before inspecting children.
@@ -48,7 +49,7 @@ Node* LogicalCircuit::add_node_level_compressed(Node* node) {
         // child set, so we must recreate the node to get the correct hash.
         int gt = node->gate_type;
         delete node;
-        node = Node::createGate(gt);
+        node = Node::createInternal(gt);
         for (auto child : new_children)
             node->add_child(child);
         node->layer = resolve_layer(node->gate_type, node->layer);
@@ -122,14 +123,14 @@ Node* LogicalCircuit::literal_node(int lit) {
 }
 
 Node* LogicalCircuit::and_node(std::vector<Node*> children) {
-    Node* node = Node::createGate(Product);
+    Node* node = Node::createInternal(Product);
     for (auto child : children)
         node->add_child(child);
     return add_node_level_compressed(node);
 }
 
 Node* LogicalCircuit::or_node(std::vector<Node*> children) {
-    Node* node = Node::createGate(Sum);
+    Node* node = Node::createInternal(Sum);
     for (auto child : children)
         node->add_child(child);
     return add_node_level_compressed(node);
@@ -186,11 +187,11 @@ static Node* parseSDDFile(const std::string& filename, LogicalCircuit& circuit,
             // Decision node: an OR over (prime AND sub) pairs.
             int vtree, numElements;
             iss >> vtree >> numElements;
-            node = Node::createGate(LogicalCircuit::Sum);
+            node = Node::createInternal(LogicalCircuit::Sum);
             for (std::size_t i = 0; i < (std::size_t)numElements; ++i) {
                 int primeId, subId;
                 iss >> primeId >> subId;
-                Node* and_node = Node::createGate(LogicalCircuit::Product);
+                Node* and_node = Node::createInternal(LogicalCircuit::Product);
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
                 and_node = circuit.add_node_level_compressed(and_node);
@@ -225,8 +226,8 @@ static Node* parseD4File(const std::string& filename, LogicalCircuit& circuit,
     while (std::getline(file, line)) {
         // Lines starting with a node-type character declare a new node.
         switch (line[0]) {
-            case 'o': node = Node::createGate(LogicalCircuit::Sum);     break;
-            case 'a': node = Node::createGate(LogicalCircuit::Product); break;
+            case 'o': node = Node::createInternal(LogicalCircuit::Sum);     break;
+            case 'a': node = Node::createInternal(LogicalCircuit::Product); break;
             case 'f': node = Node::createConstant(0);                   break;
             case 't': node = Node::createConstant(1);                   break;
             default:  node = nullptr;
@@ -256,7 +257,7 @@ static Node* parseD4File(const std::string& filename, LogicalCircuit& circuit,
             if (nodes[parent]->gate_type == LogicalCircuit::Product) {
                 edge = nodes[parent];
             } else {
-                edge = Node::createGate(LogicalCircuit::Product);
+                edge = Node::createInternal(LogicalCircuit::Product);
             }
             edge->add_child(nodes[child]);
             while (lit != 0) {
@@ -327,9 +328,8 @@ static const char* gate_label(int gate_type) {
 
 static std::string semantic_label(const Node* node) {
     switch (node->type) {
-        case NodeType::Constant: return node->ix == 1 ? "T" : "F";
-        case NodeType::Leaf:     return "L";
-        case NodeType::Gate:     return gate_label(node->gate_type);
+        case NodeType::Leaf:     return node->is_constant() ? (node->ix == 1 ? "T" : "F") : "L";
+        case NodeType::Internal: return gate_label(node->gate_type);
         default:
             throw std::runtime_error("Invalid node type");
     }
