@@ -10,9 +10,6 @@
 #include "node.h"
 #include "hash_set8.hpp"
 
-using RawArrays = std::vector<std::vector<long int>>;
-
-
 class NodePtr {
 public:
     NodePtr(Node* ptr) : ptr(ptr) { }
@@ -77,12 +74,12 @@ private:
      */
     Node* add_node(Node* node);
 
+public:
     /**
      *  Moves all roots to a new layer at the top of the circuit.
      */
     void add_root_layer();
 
-public:
     void set_root(NodePtr root) {
         Node* root_cast = static_cast<Node *>(root.get());
         roots.push_back(root_cast);
@@ -150,8 +147,6 @@ public:
      * it is removed in-place.
      */
     void remove_unused_nodes();
-
-    std::pair<RawArrays, RawArrays> get_indices();
 
     /**
      * Number of nodes in the whole circuit.

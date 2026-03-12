@@ -6,6 +6,7 @@
 #include <nanobind/operators.h>
 
 #include "klay/circuit.h"
+#include "klay/indices.h"
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -32,5 +33,11 @@ nb::class_<Circuit>(m, "Circuit", "Circuits are the main class added by KLay, an
 .def("set_root", &Circuit::set_root, "root"_a, "Marks a node pointer as root. The order in which nodes are set as root determines the order of the output tensor.\n .. note:: Only use this when manually constructing a circuit, when loading in a NNF/SDD its root is automatically set as root.\n")
 .def("remove_unused_nodes", &Circuit::remove_unused_nodes, "Removes unused nodes from the circuit. Root nodes are always considered used.\n .. warning:: Invalidates any :code:`NodePtr` referring to an unused node (i.e., a node not connected to a root node).\n")
 .def("print", &Circuit::print_circuit, "Print the circuit structure to stdout.")
-.def("get_indices", &Circuit::get_indices);
+.def("_get_indices", &get_indices);
+
+// NOTE(Ibrahim):
+// get_indices isn't part of the Circuit class,
+// but is bound to it to maintain compatbility 
+// with the python side.
+// m.def("get_indices", &get_indices);
 }
