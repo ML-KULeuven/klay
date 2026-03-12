@@ -76,6 +76,7 @@ nanobind_add_module(klay_ext
   NOMINSIZE
   NB_STATIC
   src/klay_bindings.cpp
+  src/indices.cpp
 )
 
 target_link_libraries(klay_ext PRIVATE klay)
