@@ -30,27 +30,6 @@ def eval_pysdd(sdd: "SddNode", weights: list[float]):
     return wmc_manager.propagate()
 
 
-def eval_sdd_torch_naive(manager, sdd, pos_weights, neg_weights, device):
-    iterator = SddIterator(manager, smooth=False)
-
-    def _formula_evaluator(node, r_values, *_):
-        if node is not None:
-            if node.is_literal():
-                literal = node.literal
-                if literal < 0:
-                    return neg_weights[..., -literal - 1]
-                else:
-                    return pos_weights[..., literal - 1]
-            elif node.is_true():
-                return torch.tensor(0., device=device)
-            elif node.is_false():
-                return torch.tensor(float('-inf'), device=device)
-        # Decision node
-        return torch.logsumexp(torch.stack([value[0] + value[1] for value in r_values]), dim=0)
-
-    return iterator.depth_first(sdd, _formula_evaluator)
-
-
 def eval_d4_torch_naive(nnf_file: str, weights: list[float], neg_weights: list[float] = None):
     with open(nnf_file) as f:
         nnf_string = f.read()
