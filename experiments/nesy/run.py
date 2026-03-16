@@ -6,6 +6,7 @@ import klay
 import numpy as np
 from benchmark.jax import benchmark_klay_jax
 from benchmark.torch import benchmark_klay_torch
+from benchmark.sdd import benchmark_pysdd
 from pysdd.sdd import SddManager, Vtree
 
 
@@ -61,6 +62,10 @@ def main(backend, batch_size, device):
             log.info(f"Benchmarking Jax")
             results = benchmark_klay_jax(circuit, 1000, 'log', device=device, batch_size=batch_size)
             print_results(results)
+
+        log.info(f"Benchmarking PySDD")
+        result = benchmark_pysdd(sdd, manager.var_count(), 'log')
+        print_results(result)
 
 
 if __name__ == "__main__":
