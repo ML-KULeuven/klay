@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    # Skip push to main if it's a PR merge — the PR was already tested
+    if: |
+      github.event_name == 'pull_request' ||
+      !startsWith(github.event.head_commit.message, 'Merge pull request')
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and test
+        uses: pypa/cibuildwheel@v3.4.0
+        env:
+          CIBW_BUILD: "cp312-manylinux_x86_64"
+          CIBW_TEST_REQUIRES: pytest torch==2.9.0 pysdd==1.0.6
+          CIBW_TEST_COMMAND: "pytest {project}/tests"
