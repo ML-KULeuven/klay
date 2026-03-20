@@ -219,4 +219,6 @@ public:
     }
 };
 
+
+void to_dot_file(Circuit& circuit, const std::string& filename);
 }  // namespace klay
