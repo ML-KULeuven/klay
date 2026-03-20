@@ -1,5 +1,5 @@
 # noinspection PyUnresolvedReferences
-from .klay_ext import Circuit, NodePtr
+from .klay_ext import Circuit, NodePtr, check_sdnnf, SDNNFResult, SDNNFViolation
 NodePtr.__module__ = "klay"
 
 from collections.abc import Sequence

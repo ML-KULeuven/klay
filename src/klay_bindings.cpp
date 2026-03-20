@@ -7,6 +7,7 @@
 
 #include "klay/circuit.h"
 #include "klay/indices.h"
+#include "klay/properties.h"
 
 using namespace klay;
 namespace nb = nanobind;
@@ -41,4 +42,35 @@ nb::class_<Circuit>(m, "Circuit", "Circuits are the main class added by KLay, an
 // but is bound to it to maintain compatbility 
 // with the python side.
 // m.def("get_indices", &get_indices);
+
+nb::class_<SDNNFViolation>(m, "SDNNFViolation")
+    .def_ro("property",  &SDNNFViolation::property)
+    .def_ro("node_hash", &SDNNFViolation::node_hash)
+    .def_ro("ix",        &SDNNFViolation::ix)
+    .def_ro("layer",     &SDNNFViolation::layer)
+    .def_ro("detail",    &SDNNFViolation::detail)
+    .def("__repr__", [](const SDNNFViolation& v) {
+        return "[" + v.property + "] node_hash=" +
+               std::to_string(v.node_hash) + ": " + v.detail;
+    });
+
+nb::class_<SDNNFResult>(m, "SDNNFResult")
+    .def_ro("is_nnf",             &SDNNFResult::is_nnf)
+    .def_ro("is_decomposable",    &SDNNFResult::is_decomposable)
+    .def_ro("is_smooth",          &SDNNFResult::is_smooth)
+    .def_ro("n_and",              &SDNNFResult::n_and)
+    .def_ro("n_or",               &SDNNFResult::n_or)
+    .def_ro("n_vars_found",       &SDNNFResult::n_vars_found)
+    .def_ro("violations",         &SDNNFResult::violations)
+    .def_prop_ro("is_dnnf",       &SDNNFResult::is_dnnf)
+    // .def_prop_ro("is_ddnnf",      &SDNNFResult::is_ddnnf)
+    // .def_prop_ro("is_sddnnf",     &SDNNFResult::is_sddnnf)
+    .def_prop_ro("is_sdnnf",      &SDNNFResult::is_sdnnf)
+    .def("summary",               &sdnnf_summary);
+
+m.def("check_sdnnf", &check_sdnnf,
+      "circuit"_a,
+      "max_violations"_a = std::size_t(50),
+      "check whether a klay circuit satisfies (smooth) d-DNNF. "
+      "returns an SDNNFResult.");
 }
