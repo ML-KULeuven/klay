@@ -83,6 +83,7 @@ nanobind_add_module(klay_ext
   NOMINSIZE
   NB_STATIC
   src/klay_bindings.cpp
+  src/properties.cpp
   src/indices.cpp
 )
 
