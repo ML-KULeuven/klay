@@ -74,6 +74,18 @@ m.def("check_sdnnf", &check_sdnnf,
       "check whether a klay circuit satisfies (smooth) d-DNNF. "
       "returns an SDNNFResult.");
 
+m.def("check_decomposability", &check_decomposability,
+      "circuit"_a,
+      "max_violations"_a = std::size_t(50),
+      "check whether a klay circuit satisfies decomposability. "
+      "returns an SDNNFResult.");
+
+m.def("check_smooth", &check_smooth,
+      "circuit"_a,
+      "max_violations"_a = std::size_t(50),
+      "check whether a klay circuit satisfies smoothness. "
+      "returns an SDNNFResult.");
+
 m.def("circuit_to_dot", [](Circuit& c, const std::string& path) {
     to_dot_file(c, path);
 }, "circuit"_a, "path"_a);
