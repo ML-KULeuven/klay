@@ -277,3 +277,21 @@ SDNNFResult check_sdnnf(const Circuit& circuit,
 
     return run_checks(circuit, max_violations, std::move(checkers));
 }
+
+SDNNFResult check_decomposability(const Circuit& circuit,
+                                  std::size_t max_violations) {
+
+    std::vector<std::unique_ptr<IPropertyChecker>> checkers;
+    checkers.push_back(make_decomposability_checker());
+
+    return run_checks(circuit, max_violations, std::move(checkers));
+}
+
+SDNNFResult check_smooth(const Circuit& circuit,
+                         std::size_t max_violations) {
+
+    std::vector<std::unique_ptr<IPropertyChecker>> checkers;
+    checkers.push_back(make_smoothness_checker());
+
+    return run_checks(circuit, max_violations, std::move(checkers));
+}
