@@ -47,6 +47,7 @@ find_package(nanobind CONFIG REQUIRED)
 add_library(klay SHARED
   src/circuit.cpp
   src/node.cpp
+  src/properties.cpp
 )
 
 set_target_properties(klay PROPERTIES
@@ -83,7 +84,6 @@ nanobind_add_module(klay_ext
   NOMINSIZE
   NB_STATIC
   src/klay_bindings.cpp
-  src/properties.cpp
   src/indices.cpp
 )
 
