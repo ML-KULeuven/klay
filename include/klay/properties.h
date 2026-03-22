@@ -62,3 +62,9 @@ SDNNFResult run_checks(const Circuit& circuit,
 
 SDNNFResult check_sdnnf(const Circuit& circuit,
                         std::size_t max_violations = 50);
+
+SDNNFResult check_decomposability(const Circuit& circuit,
+                                  std::size_t max_violations = 50);
+
+SDNNFResult check_smooth(const Circuit& circuit,
+                         std::size_t max_violations = 50);
