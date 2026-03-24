@@ -2,7 +2,6 @@
 
 [![Python 3.10](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/downloads/release/python-3100/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build](https://github.com/ML-KULeuven/klay/actions/workflows/main.yml/badge.svg)](https://github.com/ML-KULeuven/klay/actions/workflows/main.yml)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/klaycircuits?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/klaycircuits)
 
 __KLay is a Python library for evaluating sparse circuits on the GPU.__
