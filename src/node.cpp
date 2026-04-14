@@ -1,5 +1,7 @@
 #include "klay/node.h"
 
+using namespace klay;
+
 /**
  * Improve bit dispersion of a given hash value h.
  */
