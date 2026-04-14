@@ -10,6 +10,8 @@
 
 #include "cassert"
 
+namespace klay {
+
 enum class NodeType {True, False, Or, And, Leaf};
 
 
@@ -127,3 +129,4 @@ struct NodeEqual {
 };
 
 
+}  // namespace klay

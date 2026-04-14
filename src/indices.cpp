@@ -1,6 +1,8 @@
 #include <klay/indices.h>
 #include <klay/circuit.h>
 
+using namespace klay;
+
 void cleanup(void* data) noexcept {
   delete[] static_cast<long int*>(data);
 }

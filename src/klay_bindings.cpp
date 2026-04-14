@@ -8,6 +8,7 @@
 #include "klay/circuit.h"
 #include "klay/indices.h"
 
+using namespace klay;
 namespace nb = nanobind;
 using namespace nb::literals;
 

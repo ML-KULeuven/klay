@@ -1,6 +1,8 @@
 #include "klay/circuit.h"
 #include "cassert"
 
+using namespace klay;
+
 Node* Circuit::add_node(Node* node) {
     if (layers.size() <= node->layer)
         layers.resize(node->layer + 1);

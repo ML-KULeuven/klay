@@ -3,6 +3,8 @@
 #include <iostream>
 using namespace std;
 
+namespace klay {
+
 typedef int Var;
 
 /**
@@ -66,3 +68,5 @@ public:
 Lit Lit::fromInt(int i) {
     return Lit(std::abs(i), i < 0);
 }
+
+}  // namespace klay

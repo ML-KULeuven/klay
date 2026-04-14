@@ -10,6 +10,8 @@
 #include "node.h"
 #include "hash_set8.hpp"
 
+namespace klay {
+
 class NodePtr {
 public:
     NodePtr(Node* ptr) : ptr(ptr) { }
@@ -216,3 +218,5 @@ public:
         return NodePtr(add_node_level_compressed(node));
     }
 };
+
+}  // namespace klay
