@@ -1,7 +1,7 @@
 #include "klay/circuit.h"
 #include "cassert"
 
-using namespace klay;
+namespace klay {
 
 Node* Circuit::add_node(Node* node) {
     if (layers.size() <= node->layer)
@@ -413,3 +413,5 @@ void Circuit::add_root_layer() {
         roots[i] = root;
     }
 }
+
+}  // namespace klay

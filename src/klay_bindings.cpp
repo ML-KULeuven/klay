@@ -9,7 +9,8 @@
 #include "klay/indices.h"
 #include "klay/properties.h"
 
-using namespace klay;
+namespace klay {
+
 namespace nb = nanobind;
 using namespace nb::literals;
 
@@ -90,3 +91,5 @@ m.def("circuit_to_dot", [](Circuit& c, const std::string& path) {
     to_dot_file(c, path);
 }, "circuit"_a, "path"_a);
 }
+
+}  // namespace klay

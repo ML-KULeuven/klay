@@ -1,7 +1,7 @@
 #include <klay/indices.h>
 #include <klay/circuit.h>
 
-using namespace klay;
+namespace klay {
 
 void cleanup(void* data) noexcept {
   delete[] static_cast<long int*>(data);
@@ -56,3 +56,5 @@ std::pair<Arrays, Arrays> get_indices(Circuit& c) {
 
     return std::make_pair(indices_ndarrays, csr_ndarrays);
 }
+
+}  // namespace klay
