@@ -10,6 +10,8 @@
 #include "klay/util.h"
 #include "klay/circuit.h"
 
+namespace klay {
+
 struct SDNNFViolation {
     std::string property;  // e.g. "decomposability"
     int ix;
@@ -68,3 +70,5 @@ SDNNFResult check_decomposability(const Circuit& circuit,
 
 SDNNFResult check_smooth(const Circuit& circuit,
                          std::size_t max_violations = 50);
+
+}  // namespace klay

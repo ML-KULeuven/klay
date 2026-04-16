@@ -11,6 +11,8 @@
 
 #include "klay/node.h"
 
+namespace klay {
+
 using Word       = std::uint64_t;
 using Support    = std::vector<Word>;
 using SupportMap = std::unordered_map<const Node*, Support>;
@@ -90,3 +92,5 @@ support_sym_diff_string(const Support& a,
     oss << "}";
     return oss.str();
 }
+
+}  // namespace klay
