@@ -12,9 +12,12 @@
 
 namespace nb = nanobind;
 using namespace nb::literals;
-using namespace klay;
+
+namespace klay {
 
 using Array = nb::ndarray<nb::numpy, long int, nb::shape<-1>>;
 using Arrays = std::vector<Array>;
 
 std::pair<Arrays, Arrays> get_indices(Circuit& c);
+
+}  // namespace klay

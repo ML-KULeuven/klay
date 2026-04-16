@@ -1,6 +1,6 @@
 #include "klay/node.h"
 
-using namespace klay;
+namespace klay {
 
 /**
  * Improve bit dispersion of a given hash value h.
@@ -124,3 +124,6 @@ Node* Node::createFalseNode() {
 bool compareNode(const Node& first_node, const Node& second_node) {
     return first_node.hash < second_node.hash;
 }
+
+
+}  // namespace klay
