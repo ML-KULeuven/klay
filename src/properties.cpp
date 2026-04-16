@@ -8,6 +8,8 @@
 #include <set>
 #include <sstream>
 
+namespace klay {
+
 std::string sdnnf_summary(const SDNNFResult& r) {
     auto tick = [](bool b) -> const char* { return b ? "v" : "x"; };
     std::string s;
@@ -295,3 +297,5 @@ SDNNFResult check_smooth(const Circuit& circuit,
 
     return run_checks(circuit, max_violations, std::move(checkers));
 }
+
+}  // namesapce klay
