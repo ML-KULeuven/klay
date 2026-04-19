@@ -47,7 +47,7 @@ public:
     // Root nodes in order they were added to the Circuit
     std::vector<Node*> roots = {};
 
-    ~Circuit() {
+    virtual ~Circuit() {
         for (auto& layer: layers) {
             for (auto& node: layer)
                 delete node;
