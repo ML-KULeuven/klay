@@ -28,7 +28,7 @@ def fuzzer(nb_trials, nb_vars):
         generate_random_dimacs('tmp.cnf', nb_vars, nb_vars//2, seed=i)
         weights = [random.random() for _ in range(nb_vars)]
 
-        sdd = SddManager.from_cnf_file(b'tmp.cnf'.encode())[1]
+        sdd = SddManager.from_cnf_file(b'tmp.cnf')[1]
         check_sdd_jax(sdd, weights)
 
 
