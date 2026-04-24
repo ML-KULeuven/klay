@@ -7,6 +7,10 @@
 #include <string>
 #include <vector>
 
+#include <cassert>
+#include <set>
+#include <sstream>
+
 #include "klay/util.h"
 #include "klay/circuit.h"
 
@@ -22,7 +26,7 @@ struct SDNNFViolation {
 
 struct SDNNFResult {
     bool is_nnf           = true;  // always true
-    bool is_deterministic = true;  // always true if not manually constructed
+    bool is_deterministic = true;  // true if circuit obtained from dpll traces
     bool is_decomposable  = true;
     bool is_smooth        = true;
 
@@ -39,7 +43,7 @@ struct SDNNFResult {
 std::string sdnnf_summary(const SDNNFResult& r);
 
 class IPropertyChecker {
-public:
+ public:
     virtual ~IPropertyChecker() = default;
 
     virtual void on_node(const Node* node,
