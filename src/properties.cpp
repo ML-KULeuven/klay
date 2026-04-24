@@ -4,10 +4,6 @@
 #include "klay/properties.h"
 #include "klay/util.h"
 
-#include <cassert>
-#include <set>
-#include <sstream>
-
 namespace klay {
 
 std::string sdnnf_summary(const SDNNFResult& r) {
@@ -40,7 +36,6 @@ compute_support(const Node* node,
     Support s(n_words, 0);
 
     switch (node->type) {
-
         case NodeType::True:
         case NodeType::False:
             break;
@@ -76,7 +71,6 @@ class DecomposabilityChecker final : public IPropertyChecker {
                const SupportMap& support_of,
                std::size_t max_violations,
                SDNNFResult& result) override {
-
         if (node->type != NodeType::And) return;
         if (node->children.size() <= 1) return;  // dummy node
 
@@ -96,7 +90,8 @@ class DecomposabilityChecker final : public IPropertyChecker {
                 if (result.violations.size() < max_violations) {
                     std::ostringstream detail;
                     detail << "child " << child_k
-                           << " (support=" << support_to_string(cs, result.n_vars_found)
+                           << " (support="
+                           << support_to_string(cs, result.n_vars_found)
                            << ") overlaps other children's support="
                            << support_to_string(running, result.n_vars_found);
                     result.violations.push_back({
@@ -113,23 +108,16 @@ class DecomposabilityChecker final : public IPropertyChecker {
 };
 
 // ---------------------------------------------------------------------------
-// An OR node is smooth if every child mentions exactly the same set of variables.
+// An OR node is smooth if every child mentions exactly
+// the same set of variables.
 // (https://arxiv.org/pdf/cs/0003044)
 // ---------------------------------------------------------------------------
 class SmoothnessChecker final : public IPropertyChecker {
-public:
+ public:
     void on_node(const Node* node,
                  const SupportMap& support_of,
                  std::size_t max_violations,
                  SDNNFResult& result) override {
-
-        // if (node->type == NodeType::Leaf) {
-        //     std::size_t var = static_cast<std::size_t>(node->ix) >> 1;
-        //     bool sign = node->ix & 1;
-        //     seen_polarities_[var] |= (sign ? 0b10 : 0b01);
-        //     return;
-        // }
-
         if (node->type != NodeType::Or)  return;
         if (node->children.size() <= 1)  return;  // single-child dummy node
 
@@ -140,7 +128,6 @@ public:
 
         for (auto it = std::next(node->children.begin());
              it != node->children.end(); ++it, ++child_k) {
-
             const Support& cs = support_of.at(*it);
 
             if (!violated && !support_equal(ref, cs)) {
@@ -148,12 +135,15 @@ public:
                 violated = true;
                 if (result.violations.size() < max_violations) {
                     std::ostringstream detail;
-                    detail << "child 0 scope=" 
-                           << support_to_string(ref, result.n_vars_found)
-                           << ", child " << child_k
-                           << " scope=" << support_to_string(cs, result.n_vars_found)
-                           << ", symmetric difference="
-                           << support_sym_diff_string(ref, cs, result.n_vars_found);
+                    auto n_vars = result.n_vars_found;
+                    detail << "child 0 scope="
+                      << support_to_string(ref, n_vars)
+                            << ", child "
+                            << child_k
+                            << " scope="
+                            << support_to_string(cs, n_vars)
+                            << ", symmetric difference="
+                            << support_sym_diff_string(ref, cs, n_vars);
                     result.violations.push_back({
                         "smoothness", node->ix,
                         node->layer, node->hash, detail.str()
@@ -216,7 +206,6 @@ SDNNFResult run_checks(const Circuit& circuit,
 
     for (const auto& layer : circuit.layers) {
         for (const auto* node : layer) {
-
             // (a) compute and store this node's support
             support_of[node] = compute_support(node, support_of, nw);
 
@@ -238,31 +227,24 @@ SDNNFResult run_checks(const Circuit& circuit,
 
 SDNNFResult check_sdnnf(const Circuit& circuit,
                         std::size_t max_violations) {
-
     std::vector<std::unique_ptr<IPropertyChecker>> checkers;
     checkers.push_back(make_decomposability_checker());
-    // checkers.push_back(make_determinism_checker());
     checkers.push_back(make_smoothness_checker());
-
     return run_checks(circuit, max_violations, std::move(checkers));
 }
 
 SDNNFResult check_decomposability(const Circuit& circuit,
                                   std::size_t max_violations) {
-
     std::vector<std::unique_ptr<IPropertyChecker>> checkers;
     checkers.push_back(make_decomposability_checker());
-
     return run_checks(circuit, max_violations, std::move(checkers));
 }
 
 SDNNFResult check_smooth(const Circuit& circuit,
                          std::size_t max_violations) {
-
     std::vector<std::unique_ptr<IPropertyChecker>> checkers;
     checkers.push_back(make_smoothness_checker());
-
     return run_checks(circuit, max_violations, std::move(checkers));
 }
 
-}  // namesapce klay
+}  // namespace klay
