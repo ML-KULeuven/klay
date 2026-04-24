@@ -64,8 +64,6 @@ nb::class_<SDNNFResult>(m, "SDNNFResult")
     .def_ro("n_vars_found",       &SDNNFResult::n_vars_found)
     .def_ro("violations",         &SDNNFResult::violations)
     .def_prop_ro("is_dnnf",       &SDNNFResult::is_dnnf)
-    // .def_prop_ro("is_ddnnf",      &SDNNFResult::is_ddnnf)
-    // .def_prop_ro("is_sddnnf",     &SDNNFResult::is_sddnnf)
     .def_prop_ro("is_sdnnf",      &SDNNFResult::is_sdnnf)
     .def("summary",               &sdnnf_summary);
 
