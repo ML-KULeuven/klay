@@ -162,55 +162,22 @@ public:
             }
         }
     }
-
-    // void finalize(std::size_t n_vars,
-    //               std::size_t max_violations,
-    //               SDNNFResult& result) override {
-    //
-    //     for (std::size_t v = 1; v <= n_vars; ++v) {
-    //         if (seen_polarities_[v] != 0b11) {
-    //             result.is_smooth = false;
-    //             if (result.violations.size() < max_violations) {
-    //                 const bool missing_pos = !(seen_polarities_[v] & 0b01);
-    //                 result.violations.push_back({
-    //                     "smoothness", 0, 0, 0,
-    //                     "variable " + std::to_string(v) +
-    //                     " missing " + (missing_pos ? "positive" : "negative") +
-    //                     " polarity"
-    //                 });
-    //             }
-    //         }
-    //     }
-    // }
-// private:
-//     std::unordered_map<std::size_t, uint8_t> seen_polarities_;
 };
 
 // ---------------------------------------------------------------------------
 // An OR node is deterministic if its children are disjoint.
 // (https://arxiv.org/pdf/cs/0003044)
-// for a single OR node with children a & b, verifying
-// their models are disjoint means checking whether a ∧ b ⊨ ⊥,
-// i.e. their conjunction is unsatisfiable.
-// In other words, there is no syntactic check possible to determine
-// if the circuit holds the property of determinism.
-// However, the paper above shows that DPLL-style compilers produce
-// circuits that satisfy a syntactic condition by construction,
-// a variable that appears positively in one child and negatively in another.
+//
+// Checking determinism of an arbitrary NNF/arithmetic circuit is coNP-complete,
+// (SAT on branch_i ∧ branch_j is NP-complete)
+// However, if it is known that the circuit is decomposable, one might have a
+// more efficient check. Or if it is known that the circuit is not smooth, one
+// might have it easier.
+//
+// A not complete check might be to check if there
+// is literal present in one branch that is the complement
+// in another etc.
 // ---------------------------------------------------------------------------
-// class DeterminismChecker final : public IPropertyChecker {
-// public:
-//     void on_node(const Node* node,
-//                  const SupportMap& support_of,
-//                  std::size_t n_vars,
-//                  std::size_t max_violations,
-//                  SDNNFResult& result) override {
-//         if (node->type != NodeType::Or) return;
-//     }
-// };
-// std::unique_ptr<IPropertyChecker> make_determinism_checker() {
-//     return std::make_unique<DeterminismChecker>();
-// }
 
 std::unique_ptr<IPropertyChecker> make_decomposability_checker() {
     return std::make_unique<DecomposabilityChecker>();

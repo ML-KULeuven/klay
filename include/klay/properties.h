@@ -33,8 +33,6 @@ struct SDNNFResult {
     std::vector<SDNNFViolation> violations;
 
     bool is_dnnf()  const { return is_nnf && is_decomposable; }
-    // bool is_ddnnf() const { return is_dnnf() && is_deterministic; }
-    // bool is_sddnnf() const { return is_ddnnf() && is_smooth; }
     bool is_sdnnf() const { return is_dnnf() && is_smooth; }
 };
 
@@ -54,7 +52,6 @@ public:
 };
 
 std::unique_ptr<IPropertyChecker> make_decomposability_checker();
-// std::unique_ptr<IPropertyChecker> make_determinism_checker();
 std::unique_ptr<IPropertyChecker> make_smoothness_checker();
 
 
