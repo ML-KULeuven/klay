@@ -151,21 +151,6 @@ class SmoothnessChecker final : public IPropertyChecker {
     }
 };
 
-// ---------------------------------------------------------------------------
-// An OR node is deterministic if its children are disjoint.
-// (https://arxiv.org/pdf/cs/0003044)
-//
-// Checking determinism of an arbitrary NNF/arithmetic circuit is coNP-complete,
-// (SAT on branch_i ∧ branch_j is NP-complete)
-// However, if it is known that the circuit is decomposable, one might have a
-// more efficient check. Or if it is known that the circuit is not smooth, one
-// might have it easier.
-//
-// A not complete check might be to check if there
-// is literal present in one branch that is the complement
-// in another etc.
-// ---------------------------------------------------------------------------
-
 std::unique_ptr<IPropertyChecker> make_decomposability_checker() {
     return std::make_unique<DecomposabilityChecker>();
 }

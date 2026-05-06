@@ -23,7 +23,6 @@ struct SDNNFViolation {
 
 struct SDNNFResult {
     bool is_nnf           = true;  // always true
-    bool is_deterministic = true;  // true if circuit obtained from dpll traces
     bool is_decomposable  = true;
     bool is_smooth        = true;
 
