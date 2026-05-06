@@ -200,10 +200,6 @@ SDNNFResult run_checks(const Circuit& circuit,
                 checker->on_node(node, support_of, max_violations, result);
         }
     }
-    // (d) run registered checkers at end
-    for (auto& checker : checkers)
-        checker->finalize(max_violations, result);
-
     return result;
 }
 
