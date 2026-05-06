@@ -4,10 +4,6 @@
 #include <string>
 #include <vector>
 
-#include <cassert>
-#include <set>
-#include <sstream>
-
 #include "klay/util.h"
 #include "klay/circuit.h"
 
