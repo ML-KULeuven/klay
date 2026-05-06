@@ -46,9 +46,6 @@ class IPropertyChecker {
                          const SupportMap& scope_of,
                          std::size_t max_violations,
                          SDNNFResult& result) = 0;
-
-    virtual void finalize(std::size_t max_violations,
-                          SDNNFResult& result) {}
 };
 
 std::unique_ptr<IPropertyChecker> make_decomposability_checker();
