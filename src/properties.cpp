@@ -1,9 +1,5 @@
-#include <cassert>
 #include <string>
-#include <memory>
-#include <vector>
 #include <set>
-#include <utility>
 
 #include "klay/properties.h"
 #include "klay/util.h"
