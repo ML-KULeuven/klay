@@ -32,24 +32,6 @@ struct SDNNFResult {
 
 std::string sdnnf_summary(const SDNNFResult& r);
 
-class IPropertyChecker {
- public:
-    virtual ~IPropertyChecker() = default;
-
-    virtual void on_node(const Node* node,
-                         const SupportMap& scope_of,
-                         std::size_t max_violations,
-                         SDNNFResult& result) = 0;
-};
-
-std::unique_ptr<IPropertyChecker> make_decomposability_checker();
-std::unique_ptr<IPropertyChecker> make_smoothness_checker();
-
-
-SDNNFResult run_checks(const Circuit& circuit,
-                       std::size_t max_violations,
-                       std::vector<std::unique_ptr<IPropertyChecker>> checkers);
-
 SDNNFResult check_sdnnf(const Circuit& circuit,
                         std::size_t max_violations = 50);
 
