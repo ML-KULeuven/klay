@@ -1,10 +1,8 @@
 #pragma once
 
-#include <memory>
 #include <string>
 #include <vector>
 
-#include "klay/util.h"
 #include "klay/circuit.h"
 
 namespace klay {
