@@ -10,7 +10,7 @@ std::string sdnnf_summary(const SDNNFResult& r) {
     auto tick = [](bool b) -> const char* { return b ? "v" : "x"; };
     std::string s;
     s += "\n";
-    s += "  NNF            "; s += tick(r.is_nnf); s += "     (klay guarantee)\n";
+    s += "  NNF            "; s += tick(r.is_nnf); s += "   (klay guarantee)\n";
     s += "  Decomposable   "; s += tick(r.is_decomposable); s += "\n";
     s += "  Smooth         "; s += tick(r.is_smooth);       s += "\n";
     s += "  ----------------------------------------\n";
