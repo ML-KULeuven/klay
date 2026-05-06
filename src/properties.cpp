@@ -1,6 +1,3 @@
-// Copyright (c) 2026 Ibrahim El Kaddouri
-// Licensed under apachev2
-
 #include "klay/properties.h"
 #include "klay/util.h"
 
