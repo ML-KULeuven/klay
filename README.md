@@ -12,7 +12,7 @@ To get started, install KLay using pip and check out the [documentation](https:/
 pip install klaycircuits
 ```
 
-KLay features:
+KLay features include:
 - GPU acceleration of circuits using Jax or PyTorch. 
 - Loading SDD and d-DNNF circuits compiled by [PySDD](https://github.com/ML-KULeuven/PySDD) or [D4](https://github.com/crillab/d4).
 - Evaluation in various semirings (e.g. real, log, tropical).
@@ -71,3 +71,13 @@ To replicate the exact results and figures of the paper, use [this code](https:/
     url={https://openreview.net/forum?id=Zes7Wyif8G}
 }
 ```
+
+## 🚀 Impact
+
+Examples of papers that use KLay include:
+
+- [Neurosymbolic Reinforcement Learning: Playing MiniHack with Probabilistic Logic Shields](https://ojs.aaai.org/index.php/AAAI/article/view/35349)
+- [ExplainFuzz: Explainable and Constraint-Conditioned Test Generation with Probabilistic Circuits](https://arxiv.org/abs/2604.06559)
+- [ProbLog4Fairness: A Neurosymbolic Approach to Modeling and Mitigating Bias](https://ojs.aaai.org/index.php/AAAI/article/view/39033)
+- [Neurosymbolic Object-Centric Learning with Distant Supervision](https://arxiv.org/abs/2506.16129)
+- [The DeepLog Neurosymbolic Machine](https://arxiv.org/abs/2508.13697)
