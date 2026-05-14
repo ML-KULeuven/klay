@@ -7,7 +7,7 @@ def encode_input_real(pos, neg):
         neg = 1 - pos
 
     result = jnp.stack([pos, neg], axis=1).flatten()
-    constants = jnp.array([0., 1,], dtype=jnp.float32)
+    constants = jnp.array([0., 1,], dtype=pos.dtype)
     return jnp.concat([constants, result])
 
 

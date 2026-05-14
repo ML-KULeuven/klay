@@ -37,16 +37,18 @@ def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = 
     return CircuitModule(*indices, semiring=semiring, eps=eps)
 
 
-def to_jax_function(self: Circuit, semiring: str = "log"):
+def to_jax_function(self: Circuit, semiring: str = "log", eps: float = 0):
     """
     Convert the circuit into a Jax function.
 
     :param semiring:
         The semiring in which the circuit should be evaluated. Supported options are :code:`"log"`, :code:`"real"`, :code:`"mpe"`, or :code:`"godel"`.
+    :param eps:
+        Epsilon used by log semiring for numerical stability.
     """
     from .jax import create_knowledge_layer
     indices = self._get_indices()
-    return create_knowledge_layer(*indices, semiring=semiring)
+    return create_knowledge_layer(*indices, semiring=semiring, eps=eps)
 
 
 def add_sdd(self: Circuit, sdd: "SddNode", true_lits: Sequence[int] = (), false_lits: Sequence[int] = ()) -> NodePtr:

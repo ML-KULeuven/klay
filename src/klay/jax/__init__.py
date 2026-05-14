@@ -5,11 +5,11 @@ import jax.numpy as jnp
 from klay.jax.semiring import get_semiring, encode_input
 
 
-def create_knowledge_layer(pointers, ix_outs, semiring):
+def create_knowledge_layer(pointers, ix_outs, semiring, eps: float = 0):
     ixs_in = [np.array(ix_in) for ix_in in pointers]
     num_segments = [len(ix_out) - 1 for ix_out in ix_outs]  # needed for the jit
     ixs_out = [unroll_ix_out(np.array(ix_out, dtype=np.int32)) for ix_out in ix_outs]
-    sum_layer, prod_layer = get_semiring(semiring)
+    sum_layer, prod_layer = get_semiring(semiring, eps)
     encoder = encode_input(semiring)
 
 
