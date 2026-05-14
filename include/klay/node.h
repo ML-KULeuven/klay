@@ -4,7 +4,6 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <list>
 
 #include "literal.h"
 
@@ -25,7 +24,7 @@ public:
     NodeType type;
     int ix;  // Index of the node in its layer; can be -1 when uninitialized.
 
-    std::list<Node*> children;
+    std::vector<Node*> children;
     std::size_t layer; // Layer index
     std::size_t hash; // unique identifier of the node
 

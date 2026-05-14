@@ -72,7 +72,8 @@ Node* Circuit::add_node_level_compressed(Node* node) {
     // remove child from children.
     // if child->type == annihilateType
     // result should be true or false node (depends)
-    std::list<Node*> new_children = {};
+    std::vector<Node*> new_children;
+    new_children.reserve(node->children.size());
     for (auto &child : node->children) {
         if (child->type == neutralType) {
             continue;
@@ -102,6 +103,7 @@ Node* Circuit::add_node_level_compressed(Node* node) {
             node = Node::createAndNode();
         else
             node = Node::createOrNode();
+        node->children.reserve(new_children.size());
         for(auto child: new_children)
             node->add_child(child);
     }
@@ -157,10 +159,12 @@ Node* parseSDDFile(const std::string& filename, Circuit& circuit, std::vector<in
             int vtree, numElements;
             iss >> vtree >> numElements;
             node = Node::createOrNode();
+            node->children.reserve(numElements);
             for (std::size_t i = 0; i < numElements; ++i) {
                 int primeId, subId;
                 iss >> primeId >> subId;
                 Node* and_node = Node::createAndNode();
+                and_node->children.reserve(2);
                 and_node->add_child(nodeIds[primeId]);
                 and_node->add_child(nodeIds[subId]);
                 and_node = circuit.add_node_level_compressed(and_node);

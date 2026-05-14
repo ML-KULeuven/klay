@@ -4,7 +4,6 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <list>
 #include <cstdint>
 
 #include "node.h"
@@ -202,6 +201,7 @@ public:
 
     NodePtr and_node(std::vector<NodePtr> children) {
         Node* node = Node::createAndNode();
+        node->children.reserve(children.size());
         for (auto child: children) {
             Node *child_cast = child.get();
             node->add_child(child_cast);
@@ -211,6 +211,7 @@ public:
 
     NodePtr or_node(std::vector<NodePtr> children) {
         Node* node = Node::createOrNode();
+        node->children.reserve(children.size());
         for (auto child: children) {
             Node *child_cast = child.get();
             node->add_child(child_cast);
