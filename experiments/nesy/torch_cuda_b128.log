@@ -2,51 +2,51 @@
 ### Running sudoku_4 (batch size=128, device=cuda:0) ###
 Loaded SDD with 2408 nodes.
 Layerized in 2862 nodes and 31 layers
-  in 0.00159377s.
+  in 0.00175092s.
 Benchmarking Torch
-  to_torch           0.148
+  to_torch           0.138
   sparsity           0.00988
-  jit compile        0.0023
-  forward (cold)     9.91
-  forward (warm)     0.000138 ± 5.74e-05
-   +backward (cold)  12.2
-   +backward (warm)  0.000967 ± 0.000404
+  jit compile        0.00229
+  forward (cold)     3.33
+  forward (warm)     0.000127 ± 4.36e-05
+   +backward (cold)  0.618
+   +backward (warm)  0.000749 ± 0.000244
 
 ### Running 4-grid (batch size=128, device=cuda:0) ###
 Loaded SDD with 6610 nodes.
 Layerized in 5813 nodes and 25 layers
-  in 0.00293131s.
+  in 0.00268185s.
 Benchmarking Torch
-  to_torch           0.00272
+  to_torch           0.00307
   sparsity           0.00379
-  jit compile        0.00194
-  forward (cold)     4.21
-  forward (warm)     0.000116 ± 1.96e-05
-   +backward (cold)  9.11
-   +backward (warm)  0.000846 ± 0.000205
+  jit compile        0.00245
+  forward (cold)     0.407
+  forward (warm)     0.000117 ± 2.36e-05
+   +backward (cold)  0.624
+   +backward (warm)  0.000904 ± 0.000151
 
 ### Running seq_fun (batch size=128, device=cuda:0) ###
 Loaded SDD with 9730 nodes.
 Layerized in 20548 nodes and 85 layers
-  in 0.0117356s.
+  in 0.00613257s.
 Benchmarking Torch
-  to_torch           0.00984
+  to_torch           0.00977
   sparsity           0.00329
   jit compile        0.00235
-  forward (cold)     14.3
-  forward (warm)     0.000149 ± 2.6e-05
-   +backward (cold)  32.9
-   +backward (warm)  0.00159 ± 0.000611
+  forward (cold)     1.23
+  forward (warm)     0.00015 ± 3.31e-05
+   +backward (cold)  1.67
+   +backward (warm)  0.00147 ± 0.000664
 
 ### Running warcraft_12 (batch size=128, device=cuda:0) ###
 Loaded SDD with 1110234 nodes.
 Layerized in 975417 nodes and 85 layers
-  in 1.27524s.
+  in 1.32232s.
 Benchmarking Torch
-  to_torch           0.109
+  to_torch           0.105
   sparsity           0.000132
-  jit compile        0.00218
-  forward (cold)     15.7
-  forward (warm)     0.000172 ± 3.33e-05
-   +backward (cold)  37
-   +backward (warm)  0.00157 ± 0.000799
+  jit compile        0.0022
+  forward (cold)     1.54
+  forward (warm)     0.000172 ± 3.35e-05
+   +backward (cold)  1.82
+   +backward (warm)  0.00163 ± 0.00083

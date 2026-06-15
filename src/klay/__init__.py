@@ -29,12 +29,13 @@ def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = 
     :param eps:
         Epsilon used by log semiring for numerical stability.
     :param compile:
-        Wrap the module with :func:`torch.compile` (:code:`mode="reduce-overhead"`) so that
-        repeated, same-shape evaluations replay as a captured CUDA graph. This is typically
-        several times faster on GPU, especially for single-instance forward passes which are
-        otherwise kernel-launch bound. The first evaluation pays a one-time
-        compilation cost, and compiling many structurally different circuits in a single
-        process can hit torch's recompilation limit — pass :code:`compile=False` there.
+        Wrap the module with :func:`torch.compile` (CUDA-graph capture via
+        :code:`triton.cudagraphs`) so that repeated, same-shape evaluations replay as a 
+        captured CUDA graph. This is typically several times faster on GPU, especially 
+        for single-instance forward passes which are otherwise kernel-launch bound. 
+        The first evaluation pays a one-time compilation cost, and compiling many structurally 
+        different circuits in a single process can hit torch's recompilation limit 
+        (pass :code:`compile=False` there).
     """
     import torch
     from .torch.circuit_modules import ProbabilisticCircuitModule, CircuitModule
@@ -42,7 +43,10 @@ def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = 
     cls = ProbabilisticCircuitModule if probabilistic else CircuitModule
     module = cls(*indices, semiring=semiring, eps=eps)
     if compile:
-        module = torch.compile(module, mode="reduce-overhead")
+        # triton.autotune_pointwise is disabled to reduce the cold-start cost.
+        module = torch.compile(
+            module, options={"triton.cudagraphs": True, "triton.autotune_pointwise": False}
+        )
     return module
 
 
