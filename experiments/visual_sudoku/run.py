@@ -75,7 +75,6 @@ class VisualSudokuModule(nn.Module):
         super().__init__()
         self.net = LeNet(grid_size)
         self.circuit = get_circuit(grid_size)
-        self.circuit_batched = torch.vmap(self.circuit)
         self.grid_size = grid_size
 
     def forward(self, images):
@@ -84,7 +83,7 @@ class VisualSudokuModule(nn.Module):
         image_probs = self.net(images)
         assert not torch.isnan(image_probs).any()
         image_probs = image_probs.reshape(shape[0], -1)
-        return self.circuit_batched(image_probs, torch.zeros_like(image_probs))
+        return self.circuit(image_probs, torch.zeros_like(image_probs))
 
 
 def get_circuit(grid_size: int):
@@ -130,14 +129,14 @@ def evaluate(model, dataloader, device="cuda"):
 def main(grid_size: int, batch_size: int, nb_epochs: int, learning_rate: float, device="cuda"):
     train_dataloader = get_dataloader(grid_size, "train", batch_size)
     model = VisualSudokuModule(grid_size).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-6)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-5)
     timings = []
 
     for epoch in range(nb_epochs):
         t1 = perf_counter()
         losses = train(model, optimizer, train_dataloader, device)
         timings.append(perf_counter() - t1)
-        print(f"Epoch {epoch}, Loss {np.mean(losses):.5f}")
+        print(f"Epoch {epoch}, Loss {np.mean(losses):.6f}")
     print(f"Mean Epoch Time (s) {np.mean(timings):.3f} ± {np.std(timings):.3f}")
 
     val_dataloader = get_dataloader(grid_size, "valid", 1)
@@ -150,7 +149,7 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--batch_size', type=int, default=1)
     parser.add_argument('-e', '--nb_epochs', type=int, default=20)
     parser.add_argument('-d', '--device', default='cpu')
-    parser.add_argument('-lr', '--learning_rate', type=float, default=0.0003)
+    parser.add_argument('-lr', '--learning_rate', type=float, default=0.001)
     args = parser.parse_args()
 
     main(
