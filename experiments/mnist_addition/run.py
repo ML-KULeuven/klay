@@ -88,7 +88,6 @@ class MnistAdditionModule(nn.Module):
         super().__init__()
         self.net = LeNet()
         self.circuit = get_circuit(nb_digits).to_torch_module()
-        self.circuit_batched = torch.compile(torch.vmap(self.circuit), mode='reduce-overhead')
         self.nb_digits = nb_digits
 
     def forward(self, images):
@@ -96,7 +95,7 @@ class MnistAdditionModule(nn.Module):
         batch_size = image_probs.shape[0] // (2*self.nb_digits)
         image_probs = image_probs.reshape(batch_size, -1) # (batch_size, 2*nb_digits*10)
         zeros = torch.zeros_like(image_probs)
-        return self.circuit_batched(image_probs, zeros)
+        return self.circuit(image_probs, zeros)
 
 
 def to_label(ys, nb_digits: int):

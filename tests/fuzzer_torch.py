@@ -24,9 +24,8 @@ def check_sdd(sdd, weights):
     result = float(kl(weights))
     assert wmc_gt == pytest.approx(result, abs=1e-4), f"Expected {wmc_gt}, got {result}"
 
-    kl = torch.vmap(kl)
-    result_vmap = kl(weights.unsqueeze(0))
-    assert np.allclose(result, result_vmap), f"Expected {result}, got {result_vmap}"
+    result_batched = kl(weights.unsqueeze(0))
+    assert np.allclose(result, result_batched), f"Expected {result}, got {result_batched}"
 
 
 def check_d4(nnf_file, weights):

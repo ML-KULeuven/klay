@@ -1,52 +1,52 @@
 
-### Running sudoku_4 (batch size=128, device=cuda) ###
+### Running sudoku_4 (batch size=128, device=cuda:0) ###
 Loaded SDD with 2408 nodes.
 Layerized in 2862 nodes and 31 layers
-  in 0.00300142s.
+  in 0.00159377s.
 Benchmarking Torch
-  to_torch           0.238
+  to_torch           0.148
   sparsity           0.00988
-  jit compile        3.87
-  forward (cold)     0.848
-  forward (warm)     0.00396 ± 0.000741
-   +backward (cold)  0.564
-   +backward (warm)  0.0102 ± 0.00212
+  jit compile        0.0023
+  forward (cold)     9.91
+  forward (warm)     0.000138 ± 5.74e-05
+   +backward (cold)  12.2
+   +backward (warm)  0.000967 ± 0.000404
 
-### Running 4-grid (batch size=128, device=cuda) ###
+### Running 4-grid (batch size=128, device=cuda:0) ###
 Loaded SDD with 6610 nodes.
 Layerized in 5813 nodes and 25 layers
-  in 0.00619335s.
+  in 0.00293131s.
 Benchmarking Torch
-  to_torch           0.0148
+  to_torch           0.00272
   sparsity           0.00379
-  jit compile        0.00385
-  forward (cold)     0.00708
-  forward (warm)     0.00339 ± 0.00105
-   +backward (cold)  0.00966
-   +backward (warm)  0.0107 ± 0.00109
+  jit compile        0.00194
+  forward (cold)     4.21
+  forward (warm)     0.000116 ± 1.96e-05
+   +backward (cold)  9.11
+   +backward (warm)  0.000846 ± 0.000205
 
-### Running seq_fun (batch size=128, device=cuda) ###
+### Running seq_fun (batch size=128, device=cuda:0) ###
 Loaded SDD with 9730 nodes.
 Layerized in 20548 nodes and 85 layers
-  in 0.0145401s.
+  in 0.0117356s.
 Benchmarking Torch
-  to_torch           0.0125
+  to_torch           0.00984
   sparsity           0.00329
-  jit compile        0.00348
-  forward (cold)     0.0134
-  forward (warm)     0.00725 ± 4.01e-05
-   +backward (cold)  0.0273
-   +backward (warm)  0.0324 ± 0.00495
+  jit compile        0.00235
+  forward (cold)     14.3
+  forward (warm)     0.000149 ± 2.6e-05
+   +backward (cold)  32.9
+   +backward (warm)  0.00159 ± 0.000611
 
-### Running warcraft_12 (batch size=128, device=cuda) ###
+### Running warcraft_12 (batch size=128, device=cuda:0) ###
 Loaded SDD with 1110234 nodes.
 Layerized in 975417 nodes and 85 layers
-  in 1.46564s.
+  in 1.27524s.
 Benchmarking Torch
-  to_torch           0.139
+  to_torch           0.109
   sparsity           0.000132
-  jit compile        0.00281
-  forward (cold)     0.0125
-  forward (warm)     0.0166 ± 0.0065
-   +backward (cold)  0.103
-   +backward (warm)  0.102 ± 0.0116
+  jit compile        0.00218
+  forward (cold)     15.7
+  forward (warm)     0.000172 ± 3.33e-05
+   +backward (cold)  37
+   +backward (warm)  0.00157 ± 0.000799

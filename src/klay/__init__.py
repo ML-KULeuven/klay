@@ -16,7 +16,7 @@ import os
 from pathlib import Path
 
 
-def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = False, eps: float = 0):
+def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = False, eps: float = 0, compile=True):
     """
     Convert the circuit into a PyTorch module.
 
@@ -28,13 +28,22 @@ def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = 
         we can interpret sum nodes as latent Categorical variables.
     :param eps:
         Epsilon used by log semiring for numerical stability.
+    :param compile:
+        Wrap the module with :func:`torch.compile` (:code:`mode="reduce-overhead"`) so that
+        repeated, same-shape evaluations replay as a captured CUDA graph. This is typically
+        several times faster on GPU, especially for single-instance forward passes which are
+        otherwise kernel-launch bound. The first evaluation pays a one-time
+        compilation cost, and compiling many structurally different circuits in a single
+        process can hit torch's recompilation limit — pass :code:`compile=False` there.
     """
-    from .torch.circuit_modules import ProbabilisticCircuitModule
-    from .torch.circuit_modules import CircuitModule
+    import torch
+    from .torch.circuit_modules import ProbabilisticCircuitModule, CircuitModule
     indices = self._get_indices()
-    if probabilistic:
-        return ProbabilisticCircuitModule(*indices, semiring=semiring, eps=eps)
-    return CircuitModule(*indices, semiring=semiring, eps=eps)
+    cls = ProbabilisticCircuitModule if probabilistic else CircuitModule
+    module = cls(*indices, semiring=semiring, eps=eps)
+    if compile:
+        module = torch.compile(module, mode="reduce-overhead")
+    return module
 
 
 def to_jax_function(self: Circuit, semiring: str = "log", eps: float = 0):

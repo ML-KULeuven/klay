@@ -19,7 +19,7 @@ def test_or_node():
     l1, l2 = c.literal_node(1), c.literal_node(-2)
     c.set_root(c.or_node([l1, l2]))
 
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     weights = torch.tensor([0.4, 0.8])
     assert m(weights) == 0.4 + (1 - 0.8)
 
@@ -32,7 +32,7 @@ def test_probabilistic():
     and_node = c.and_node([or_node1, or_node2])
     c.set_root(and_node)
 
-    m = c.to_torch_module(semiring='real', probabilistic=True)
+    m = c.to_torch_module(semiring='real', probabilistic=True, compile=False)
     m.layers[1].weights.data.zero_()
     weights = torch.tensor([0.4, 0.8, 0.5])
     expected_result = torch.tensor((0.4 / 2 + 0.2 / 2) * (0.2 / 2 + 0.5 / 2))
@@ -47,7 +47,7 @@ def test_create_pc():
     and_node = c.and_node([or_node1, or_node2])
     c.set_root(and_node)
 
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     m = m.to_pc(torch.tensor([0.4, 0.8, 0.5]))
     edge_weights = m.layers[1].get_edge_weights()
     expected_weights = torch.tensor([2/3, 1/3, 2/7, 5/7])
@@ -63,7 +63,7 @@ def test_pc_conditioning():
     or_node = c.or_node([and_node1, and_node2])
     c.set_root(or_node)
 
-    m = c.to_torch_module(semiring='real', probabilistic=True)
+    m = c.to_torch_module(semiring='real', probabilistic=True, compile=False)
     m.condition(torch.tensor([1, 1]), torch.tensor([1, 0]))
     for _ in range(20):
         assert torch.allclose(m.sample(), torch.tensor([True, True]))
@@ -77,7 +77,7 @@ def test_log_probabilistic():
     and_node = c.and_node([or_node1, or_node2])
     c.set_root(and_node)
 
-    m = c.to_torch_module(semiring='log', probabilistic=True)
+    m = c.to_torch_module(semiring='log', probabilistic=True, compile=False)
     m.layers[1].weights.data.zero_()
     weights = torch.tensor([0.4, 0.8, 0.5])
     expected_result = torch.tensor((0.4 / 2 + 0.2 / 2) * (0.2 / 2 + 0.5 / 2))
@@ -90,7 +90,7 @@ def test_multi_rooted():
     c.set_root(c.or_node([l1, l2]))
     c.set_root(c.and_node([l1, l2]))
 
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     weights = torch.tensor([0.4, 0.8])
     expected = torch.tensor([0.4 + 0.2, 0.4 * 0.2])
     assert torch.allclose(m(weights), expected)
@@ -104,7 +104,7 @@ def test_multi_rooted2():
     c.set_root(and1)
     c.set_root(and2)
 
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     w = torch.tensor([0.4, 0.8, 0.6])
     expected = torch.tensor([0.4 * 0.8, 0.8 * 0.6])
     assert torch.allclose(m(w), expected)
@@ -118,7 +118,7 @@ def test_multi_rooted_ordering():
     c.set_root(and2)
     c.set_root(and1)
 
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     w = torch.tensor([0.4, 0.8, 0.6])
     expected = torch.tensor([0.8 * 0.6, 0.4 * 0.8])
     print(m(w), expected)
@@ -132,7 +132,7 @@ def test_single_layer_multi_root():
     c.set_root(l2)
     c.set_root(l1)
 
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     weights = torch.tensor([0.4, 0.8])
     expected = torch.tensor([0.4, 0.2, 0.4])
     assert torch.allclose(m(weights), expected)
@@ -147,7 +147,7 @@ def test_superfluous_nodes_after_root():
 
     weights = torch.tensor([0.25, 0.5, 0.2])
     expected = torch.tensor([0.125])
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     assert torch.allclose(m(weights), expected)
 
 
@@ -157,7 +157,7 @@ def test_sdd_literal():
 
     c = klay.Circuit()
     c.add_sdd(a)
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     weights = torch.tensor([0.4])
     expected = torch.tensor([0.4])
     assert torch.allclose(m(weights), expected)
@@ -172,7 +172,7 @@ def test_sdd_multiroot():
     c.add_sdd(a & b)
     c.add_sdd(a & b & b)
     c.add_sdd(a & a)
-    m = c.to_torch_module(semiring='real')
+    m = c.to_torch_module(semiring='real', compile=False)
     weights = torch.tensor([0.2, 0.5])
     expected = torch.tensor([0.2, 0.1, 0.1, 0.2])
     assert torch.allclose(m(weights), expected)

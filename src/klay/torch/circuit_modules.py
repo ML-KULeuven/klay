@@ -15,25 +15,28 @@ class CircuitModule(nn.Module):
             get_semiring(semiring, self.is_probabilistic())
 
         layers = []
-        for i, (ix_in, ix_out) in enumerate(zip(ixs_in, ixs_out)):
+        for i, (ix_in, offsets) in enumerate(zip(ixs_in, ixs_out)):
             ix_in = torch.as_tensor(ix_in, dtype=torch.long)
-            ix_out = torch.as_tensor(ix_out, dtype=torch.long)
-            ix_out = unroll_ixs(ix_out)
+            offsets = torch.as_tensor(offsets, dtype=torch.long)
+            ix_out = unroll_ixs(offsets)
             layer = self.prod_layer if i % 2 == 0 else self.sum_layer
-            layers.append(layer(ix_in, ix_out, eps))
+            layers.append(layer(ix_in, offsets, ix_out, eps))
         self.layers = nn.Sequential(*layers)
 
 
     def forward(self, x_pos, x_neg=None):
         x = self.encode_input(x_pos, x_neg)
-        return self.layers(x)
+        x = self.layers(x)
+        return x.mT if x.dim() == 2 else x
 
     def encode_input(self, pos, neg):
         if neg is None:
             neg = self.negate(pos, self._eps)
-        x = torch.stack([pos, neg], dim=1).flatten()
         units = torch.tensor([self.zero, self.one], dtype=pos.dtype, device=pos.device)
-        return torch.cat([units, x])
+        x = torch.stack([pos, neg], dim=-1).flatten(-2)
+        units = units.expand(*x.shape[:-1], 2)
+        x = torch.cat([units, x], dim=-1)
+        return x.mT if x.dim() == 2 else x
 
     def sparsity(self, nb_vars: int) -> float:
         sparse_params = sum(len(layer.ix_out) for layer in self.layers)
@@ -50,7 +53,7 @@ class CircuitModule(nn.Module):
         x = self.encode_input(x_pos, x_neg)
         for i, layer in enumerate(self.layers):
             if isinstance(layer, self.sum_layer):
-                new_layer = pc.sum_layer(layer.ix_in, layer.ix_out, layer._eps)
+                new_layer = pc.sum_layer(layer.ix_in, layer.offsets, layer.ix_out, layer._eps)
                 weights = x.log() if self.semiring == "real" else x
                 new_layer.weights.data = weights[new_layer.ix_in]
             else:
