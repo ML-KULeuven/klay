@@ -9,7 +9,7 @@
 project = 'KLay'
 copyright = '2025, DTAI Research Group'
 author = 'Jaron Maene, Vincent Derkinderen, Pedro Zuidberg Dos Martires'
-release = '0.0.5'
+release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
