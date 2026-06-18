@@ -3,6 +3,7 @@ from pathlib import Path
 from time import perf_counter
 
 import klay
+import kompyle
 import numpy as np
 import torch
 import torch.nn as nn
@@ -87,9 +88,10 @@ class VisualSudokuModule(nn.Module):
 
 
 def get_circuit(grid_size: int):
-    circuit = klay.Circuit()
-    const_lits = [-x for x in range(1, grid_size ** 3 + 1)]
-    circuit.add_d4_from_file(f"experiments/visual_sudoku/sudoku_{grid_size}.nnf", true_lits=const_lits)
+    circuit = kompyle.Circuit()
+    cnf_file = f"experiments/visual_sudoku/sudoku_{grid_size}.cnf"
+    root = kompyle.compile_from_cnf_using_d4v2(circuit, cnf_file)
+    circuit.set_root(root)
     print("Nb nodes", circuit.nb_nodes())
     return circuit.to_torch_module()
 
