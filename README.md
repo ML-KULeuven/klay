@@ -82,3 +82,4 @@ Examples of papers that use KLay include:
 - [Neurosymbolic Object-Centric Learning with Distant Supervision](https://arxiv.org/abs/2506.16129)
 - [The DeepLog Neurosymbolic Machine](https://arxiv.org/abs/2508.13697)
 - [Rule-Selection Surrogates for Tractable Neurosymbolic Inference](https://openreview.net/pdf?id=12M7z6mhOV)
+- [Tractable Probabilistic Neurosymbolic AI Using Boolean Tensor Factorizations](https://openreview.net/pdf?id=FflbKkBH0z)
