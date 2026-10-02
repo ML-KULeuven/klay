@@ -76,6 +76,7 @@ To replicate the exact results and figures of the paper, use [this code](https:/
 
 Examples of papers that use KLay include:
 
+- [Auto-Formalizing Neuro-Symbolic Predictors](https://arxiv.org/pdf/2610.01519)
 - [Neurosymbolic Reinforcement Learning: Playing MiniHack with Probabilistic Logic Shields](https://ojs.aaai.org/index.php/AAAI/article/view/35349)
 - [ExplainFuzz: Explainable and Constraint-Conditioned Test Generation with Probabilistic Circuits](https://arxiv.org/abs/2604.06559)
 - [ProbLog4Fairness: A Neurosymbolic Approach to Modeling and Mitigating Bias](https://ojs.aaai.org/index.php/AAAI/article/view/39033)
