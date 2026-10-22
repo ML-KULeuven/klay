@@ -24,20 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@v2
-        with:
-          preinstalled-runtimes: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-
       - name: Build and test
         uses: pypa/cibuildwheel@v4.3.3
         env:
           CIBW_BUILD: "cp312-manylinux_x86_64"
           CIBW_TEST_REQUIRES: pytest torch==2.14.1 pysdd==1.0.6
           CIBW_TEST_COMMAND: "pytest {project}/tests"
+          CIBW_ENVIRONMENT_LINUX: "PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu"
