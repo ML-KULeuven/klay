@@ -9,7 +9,10 @@
 project = 'KLay'
 copyright = '2025, DTAI Research Group'
 author = 'Jaron Maene, Vincent Derkinderen, Pedro Zuidberg Dos Martires'
-release = '0.1.1'
+from importlib.metadata import version as _pkg_version
+
+release = _pkg_version("klaycircuits")
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

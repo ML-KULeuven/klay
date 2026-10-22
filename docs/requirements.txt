@@ -1,5 +1,4 @@
 sphinx
 sphinx-inline-tabs
 sphinx_copybutton
-klaycircuits
 furo

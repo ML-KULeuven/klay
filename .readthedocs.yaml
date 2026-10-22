@@ -22,3 +22,6 @@ sphinx:
 python:
   install:
   - requirements: docs/requirements.txt
+  # Install KLay from the checked-out commit.
+  - method: pip
+    path: .
