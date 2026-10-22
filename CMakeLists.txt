@@ -34,7 +34,7 @@ endif()
 
 include(GNUInstallDirs)
 
-find_package(Python 3.10
+find_package(Python 3.11
         REQUIRED COMPONENTS Interpreter Development.Module
         OPTIONAL_COMPONENTS Development.SABIModule)
 

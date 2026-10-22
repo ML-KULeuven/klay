@@ -7,7 +7,7 @@ name = "klaycircuits"
 version = "0.1.1"
 description = "Arithmetic circuits on the GPU"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["numpy"]
 authors = [
     { name = "Jaron Maene" },

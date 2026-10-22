@@ -11,8 +11,6 @@ authors:
   given-names: "Pedro"
   orcid: "https://orcid.org/0000-0001-5834-0188"
 title: "KLay: Accelerating Arithmetic Circuits for Neurosymbolic AI"
-version: 0.0.3
-date-released: 2024-12-10
 url: "https://github.com/ML-KULeuven/klay/"
 keywords:
   - Neurosymbolic AI
