@@ -108,3 +108,29 @@ def test_removing_useless_nodes2():
     c.set_root(or1)
     c.remove_unused_nodes()  # should remove `and2`, `or2`, and 2 dummy nodes
     assert c.nb_nodes() == 6, f"Expected 5 nodes instead of {c.nb_nodes()}"
+
+
+def test_repeated_children_are_not_merged():
+    c = klay.Circuit()
+    a, b = c.literal_node(1), c.literal_node(2)
+    aa = c.and_node([a, a])
+    bb = c.and_node([b, b])
+    assert aa != bb
+    assert c.nb_nodes() == 4
+    assert c.and_node([a, a]) == aa  # genuine duplicates are still merged
+
+    aaab = c.and_node([a, a, a, b])
+    ab = c.and_node([a, b])
+    assert aaab != ab
+    assert c.and_node([b, a]) == ab
+    assert c.and_node([a, b, a, a]) == aaab
+    assert c.nb_nodes() == 6
+
+
+def test_repeated_children_not_merged_with_dummy():
+    c = klay.Circuit()
+    nw, k = c.literal_node(-1), c.literal_node(2)
+    x = c.and_node([nw, nw, k])
+    assert c.nb_nodes() == 3
+    c.or_node([x, k])
+    assert c.nb_nodes() == 5  # the or-node + a separate dummy node for k
