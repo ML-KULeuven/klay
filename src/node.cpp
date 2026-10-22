@@ -1,12 +1,21 @@
+#include <cstdint>
+
 #include "klay/node.h"
 
 namespace klay {
 
 /**
- * Improve bit dispersion of a given hash value h.
+ * Improve bit dispersion of a given hash value h,
+ * with the 64-bit finalizer of MurmurHash3 (fmix64).
  */
 std::size_t mix_hash(std::size_t h) {
-    return (h ^ (h << 16) ^ 89869747UL) * 3644798167UL;
+    std::uint64_t x = h;
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    x *= 0xc4ceb9fe1a85ec53ULL;
+    x ^= x >> 33;
+    return static_cast<std::size_t>(x);
 }
 
 /*
@@ -28,7 +37,7 @@ void Node::add_child(Node* child) {
     }
 
     children.push_back(child);
-    hash ^= mix_hash(child->hash);
+    hash += mix_hash(child->hash);
     std::size_t layer_bound = child->layer + 1;
     if (layer_bound%2 == 0 && type == NodeType::And) {
         layer_bound++; // And nodes must be in odd layers
