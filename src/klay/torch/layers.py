@@ -31,7 +31,7 @@ class CircuitLayer(nn.Module):
         return output
 
     def _safe_exp(self, x: torch.Tensor):
-        max_output = self._scatter_forward(x.detach(), "max")
+        max_output = self._scatter_forward(x.detach(), "amax")
         x = x - max_output[self.ix_out]
         x.nan_to_num_(nan=0., posinf=float('inf'), neginf=float('-inf'))
         return torch.exp(x), max_output
@@ -44,7 +44,7 @@ class CircuitLayer(nn.Module):
         return output
 
     def sample(self, y):
-        return self._scatter_backward(y[self.ix_out], "max")
+        return self._scatter_backward(y[self.ix_out], "amax")
 
 
 class SumLayer(CircuitLayer):
@@ -59,12 +59,12 @@ class ProdLayer(CircuitLayer):
 
 class MinLayer(CircuitLayer):
     def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "min")
+        return self._scatter_forward(x[self.ix_in], "amin")
 
 
 class MaxLayer(CircuitLayer):
     def forward(self, x):
-        return self._scatter_forward(x[self.ix_in], "max")
+        return self._scatter_forward(x[self.ix_in], "amax")
 
 
 class LogSumLayer(CircuitLayer):
@@ -94,7 +94,7 @@ class ProbabilisticCircuitLayer(CircuitLayer):
         weights = self.get_log_edge_weights()
         noise = -(-torch.log(torch.rand_like(weights) + self._eps) + self._eps).log()
         gumbels = weights + noise
-        samples = self._scatter_forward(gumbels, "max")
+        samples = self._scatter_forward(gumbels, "amax")
         samples = samples[self.ix_out] == gumbels
         samples &= y[self.ix_out].to(torch.bool)
         return self._scatter_backward(samples, "sum") > 0
