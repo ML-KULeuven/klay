@@ -1,5 +1,6 @@
 """Native batched evaluation: equivalence to per-instance evaluation, and gradient
-finiteness. Covers the segment_reduce backend across all semirings."""
+finiteness. Covers the segment_reduce backend across all semirings, and the
+scatter_reduce fallback (used for integer inputs and on MPS)."""
 import pytest
 
 pytest.importorskip("torch")
@@ -37,6 +38,19 @@ def test_native_batching_matches_single(semiring):
     assert batched.shape == singles.shape
     assert torch.allclose(batched, singles, atol=1e-5), \
         f"{semiring}: max|Δ|={(batched - singles).abs().max().item():.3e}"
+
+
+@pytest.mark.parametrize("semiring", ["real", "mpe", "godel"])
+def test_integer_batching(semiring):
+    m = _sdd_circuit(seed=3).to_torch_module(semiring, compile=False)
+    x = torch.randint(0, 2, (16, NB_VARS), generator=torch.Generator().manual_seed(0))
+    with torch.no_grad():
+        singles = torch.stack([m(x[i]) for i in range(x.shape[0])])
+        batched = m(x)
+        floats = m(x.float())
+    assert batched.dtype == x.dtype
+    assert torch.equal(batched, singles)
+    assert torch.equal(batched.float(), floats)
 
 
 @pytest.mark.skip()
