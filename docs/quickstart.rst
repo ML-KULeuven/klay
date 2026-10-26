@@ -35,7 +35,7 @@ Now that we have the circuit, we can evaluate it. To do this, we first turn the 
 
    module = circuit.to_torch_module()
 
-The input to the module should be a tensor with the weights for each literal.
+The input to the module should be a tensor with one weight per variable (where :code:`weights[i]` belongs to variable :code:`i + 1`).
 For more details, see the :ref:`circuit_eval`.
 
 .. code-block:: Python
