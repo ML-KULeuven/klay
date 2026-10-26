@@ -18,11 +18,11 @@ class CircuitLayer(nn.Module):
         if reduce == "logsumexp":
             return self._scatter_logsumexp_forward(x)
         if x.is_floating_point() and x.device.type in ("cpu", "cuda", "xpu"):
-            # MPS doesn't support segment reduce for now
             return torch.segment_reduce(x, reduce, offsets=self.offsets, axis=0, unsafe=True)
-        # segment_reduce has no integer kernel; fall back to scatter for integer evidence.
+        # fallback to scatter_reduce, as MPS / ints don't support segment_reduce
         output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
-        output = torch.scatter_reduce(output, 0, index=self.ix_out, src=x, reduce=reduce, include_self=False)
+        index = self.ix_out if x.dim() == 1 else self.ix_out.unsqueeze(1).expand_as(x)
+        output = torch.scatter_reduce(output, 0, index=index, src=x, reduce=reduce, include_self=False)
         return output
 
     def _scatter_backward(self, x: torch.Tensor, reduce: str):
