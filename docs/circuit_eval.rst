@@ -35,15 +35,20 @@ The choice of semiring determines what operations the sum/product nodes perform.
 By default, this is the :code:`log` semiring, which interprets sum nodes as the `logsumexp <https://en.wikipedia.org/wiki/LogSumExp>`_ operation and product nodes as addition. In the :code:`real` semiring,
 product and sum nodes just compute the normal product and sum operations.
 
-KLay doesn't introduce a batch dimension by default. So use vmap to perform batched inference.
+Batched inference works as follows.
 
 .. tab:: PyTorch
 
+    The PyTorch module takes inputs of shape :code:`(batch_size, num_vars)` and gives outputs of shape :code:`(batch_size, num_roots)`.
+
     .. code-block:: Python
 
-        module = torch.vmap(module)
+        inputs = torch.rand(batch_size, num_vars)
+        outputs = module(inputs)  # shape (batch_size, num_roots)
 
 .. tab:: Jax
+
+    The Jax function doesn't introduce a batch dimension by default, so use vmap to perform batched inference.
 
     .. code-block:: Python
 
@@ -53,9 +58,11 @@ To achieve best runtime performance, it is advisable to use JIT compilation.
 
 .. tab:: PyTorch
 
+    The PyTorch module is compiled with :code:`torch.compile` by default (pass :code:`compile=False` to disable this).
+
     .. code-block:: Python
 
-        module = torch.compile(module, mode="reduce-overhead")
+        module = circuit.to_torch_module(semiring="log", compile=True)
 
 .. tab:: Jax
 
