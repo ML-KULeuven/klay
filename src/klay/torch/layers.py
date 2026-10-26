@@ -17,7 +17,8 @@ class CircuitLayer(nn.Module):
     def _scatter_forward(self, x: torch.Tensor, reduce: str):
         if reduce == "logsumexp":
             return self._scatter_logsumexp_forward(x)
-        if x.is_floating_point():
+        if x.is_floating_point() and x.device.type in ("cpu", "cuda", "xpu"):
+            # MPS doesn't support segment reduce for now
             return torch.segment_reduce(x, reduce, offsets=self.offsets, axis=0, unsafe=True)
         # segment_reduce has no integer kernel; fall back to scatter for integer evidence.
         output = torch.empty(self.out_shape, dtype=x.dtype, device=x.device)
@@ -37,7 +38,7 @@ class CircuitLayer(nn.Module):
 
     def _scatter_logsumexp_forward(self, x: torch.Tensor):
         x, max_output = self._safe_exp(x)
-        output = torch.segment_reduce(x, "sum", offsets=self.offsets, axis=0, unsafe=True)
+        output = self._scatter_forward(x, "sum")
         output = output + self._eps
         output = output.log() + max_output
         return output
