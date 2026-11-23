@@ -67,6 +67,16 @@ python -m benchmark.benchmark_wmc --benchmark sdd --target jax   -v 100 200 500
 python -m benchmark.benchmark_wmc --benchmark sdd --target pysdd -v 100 200 500
 ```
 
+Compare native JAX segment reductions with SpringMV on the same circuit and
+resident GPU inputs:
+
+```bash
+python -m benchmark.benchmark_wmc \
+  --benchmark sdd --target jax --jax-backend both \
+  --semiring log --device cuda:0 --nb_vars 100 \
+  --batch_size 128 --warmup 10 --iterations 50
+```
+
 Key options:
 
 | Flag | Description |
@@ -77,6 +87,9 @@ Key options:
 | `-d` / `--device` | Device: `cpu`, `cuda`, `cuda:0`, etc. |
 | `-s` / `--semiring` | Semiring: `log` (default) or `real` |
 | `-r` / `--nb_repeats` | Number of seeds to average over (default: 1) |
+| `--jax-backend` | JAX sparse backend: `jax`, `springmv`, or `both` |
+| `--warmup` | Untimed warm-up executions per JAX backend |
+| `--iterations` | Timed executions per JAX backend |
 
 Results are saved as JSON files under `results/`.
 

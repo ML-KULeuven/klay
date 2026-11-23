@@ -38,8 +38,9 @@ def plot_circuit_overhead(module):
     plt.show()
 
 
-def numpy_weights(nb_vars: int, semiring: str, batch_size: int):
-    weights = np.random.uniform(size=(batch_size, nb_vars)).astype(np.float32)
+def numpy_weights(nb_vars: int, semiring: str, batch_size: int | None):
+    shape = (nb_vars,) if batch_size is None else (batch_size, nb_vars)
+    weights = np.random.uniform(size=shape).astype(np.float32)
     neg_weights = 1 - weights
     if semiring == "log":
         weights = np.log(weights)

@@ -109,6 +109,12 @@ def create_springmv_knowledge_layer(
     @jax.jit
     def wrapper(pos, neg=None):
         x = encoder(pos, neg)
+        if structures:
+            # Native JAX gathers only referenced literals and therefore
+            # accepts trailing variables that are absent from the circuit.
+            # SpringMV requires an exact matrix input width, so discard the
+            # same unused tail explicitly.
+            x = x[: structures[0].num_cols]
         for layer, structure in enumerate(structures):
             reduction = (
                 product_reduction if layer % 2 == 0 else sum_reduction

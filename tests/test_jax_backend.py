@@ -70,6 +70,17 @@ def test_springmv_log_vmap_and_gradient_match_jax():
     )
 
 
+def test_springmv_ignores_trailing_variables_absent_from_circuit():
+    _require_springmv_cuda()
+    native = _circuit().to_jax_function(semiring="log", backend="jax")
+    springmv = _circuit().to_jax_function(
+        semiring="log",
+        backend="springmv",
+    )
+    inputs = jnp.array([-0.7, -0.2, -1.4, -0.8], dtype=jnp.float32)
+    np.testing.assert_allclose(springmv(inputs), native(inputs), rtol=1e-6)
+
+
 @pytest.mark.parametrize("semiring", ["real", "mpe"])
 def test_springmv_rejects_product_reductions(semiring):
     with pytest.raises(NotImplementedError, match="product reduction"):
