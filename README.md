@@ -18,6 +18,31 @@ KLay features include:
 - Evaluation in various semirings (e.g. real, log, tropical).
 - Propagating constants and merging duplicate nodes.
 
+The JAX evaluator uses native JAX segment reductions by default. NVIDIA CUDA
+users can select the optional `SpringMV` sparse backend for the `log` and
+`godel` semirings:
+
+```python
+func = circuit.to_jax_function(semiring="log", backend="springmv")
+```
+
+SpringMV is currently built from source. Install CUDA-enabled JAX first, then
+install SpringMV from its public repository:
+
+```bash
+pip install --upgrade "jax[cuda13]"
+pip install "springmv @ git+https://github.com/pedrozudo/springmv.git"
+```
+
+The source build requires CMake 3.24+, a C++17 compiler, and a CUDA toolkit
+containing `nvcc`. If CUDA is not in its default location, pass it explicitly:
+
+```bash
+CUDACXX=/usr/local/cuda/bin/nvcc \
+CMAKE_ARGS="-DCUDAToolkit_ROOT=/usr/local/cuda" \
+pip install "springmv @ git+https://github.com/pedrozudo/springmv.git"
+```
+
 
 ## 🧪 Tests
 

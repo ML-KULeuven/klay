@@ -30,6 +30,40 @@ Once we have created a circuit, we can start using it. KLay relies on a backend 
 
             func = circuit.to_jax_function(semiring="log")
 
+        JAX segment reductions are used by default. On NVIDIA GPUs, the
+        optional SpringMV backend provides dedicated CUDA CSR reductions for
+        the ``log`` and ``godel`` semirings:
+
+        .. code-block:: Python
+
+            func = circuit.to_jax_function(
+                semiring="log",
+                backend="springmv",
+            )
+
+        SpringMV is compiled locally. Install CUDA-enabled JAX first, then
+        install SpringMV from its public repository:
+
+        .. code-block:: bash
+
+            pip install --upgrade "jax[cuda13]"
+            pip install "springmv @ git+https://github.com/pedrozudo/springmv.git"
+
+        This requires CMake 3.24 or newer, a C++17 compiler, and an NVIDIA
+        CUDA toolkit containing ``nvcc``. When CMake cannot find the intended
+        toolkit, or when several toolkits are installed, specify it explicitly:
+
+        .. code-block:: bash
+
+            CUDACXX=/usr/local/cuda/bin/nvcc \
+            CMAKE_ARGS="-DCUDAToolkit_ROOT=/usr/local/cuda" \
+            pip install "springmv @ git+https://github.com/pedrozudo/springmv.git"
+
+        The SpringMV backend is optional and is imported only when selected.
+        It does not silently fall back to JAX segment reductions. The ``real``
+        and ``mpe`` semirings are not supported because SpringMV does not yet
+        implement their product reduction.
+
 
 The choice of semiring determines what operations the sum/product nodes perform.
 By default, this is the :code:`log` semiring, which interprets sum nodes as the `logsumexp <https://en.wikipedia.org/wiki/LogSumExp>`_ operation and product nodes as addition. In the :code:`real` semiring,

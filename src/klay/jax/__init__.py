@@ -2,10 +2,31 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 
-from klay.jax.semiring import get_semiring, encode_input
+from klay.jax.semiring import encode_input, get_semiring
 
 
-def create_knowledge_layer(pointers, ix_outs, semiring, eps: float = 0):
+def create_knowledge_layer(
+    pointers,
+    ix_outs,
+    semiring,
+    eps: float = 0,
+    backend: str = "jax",
+):
+    if backend == "springmv":
+        from klay.jax.springmv import create_springmv_knowledge_layer
+
+        return create_springmv_knowledge_layer(
+            pointers,
+            ix_outs,
+            semiring=semiring,
+            eps=eps,
+        )
+    if backend != "jax":
+        raise ValueError(
+            f"Unknown JAX sparse backend {backend!r}; expected 'jax' or "
+            "'springmv'"
+        )
+
     ixs_in = [np.array(ix_in) for ix_in in pointers]
     num_segments = [len(ix_out) - 1 for ix_out in ix_outs]  # needed for the jit
     ixs_out = [unroll_ix_out(np.array(ix_out, dtype=np.int32)) for ix_out in ix_outs]

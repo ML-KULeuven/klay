@@ -50,7 +50,12 @@ def to_torch_module(self: Circuit, semiring: str = "log", probabilistic: bool = 
     return module
 
 
-def to_jax_function(self: Circuit, semiring: str = "log", eps: float = 0):
+def to_jax_function(
+    self: Circuit,
+    semiring: str = "log",
+    eps: float = 0,
+    backend: str = "jax",
+):
     """
     Convert the circuit into a Jax function.
 
@@ -58,10 +63,19 @@ def to_jax_function(self: Circuit, semiring: str = "log", eps: float = 0):
         The semiring in which the circuit should be evaluated. Supported options are :code:`"log"`, :code:`"real"`, :code:`"mpe"`, or :code:`"godel"`.
     :param eps:
         Epsilon used by log semiring for numerical stability.
+    :param backend:
+        Sparse reduction implementation. ``"jax"`` uses JAX segment
+        reductions. ``"springmv"`` uses the optional CUDA SpringMV package
+        and currently supports the ``"log"`` and ``"godel"`` semirings.
     """
     from .jax import create_knowledge_layer
     indices = self._get_indices()
-    return create_knowledge_layer(*indices, semiring=semiring, eps=eps)
+    return create_knowledge_layer(
+        *indices,
+        semiring=semiring,
+        eps=eps,
+        backend=backend,
+    )
 
 
 def add_sdd(self: Circuit, sdd: "SddNode", true_lits: Sequence[int] = (), false_lits: Sequence[int] = ()) -> NodePtr:
