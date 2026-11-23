@@ -82,8 +82,6 @@ def _jax_worker(args: argparse.Namespace) -> dict[str, int | str]:
     import jax
     import jax.numpy as jnp
 
-    import springmv
-
     arrays = _arrays(
         args.rows,
         args.cols,
@@ -93,40 +91,85 @@ def _jax_worker(args: argparse.Namespace) -> dict[str, int | str]:
         args.batched_weights,
     )
     device = jax.devices("gpu")[0]
-    structure = springmv.CsrStructure(
-        row_offsets=jnp.asarray(arrays["row_offsets"]),
-        column_indices=jnp.asarray(arrays["column_indices"]),
-        transpose_row_offsets=jnp.asarray(
-            arrays["transpose_row_offsets"]
-        ),
-        transpose_column_indices=jnp.asarray(
-            arrays["transpose_column_indices"]
-        ),
-        transpose_permutation=jnp.asarray(arrays["transpose_permutation"]),
-        num_rows=args.rows,
-        num_cols=args.cols,
-        num_nonzeros=args.rows * args.nnz_per_row,
-        max_nnz_per_row=args.nnz_per_row,
-        transpose_max_nnz_per_row=int(
-            np.max(np.diff(arrays["transpose_row_offsets"]), initial=0)
-        ),
-    )
     weights = jnp.asarray(arrays["log_weights"])
     gumbels = jnp.asarray(arrays["gumbels"])
     active_parent = jnp.asarray(arrays["active_parent"])
     in_axes = (0, 0, 0) if args.batched_weights else (None, 0, 0)
 
-    def sample_one(current_weights, current_gumbels, current_active):
-        return springmv.csr_logsumexp_sample(
+    if args.worker.startswith("springmv"):
+        import springmv
+
+        structure = springmv.CsrStructure(
+            row_offsets=jnp.asarray(arrays["row_offsets"]),
+            column_indices=jnp.asarray(arrays["column_indices"]),
+            transpose_row_offsets=jnp.asarray(
+                arrays["transpose_row_offsets"]
+            ),
+            transpose_column_indices=jnp.asarray(
+                arrays["transpose_column_indices"]
+            ),
+            transpose_permutation=jnp.asarray(
+                arrays["transpose_permutation"]
+            ),
+            num_rows=args.rows,
+            num_cols=args.cols,
+            num_nonzeros=args.rows * args.nnz_per_row,
+            max_nnz_per_row=args.nnz_per_row,
+            transpose_max_nnz_per_row=int(
+                np.max(
+                    np.diff(arrays["transpose_row_offsets"]), initial=0
+                )
+            ),
+        )
+
+        def sample_one(current_weights, current_gumbels, current_active):
+            return springmv.csr_logsumexp_sample(
+                structure,
+                current_weights,
+                current_gumbels,
+                current_active,
+            )
+
+        ready_inputs = (
             structure,
-            current_weights,
-            current_gumbels,
-            current_active,
+            weights,
+            gumbels,
+            active_parent,
+        )
+    else:
+        edge_rows = jnp.asarray(
+            arrays["edge_rows"].astype(np.int32, copy=False)
+        )
+        column_indices = jnp.asarray(arrays["column_indices"])
+
+        def sample_one(current_weights, current_gumbels, current_active):
+            scores = current_weights + current_gumbels
+            row_max = jax.ops.segment_max(
+                scores,
+                edge_rows,
+                num_segments=args.rows,
+                indices_are_sorted=True,
+            )
+            selected = scores == row_max[edge_rows]
+            selected &= current_active[edge_rows]
+            child_counts = jax.ops.segment_sum(
+                selected.astype(jnp.int32),
+                column_indices,
+                num_segments=args.cols,
+            )
+            return child_counts > 0
+
+        ready_inputs = (
+            edge_rows,
+            column_indices,
+            weights,
+            gumbels,
+            active_parent,
         )
 
     operation = jax.jit(jax.vmap(sample_one, in_axes=in_axes))
     executable = operation.lower(weights, gumbels, active_parent).compile()
-    jax.block_until_ready((structure, weights, gumbels, active_parent))
+    jax.block_until_ready(ready_inputs)
     before = device.memory_stats()
     result = executable(weights, gumbels, active_parent)
     jax.block_until_ready(result)
@@ -237,7 +280,7 @@ def _torch_worker(args: argparse.Namespace) -> dict[str, int | str]:
 
 
 def _worker(args: argparse.Namespace) -> None:
-    if args.worker.startswith("jax"):
+    if args.worker.startswith(("springmv", "jax-native")):
         result = _jax_worker(args)
     else:
         result = _torch_worker(args)
@@ -267,9 +310,12 @@ def _run_isolated(
     if args.batched_weights:
         command.append("--batched-weights")
     environment = os.environ.copy()
-    if backend == "jax-default":
+    if backend in ("springmv-default", "jax-native-default"):
         environment["XLA_PYTHON_CLIENT_PREALLOCATE"] = "true"
-    elif backend == "jax-no-preallocate":
+    elif backend in (
+        "springmv-no-preallocate",
+        "jax-native-no-preallocate",
+    ):
         environment["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     try:
         completed = subprocess.run(
@@ -318,21 +364,23 @@ def _parent(args: argparse.Namespace) -> None:
         "peak-live"
     )
     backends = (
-        "jax-default",
-        "jax-no-preallocate",
+        "springmv-default",
+        "springmv-no-preallocate",
+        "jax-native-default",
+        "jax-native-no-preallocate",
         "torch-eager",
         "torch-compiled",
     )
     for batch_size in args.batch_sizes:
         print(f"\nbatch={batch_size}")
         print(
-            f"{'backend':20s} {'resident':>12s} {'peak live':>12s} "
+            f"{'backend':28s} {'resident':>12s} {'peak live':>12s} "
             f"{'extra peak':>12s} {'peak pool':>12s}"
         )
         for backend in backends:
             result = _run_isolated(args, backend, batch_size)
             print(
-                f"{backend:20s} "
+                f"{backend:28s} "
                 f"{_format_bytes(result['resident']):>12s} "
                 f"{_format_bytes(result['peak_live']):>12s} "
                 f"{_format_bytes(result['incremental_peak']):>12s} "
@@ -356,8 +404,10 @@ def main() -> None:
     parser.add_argument(
         "--worker",
         choices=(
-            "jax-default",
-            "jax-no-preallocate",
+            "springmv-default",
+            "springmv-no-preallocate",
+            "jax-native-default",
+            "jax-native-no-preallocate",
             "torch-eager",
             "torch-compiled",
         ),
